@@ -1,0 +1,80 @@
+build:
+  maxIssues: 0
+
+comments:
+  active: true
+  UndocumentedPublicFunction:
+    active: true
+
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 45
+    ignoreSingleWhenExpression: false
+    ignoreSimpleWhenEntries: false
+    ignoreNestingFunctions: false
+    nestingFunctions:
+      - run
+      - let
+      - apply
+      - with
+      - also
+      - use
+      - forEach
+  LargeClass:
+    active: true
+    threshold: 1200
+  LongMethod:
+    active: true
+    threshold: 160
+  NestedBlockDepth:
+    active: true
+    threshold: 8
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 40
+    thresholdInClasses: 40
+    thresholdInInterfaces: 40
+    thresholdInObjects: 40
+    thresholdInEnums: 40
+    ignoreDeprecated: false
+    ignorePrivate: true
+    ignoreOverridden: true
+
+exceptions:
+  active: true
+  NotImplementedDeclaration:
+    active: true
+  PrintStackTrace:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
+    exceptionNames:
+      - Throwable
+      - Error
+      - RuntimeException
+    allowedExceptionNameRegex: "^(_|(ignore|expected).*)"
+  TooGenericExceptionThrown:
+    active: true
+    exceptionNames:
+      - Error
+      - Exception
+      - Throwable
+
+style:
+  active: true
+  ForbiddenComment:
+    active: true
+    comments:
+      - 'NIY:'
+      - 'FIXME:'
+      - 'STOPSHIP:'
+    allowedPatterns: ""
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: false
+  ReturnCount:
+    active: true
+    max: 8
