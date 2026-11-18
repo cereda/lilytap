@@ -79,10 +79,12 @@ first note stays a rest). It is the same thing as the "No rests" checkbox in the
 
 ## Layout
 
-`Rhythm.kt` is the pure transcription logic. `Run.kt` is the terminal CLI, `WindowApp.kt` the
-window (layout + recording logic), `Timeline.kt` the recording timeline, `Widgets.kt` the widget kit
-(buttons, steppers, etc.), `Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt`,
-`Run.kt` and `Gui.kt` form the Clikt CLI entry point.
+`Rhythm.kt` is the pure transcription logic (taps become a score). `Score.kt` is the score
+itself: the notes and rests, the LilyPond text and the edits that can be made to them. `Run.kt`
+is the terminal CLI, `WindowApp.kt` the window (layout + recording logic), `Timeline.kt` the
+recording timeline, `Widgets.kt` the widget kit (buttons, steppers, etc.), `Theme.kt` the
+colours and `Glyph.kt` the vector icons. `Main.kt`, `Run.kt` and `Gui.kt` form the Clikt CLI
+entry point.
 
 Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/`.
 

@@ -143,13 +143,6 @@ data class SnappedNote(
     val raw: HeldNote,
 )
 
-/** One written note or rest. [tieToNext] means "tie this note into the following one". */
-data class Atom(
-    val kind: TapKind,
-    val units: Int,
-    val tieToNext: Boolean,
-)
-
 /**
  * A key held down: pressed at [downMs], released at [upMs] (relative to the start of bar 1).
  *
@@ -163,16 +156,21 @@ data class HeldNote(
 )
 
 /**
- * One written note or rest in LilyPond output: [lilypond] text, [meanOffsetMs], and [snapped] notes.
+ * The result of transcribing a take: the score, the timing error, and the raw notes.
  *
+ * @property score the notes and rests of the take.
  * @property meanOffsetMs the timing error that is left after the configured latency has been
  * applied; add it to that latency to correct the timing. Null if nothing was played.
+ * @property snapped where each held note landed on the grid (empty for plain taps).
  */
 data class Transcription(
-    val lilypond: String,
+    val score: Score,
     val meanOffsetMs: Double?,
     val snapped: List<SnappedNote> = emptyList(),
-)
+) {
+    /** The score as LilyPond text. */
+    val lilypond: String get() = score.lilypond
+}
 
 // ---------------------------------------------------------------------------
 // Quantization
@@ -261,120 +259,20 @@ fun buildEvents(
     }
 }
 
-/** One written note or rest event: [kind], [startCell], and [lengthCells]. */
-data class Event(
-    val kind: TapKind,
-    val startCell: Int,
-    val lengthCells: Int,
-)
-
-// ---------------------------------------------------------------------------
-// LilyPond formatting
-// ---------------------------------------------------------------------------
-
-/** Every duration LilyPond can write as a single token (plain or single-dotted), largest first. */
-private val DURATIONS =
-    listOf(
-        96 to "1.",
-        64 to "1",
-        48 to "2.",
-        32 to "2",
-        24 to "4.",
-        16 to "4",
-        12 to "8.",
-        8 to "8",
-        6 to "16.",
-        4 to "16",
-        3 to "32.",
-        2 to "32",
-        1 to "64",
-    )
-
-/** Splits a length into the fewest greedy single-token durations, e.g. 5 -> [4, 1]. */
-fun decompose(units: Int): List<Int> {
-    require(units > 0)
-    val out = mutableListOf<Int>()
-    var remaining = units
-    while (remaining > 0) {
-        val piece = DURATIONS.first { it.first <= remaining }.first
-        out += piece
-        remaining -= piece
-    }
-    return out
-}
-
-/** Returns the LilyPond duration token for the given internal grid units. */
-fun lilyDuration(units: Int): String = DURATIONS.first { it.first == units }.second
-
-/**
- * Cuts events at barlines (adding ties for notes) and returns the atoms of each bar.
- *
- * An event is one sustained sound, so every piece of it is tied to the next one - across barlines
- * and also within a bar, where a long value has to be written as several LilyPond tokens
- * (a full bar of 4/2, for instance, is a dotted whole tied to a half).
- *
- * @param events the events to lay out.
- * @param config the session configuration.
- * @return one list of [Atom] per bar.
- */
-fun layout(
-    events: List<Event>,
-    config: Config,
-): List<List<Atom>> {
-    val barUnits = config.timeSignature.unitsPerBar
-    val bars = List(config.bars) { mutableListOf<Atom>() }
-
-    for (event in events) {
-        var pos = event.startCell * config.cellUnits
-        var remaining = event.lengthCells * config.cellUnits
-        val pieces = mutableListOf<Pair<Int, Int>>() // (bar index, units)
-
-        while (remaining > 0) {
-            val bar = pos / barUnits
-            val chunk = minOf(remaining, barUnits - pos % barUnits)
-            for (u in decompose(chunk)) pieces += bar to u
-            pos += chunk
-            remaining -= chunk
-        }
-        pieces.forEachIndexed { i, (bar, units) ->
-            bars[bar] += Atom(event.kind, units, tieToNext = event.kind == TapKind.NOTE && i < pieces.lastIndex)
-        }
-    }
-    return bars
-}
-
-/**
- * Formats bars as LilyPond text, one bar per line, each terminated by a bar check `|`.
- *
- * @param bars the atoms of each bar.
- * @param pitch the placeholder pitch for notes (rests use "r").
- */
-fun format(
-    bars: List<List<Atom>>,
-    pitch: String,
-): String =
-    bars.joinToString("\n") { bar ->
-        bar.joinToString(" ") { atom ->
-            val name = if (atom.kind == TapKind.NOTE) pitch else "r"
-            name + lilyDuration(atom.units) + if (atom.tieToNext) " ~" else ""
-        } + " |"
-    }
-
 /**
  * Transcribes raw taps into LilyPond notation.
  *
  * @param taps the raw taps, in any order.
  * @param config the session configuration.
- * @return a [Transcription] with the LilyPond text and timing stats.
+ * @return a [Transcription] with the score and timing stats.
  */
 fun transcribe(
     taps: List<Tap>,
     config: Config,
 ): Transcription {
     val q = quantize(taps, config)
-    val events = buildEvents(q.onsets, config.totalCells)
-    val bars = layout(events, config)
-    return Transcription(format(bars, config.pitch), q.meanOffsetMs)
+    val score = Score(buildEvents(q.onsets, config.totalCells), config)
+    return Transcription(score, q.meanOffsetMs)
 }
 
 // ---------------------------------------------------------------------------
@@ -462,6 +360,6 @@ fun transcribeHeld(
     minRestCells: Int,
 ): Transcription {
     val q = quantizeHeld(notes, config, minRestCells)
-    val events = buildEvents(q.onsets, config.totalCells)
-    return Transcription(format(layout(events, config), config.pitch), q.meanOffsetMs, q.snapped)
+    val score = Score(buildEvents(q.onsets, config.totalCells), config)
+    return Transcription(score, q.meanOffsetMs, q.snapped)
 }
