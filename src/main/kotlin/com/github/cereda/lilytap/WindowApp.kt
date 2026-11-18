@@ -251,7 +251,6 @@ private class WindowApp {
                     row(
                         labeled(Glyph.PAUSE, "Smallest rest", minRest),
                         labeled(Glyph.CHECK, "No rests", noRests),
-                        labeled(Glyph.NOTE, "Pitch", pitch),
                         labeled(Glyph.BOLT, "Latency", withReset(latency, latencyReset)),
                     ),
                 )
@@ -259,6 +258,7 @@ private class WindowApp {
                     row(
                         labeled(Glyph.BOLT, "Audio latency", withReset(audioLatency, audioLatencyReset)),
                         slot(calibrateButton),
+                        labeled(Glyph.NOTE, "Pitch", pitch),
                     ),
                 )
             }
