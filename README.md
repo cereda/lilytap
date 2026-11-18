@@ -98,4 +98,4 @@ interactive CLI/audio paths are excluded because they need a display, a terminal
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history. The latest release is
-[v0.2.0](https://github.com/cereda/lilytap/releases/tag/v0.2.0).
+[v0.2.1](https://github.com/cereda/lilytap/releases/tag/v0.2.1).
