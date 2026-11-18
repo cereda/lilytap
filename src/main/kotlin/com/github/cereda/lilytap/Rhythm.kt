@@ -71,6 +71,9 @@ data class TimeSignature(
  * @property bars number of bars to record after the one-bar count-in.
  * @property latencyMs constant delay (audio output + reaction) subtracted from every tap.
  * @property pitch placeholder pitch printed in the LilyPond output.
+ * @property noRests when true, every silence is absorbed into the note before it, so the
+ * transcription never contains a rest. A silence before the very first note has no note to join
+ * and stays a rest.
  */
 data class Config(
     val bpm: Double,
@@ -79,6 +82,7 @@ data class Config(
     val bars: Int,
     val latencyMs: Double = 0.0,
     val pitch: String = "c",
+    val noRests: Boolean = false,
 ) {
     init {
         require(bpm > 0) { "BPM must be positive" }
@@ -175,6 +179,26 @@ data class Transcription(
 // ---------------------------------------------------------------------------
 
 /**
+ * The indices of the onsets that survive the "no rests" mode.
+ *
+ * Every rest is dropped, except a leading one: a silence before the first note has no note to
+ * join, so it stays a rest.
+ */
+private fun keptOnsets(kinds: List<TapKind>): List<Int> {
+    val kept = mutableListOf<Int>()
+    var seenNote = false
+    for ((i, kind) in kinds.withIndex()) {
+        if (kind == TapKind.NOTE) {
+            seenNote = true
+            kept += i
+        } else if (!seenNote) {
+            kept += i
+        }
+    }
+    return kept
+}
+
+/**
  * Snaps tap times to the nearest grid cell. Anything within half a cell is "on the beat".
  *
  * @param taps the raw taps, in any order.
@@ -197,8 +221,11 @@ fun quantize(
         // latency, not a second compensation on top of it.
         offsets += adjusted - cell * config.cellMs
     }
+    val cells = byCell.keys.toList()
+    val kinds = byCell.values.toList()
+    val kept = if (config.noRests) keptOnsets(kinds) else kinds.indices.toList()
     return QuantizeResult(
-        onsets = byCell.map { (cell, kind) -> Onset(cell, kind) },
+        onsets = kept.map { Onset(cells[it], kinds[it]) },
         meanOffsetMs = offsets.takeIf { it.isNotEmpty() }?.average(),
     )
 }
@@ -363,6 +390,9 @@ fun transcribe(
  * A note whose [HeldNote.kind] is [TapKind.REST] is a silence instead: it lasts until the next
  * press, like a rest tap in the terminal version.
  *
+ * When [Config.noRests] is set, no silence is ever written: every rest is absorbed into the note
+ * before it, and a leading silence (one with no note before it) stays a rest.
+ *
  * @param notes the held notes (press + release pairs).
  * @param config the session configuration.
  * @param minRestCells the minimum silence length (in grid cells) that counts as a rest.
@@ -387,11 +417,17 @@ fun quantizeHeld(
     }
 
     val starts = ends.keys.toList()
+    val kinds = starts.map { rawByStart.getValue(it).kind }
+    // In the "no rests" mode a rest press is not an event of its own: the silence belongs to the
+    // note before it, so the press is dropped and the note runs on to the next one.
+    val kept = if (config.noRests) keptOnsets(kinds) else kinds.indices.toList()
+    val keptStarts = kept.map { starts[it] }
+
     val onsets = mutableListOf<Onset>()
     val snapped = mutableListOf<SnappedNote>()
-    for ((i, start) in starts.withIndex()) {
+    for ((i, start) in keptStarts.withIndex()) {
         val raw = rawByStart.getValue(start)
-        val nextStart = starts.getOrNull(i + 1) ?: config.totalCells
+        val nextStart = keptStarts.getOrNull(i + 1) ?: config.totalCells
         if (raw.kind == TapKind.REST) {
             val last = onsets.lastOrNull()
             if (last != null && last.kind == TapKind.REST) {
@@ -404,7 +440,7 @@ fun quantizeHeld(
         } else {
             onsets += Onset(start, TapKind.NOTE)
             val end = minOf(ends.getValue(start), nextStart)
-            val becomesRest = nextStart - end >= minRestCells
+            val becomesRest = !config.noRests && nextStart - end >= minRestCells
             if (becomesRest) onsets += Onset(end, TapKind.REST)
             // A short gap is absorbed: the written note runs on up to the next press.
             snapped += SnappedNote(start, if (becomesRest) end else nextStart, raw)

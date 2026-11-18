@@ -36,6 +36,12 @@ class RunCliTest {
     }
 
     @Test
+    fun `the run command has a no rests flag`() {
+        val result = Run().test("--help")
+        assertTrue(result.stdout.contains("--no-rests"))
+    }
+
+    @Test
     fun `a non-numeric tempo is a usage error`() {
         val result = Run().test("--bpm fast")
         assertEquals(1, result.statusCode)

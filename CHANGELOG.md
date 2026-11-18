@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- "No rests" option: every silence is absorbed into the note before it, so the transcription never
+  contains a rest. A silence before the first note has no note to join and stays a rest.
+- `--no-rests` flag for the terminal version, the same thing as the checkbox in the window version.
+
 ## [0.1.0] - 2026-11-17
 
 ### Added

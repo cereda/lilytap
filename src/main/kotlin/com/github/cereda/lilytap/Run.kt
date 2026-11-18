@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
@@ -50,6 +51,9 @@ class Run : CliktCommand("run") {
     val audioLatencyMs by
         option("--audio-latency", help = "Audio output latency, in ms.").double().default(0.0)
 
+    val noRests by
+        option("--no-rests", help = "Never write rests: every silence extends the previous note.").flag()
+
     override fun run() {
         val config =
             try {
@@ -60,6 +64,7 @@ class Run : CliktCommand("run") {
                     bars = bars,
                     latencyMs = latency,
                     pitch = pitch,
+                    noRests = noRests,
                 )
             } catch (e: IllegalArgumentException) {
                 val message = e.message ?: "Invalid settings"

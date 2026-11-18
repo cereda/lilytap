@@ -42,6 +42,13 @@ A silence after a release becomes a rest only if it is at least "Smallest rest" 
 are absorbed into the previous note. Esc aborts.
 On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key auto-repeat.
 
+### No rests
+
+The **No rests** checkbox turns every silence into extra time for the note before it, so the
+transcription never contains a rest: `c4 r4 c4 c4` becomes `c2 c4 c4`. A silence before the very
+first note has no note to join, so it stays a rest. While the box is ticked, "Smallest rest" is
+greyed out — it has nothing left to do.
+
 ### Audio latency
 
 On some systems the click reaches your ears noticeably later than the visual playhead moves. The
@@ -57,7 +64,7 @@ latency starts at zero.
 ## Options
 
 `--bpm N` `--time N/M` `--bars N` `--subdivisions N` `--latency MS` `--pitch TEXT`
-`--audio-latency MS`
+`--audio-latency MS` `--no-rests`
 
 `--subdivisions` is the number of grid cells per beat: 1, 2, 4 or 8 (anything that divides the
 beat evenly). The values are checked: an invalid number or time signature is reported as a usage
@@ -66,6 +73,9 @@ error, and `lilytap run --help` lists every option.
 `--latency` is the delay of *your taps* (it is subtracted from every tap), `--audio-latency` is
 the delay of the *sound* (it shifts the metronome click earlier so that it is heard on time).
 After a take, the suggested latency is the configured one plus the timing error that is left.
+
+`--no-rests` never writes a rest: every silence extends the note before it (a silence before the
+first note stays a rest). It is the same thing as the "No rests" checkbox in the window version.
 
 ## Layout
 

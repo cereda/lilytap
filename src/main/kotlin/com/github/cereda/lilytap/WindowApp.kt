@@ -119,6 +119,7 @@ private class WindowApp {
     private val bars = Stepper(4.0, 1.0, 64.0, 1.0) { it.roundToLong().toString() }
     private val subdivisions = SegmentedControl(listOf("1", "2", "4"), 1)
     private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat"), 0)
+    private val noRests = CheckBox()
     private val latency =
         Stepper(0.0, -500.0, 500.0, 5.0) { v ->
             val n = v.roundToLong()
@@ -176,6 +177,7 @@ private class WindowApp {
         audioLatencyReset.toolTipText = "Reset the audio latency to 0 ms."
         calibrateButton.toolTipText = "Tap along with the metronome clicks to measure your audio output latency automatically."
         minRest.toolTipText = "Silences shorter than this are absorbed into the previous note."
+        noRests.toolTipText = "Never write rests: every silence is absorbed into the previous note."
         subdivisions.toolTipText = "Grid cells per beat."
         time.toolTipText = "Time signature, e.g. 4/4 or 6/8."
         pitch.toolTipText = "Placeholder pitch printed in the LilyPond output."
@@ -248,6 +250,7 @@ private class WindowApp {
                 add(
                     row(
                         labeled(Glyph.PAUSE, "Smallest rest", minRest),
+                        labeled(Glyph.CHECK, "No rests", noRests),
                         labeled(Glyph.NOTE, "Pitch", pitch),
                         labeled(Glyph.BOLT, "Latency", withReset(latency, latencyReset)),
                     ),
@@ -359,6 +362,8 @@ private class WindowApp {
         calibrateButton.onClick = { if (session == null) calibrate() }
         latencyReset.onClick = { latency.value = 0.0 }
         audioLatencyReset.onClick = { audioLatency.value = 0.0 }
+        // "Smallest rest" only means something when rests are written at all.
+        noRests.onChange = { checked -> minRest.isEnabled = !checked }
         KeyboardFocusManager
             .getCurrentKeyboardFocusManager()
             .addKeyEventDispatcher(KeyEventDispatcher { e -> handleKey(e) })
@@ -422,6 +427,7 @@ private class WindowApp {
             bars,
             subdivisions,
             minRest,
+            noRests,
             latency,
             latencyReset,
             audioLatency,
@@ -544,6 +550,7 @@ private class WindowApp {
                     bars = bars.value.roundToInt(),
                     latencyMs = latency.value,
                     pitch = pitch.text.trim().ifEmpty { "c" },
+                    noRests = noRests.selected,
                 )
             } catch (e: IllegalArgumentException) {
                 showMessage(
