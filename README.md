@@ -92,3 +92,8 @@ Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/
 the project's static analysis and formatting gates. `./gradlew check` adds the changelog format
 check and the kover coverage floor (80% of the lines of the public API; the Swing UI and the
 interactive CLI/audio paths are excluded because they need a display, a terminal and a sound card).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full history. The latest release is
+[v0.2.0](https://github.com/cereda/lilytap/releases/tag/v0.2.0).
