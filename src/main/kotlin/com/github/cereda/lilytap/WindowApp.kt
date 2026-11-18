@@ -138,7 +138,10 @@ private class WindowApp {
     private val start = PillButton("Start", Glyph.PLAY, ButtonKind.PRIMARY, minW = 168, heightPx = 48)
     private val status = StatusBadge()
     private val beatDots = BeatDots()
-    private val timeline = TimelinePanel()
+    private val grid = GridView()
+    private val timeline = TimelinePanel(grid)
+    private val notation = NotationPanel(grid)
+    private val revert = PillButton("Revert", Glyph.RESET, heightPx = 32)
     private val output = CodeArea()
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
@@ -153,6 +156,9 @@ private class WindowApp {
     private var session: Session? = null
     private var calibrating = false
     private val calibrationOffsets = mutableListOf<Double>()
+
+    /** The score the take had right after it ended, so Revert can put it back. */
+    private var takeScore: Score? = null
 
     /** The last key press seen, used to recognise X11 auto-repeat. */
     private var lastPress: KeyEvent? = null
@@ -279,24 +285,15 @@ private class WindowApp {
         rawToggle.isEnabled = false
         rawToggle.toolTipText = "Show your raw key presses as ghosts under the snapped notes. Amber = pressed late, teal = early."
         beatDots.isVisible = false
+        revert.isEnabled = false
+        revert.toolTipText = "Put the score back the way it was when the take ended."
         stageRight.apply {
             isOpaque = false
             add(rawToggle)
+            add(revert)
             add(beatDots)
         }
-        val stageTop =
-            JPanel(BorderLayout()).apply {
-                isOpaque = false
-                add(status, BorderLayout.CENTER)
-                add(stageRight, BorderLayout.EAST)
-            }
-        val stage =
-            Card().apply {
-                layout = BorderLayout(0, 12)
-                border = BorderFactory.createEmptyBorder(14, 16, 16, 16)
-                add(stageTop, BorderLayout.NORTH)
-                add(timeline, BorderLayout.CENTER)
-            }
+        val stage = buildStage()
 
         scroll.apply {
             border = BorderFactory.createEmptyBorder()
@@ -362,6 +359,8 @@ private class WindowApp {
         calibrateButton.onClick = { if (session == null) calibrate() }
         latencyReset.onClick = { latency.value = 0.0 }
         audioLatencyReset.onClick = { audioLatency.value = 0.0 }
+        revert.onClick = { revertScore() }
+        notation.onEdit = { edited -> scoreChanged(edited) }
         // "Smallest rest" only means something when rests are written at all.
         noRests.onChange = { checked -> minRest.isEnabled = !checked }
         KeyboardFocusManager
@@ -436,6 +435,48 @@ private class WindowApp {
             copy,
             calibrateButton,
         ).forEach { it.isEnabled = on }
+    }
+
+    /**
+     * The stage: the status line, the recording timeline and the score strip below it.
+     * Both panels share one grid, so the strip lines up with the timeline.
+     */
+    private fun buildStage(): JComponent {
+        val stageTop =
+            JPanel(BorderLayout()).apply {
+                isOpaque = false
+                add(status, BorderLayout.CENTER)
+                add(stageRight, BorderLayout.EAST)
+            }
+        val stageBody =
+            JPanel(GridBagLayout()).apply {
+                isOpaque = false
+                add(
+                    timeline,
+                    GridBagConstraints().apply {
+                        gridx = 0
+                        gridy = 0
+                        weightx = 1.0
+                        weighty = 1.0
+                        fill = GridBagConstraints.BOTH
+                    },
+                )
+                add(
+                    notation,
+                    GridBagConstraints().apply {
+                        gridx = 0
+                        gridy = 1
+                        weightx = 1.0
+                        fill = GridBagConstraints.BOTH
+                    },
+                )
+            }
+        return Card().apply {
+            layout = BorderLayout(0, 12)
+            border = BorderFactory.createEmptyBorder(14, 16, 16, 16)
+            add(stageTop, BorderLayout.NORTH)
+            add(stageBody, BorderLayout.CENTER)
+        }
     }
 
     /**
@@ -534,6 +575,38 @@ private class WindowApp {
         copyReset.restart()
     }
 
+    /** The score was edited in the strip: the output follows, and Revert comes alive. */
+    private fun scoreChanged(edited: Score) {
+        output.text = edited.lilypond
+        output.caretPosition = 0
+        revert.isEnabled = edited != takeScore
+    }
+
+    /** Puts the score back the way it was when the take ended. */
+    private fun revertScore() {
+        val original = takeScore ?: return
+        notation.score = original
+        output.text = original.lilypond
+        output.caretPosition = 0
+        revert.isEnabled = false
+    }
+
+    /** Shows the score of a finished take in the strip. */
+    private fun showScore(taken: Score) {
+        takeScore = taken
+        notation.score = taken
+        output.text = taken.lilypond
+        output.caretPosition = 0
+        revert.isEnabled = false
+    }
+
+    /** Throws the score away: there is nothing to edit until the next take. */
+    private fun clearScore() {
+        takeScore = null
+        notation.score = null
+        revert.isEnabled = false
+    }
+
     private fun resetCopyButton() {
         copy.text = "Copy"
         copy.glyph = Glyph.COPY
@@ -581,6 +654,7 @@ private class WindowApp {
         timeline.session = s
         lastPress = null
         output.text = ""
+        clearScore()
         resetCopyButton()
         copyReset.stop()
         rawToggle.isEnabled = false
@@ -641,6 +715,7 @@ private class WindowApp {
         // that is out of sync with the audio cannot mislead the user.
         timeline.session = null
         output.text = ""
+        clearScore()
         resetCopyButton()
         copyReset.stop()
         rawToggle.isEnabled = false
@@ -846,8 +921,7 @@ private class WindowApp {
         stop(s)
 
         val result = transcribeHeld(played, s.config, s.minRestCells)
-        output.text = result.lilypond
-        output.caretPosition = 0
+        showScore(result.score)
         s.snapped = result.snapped
         rawToggle.isEnabled = result.snapped.isNotEmpty()
         val off = result.meanOffsetMs
@@ -867,6 +941,7 @@ private class WindowApp {
     private fun abort() {
         val s = session ?: return
         stop(s)
+        clearScore()
         if (calibrating) {
             calibrating = false
             calibrationOffsets.clear()

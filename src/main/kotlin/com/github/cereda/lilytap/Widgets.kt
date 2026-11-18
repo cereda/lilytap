@@ -801,7 +801,7 @@ internal class ThinScrollBar : BasicScrollBarUI() {
 }
 
 /** Text area with a ghost hint while empty. */
-internal class CodeArea : JTextArea(7, 40) {
+internal class CodeArea : JTextArea(6, 40) {
     init {
         font = Theme.mono(14f)
         margin = Insets(10, 12, 10, 12)

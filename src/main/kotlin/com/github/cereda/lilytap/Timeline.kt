@@ -37,24 +37,18 @@ internal class Session(
     lateinit var ticker: Thread
 }
 
-internal class TimelineMetrics(
-    val span: Double,
-    val totalPx: Double,
-) {
-    val scrollable: Boolean get() = totalPx > span + 0.5
-    val maxScroll: Double get() = (totalPx - span).coerceAtLeast(0.0)
-}
-
 /**
  * Draws the bar/beat grid, the notes as you play them, and a glowing playhead.
  * Each bar gets a minimum width; when the bars don't fit, the grid scrolls horizontally
  * (mouse wheel, or drag the slim bar at the bottom) and follows the playhead while recording.
  */
-internal class TimelinePanel : JComponent() {
+internal class TimelinePanel(
+    private val grid: GridView,
+) : JComponent() {
     var session: Session? = null
         set(v) {
             field = v
-            scrollX = 0.0
+            grid.config = v?.config
             repaint()
         }
 
@@ -65,28 +59,23 @@ internal class TimelinePanel : JComponent() {
             repaint()
         }
 
-    private val padX = 18.0
-    private val minBarW = 190.0
-    private var scrollX = 0.0
     private var grab = -1.0 // offset inside the scrollbar thumb while dragging, < 0 otherwise
 
     init {
         isOpaque = false
-        preferredSize = Dimension(760, 150)
+        preferredSize = Dimension(760, 130)
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
-                    val m = metrics() ?: return
-                    if (!m.scrollable || e.y < height - 26) return
-                    val thumbX = thumbX(m)
-                    val thumbW = thumbW(m)
+                    if (!grid.scrollable || e.y < height - 26) return
+                    val thumbX = thumbX()
+                    val thumbW = thumbW()
                     grab = if (e.x >= thumbX && e.x <= thumbX + thumbW) e.x - thumbX else thumbW / 2
-                    dragTo(e.x.toDouble(), m)
+                    dragTo(e.x.toDouble())
                 }
 
                 override fun mouseDragged(e: MouseEvent) {
-                    val m = metrics() ?: return
-                    if (grab >= 0) dragTo(e.x.toDouble(), m)
+                    if (grab >= 0) dragTo(e.x.toDouble())
                 }
 
                 override fun mouseReleased(e: MouseEvent) {
@@ -96,58 +85,44 @@ internal class TimelinePanel : JComponent() {
         addMouseListener(mouse)
         addMouseMotionListener(mouse)
         addMouseWheelListener { e ->
-            val m = metrics()
-            if (m != null && m.scrollable) setScroll(scrollX + e.preciseWheelRotation * 60, m)
+            if (grid.scrollable) {
+                grid.scrollTo(grid.scrollX + e.preciseWheelRotation * 60)
+                repaint()
+            }
         }
     }
 
-    private fun metrics(): TimelineMetrics? {
-        val s = session ?: return null
-        val span = width - 2 * padX
-        if (span <= 0) return null
-        return TimelineMetrics(span, max(span, s.config.bars * minBarW))
-    }
+    private fun thumbW() = max(grid.span / grid.totalPx * grid.span, 24.0)
 
-    private fun setScroll(
-        v: Double,
-        m: TimelineMetrics,
-    ) {
-        scrollX = v.coerceIn(0.0, m.maxScroll)
-        repaint()
-    }
+    private fun thumbX() = grid.padX + grid.scrollX / grid.maxScroll * (grid.span - thumbW())
 
-    private fun thumbW(m: TimelineMetrics) = max(m.span / m.totalPx * m.span, 24.0)
-
-    private fun thumbX(m: TimelineMetrics) = padX + scrollX / m.maxScroll * (m.span - thumbW(m))
-
-    private fun dragTo(
-        mouseX: Double,
-        m: TimelineMetrics,
-    ) {
-        val room = m.span - thumbW(m)
+    private fun dragTo(mouseX: Double) {
+        val room = grid.span - thumbW()
         if (room <= 0) return
-        setScroll((mouseX - grab - padX) / room * m.maxScroll, m)
+        grid.scrollTo((mouseX - grab - grid.padX) / room * grid.maxScroll)
+        repaint()
     }
 
     /** While recording, keeps the playhead in view (called every frame). */
     fun follow() {
         val s = session ?: return
         if (s.done) return
-        val m = metrics() ?: return
-        if (!m.scrollable) return
+        if (!grid.scrollable) return
         val nowMs = (System.nanoTime() - s.originNanos) / 1e6
         val totalMs = s.config.totalCells * s.config.cellMs
         if (nowMs < 0 || nowMs > totalMs) return
-        val target = nowMs / totalMs * m.totalPx - m.span * 0.7
-        if (target > scrollX) setScroll(target, m)
+        val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
+        if (target > grid.scrollX) {
+            grid.scrollTo(target)
+            repaint()
+        }
     }
 
     /** The horizontal position of a time in ms on the timeline. */
     private fun x(ms: Double): Double {
         val s = session ?: return 0.0
-        val m = metrics() ?: return 0.0
         val totalMs = s.config.totalCells * s.config.cellMs
-        return padX + ms.coerceIn(0.0, totalMs) / totalMs * m.totalPx - scrollX
+        return grid.xOfCell(ms.coerceIn(0.0, totalMs) / s.config.cellMs)
     }
 
     /** Draws the alternating bar bands, the bar numbers and the grid lines. */
@@ -207,8 +182,8 @@ internal class TimelinePanel : JComponent() {
             g2.draw(rr(0.5, 0.5, w - 1, h - 1, 14.0))
 
             val s = session
-            val m = metrics()
-            if (s == null || m == null) {
+            grid.viewWidth = width
+            if (s == null || grid.span <= 0) {
                 drawEmptyState(g2, w, h)
                 return@paint2d
             }
@@ -218,7 +193,7 @@ internal class TimelinePanel : JComponent() {
             val totalMs = cfg.totalCells * cfg.cellMs
             val rulerTop = 10.0
             val laneTop = 34.0
-            val laneBottom = h - if (m.scrollable) 26.0 else 14.0
+            val laneBottom = h - if (grid.scrollable) 26.0 else 14.0
             val laneH = laneBottom - laneTop
 
             drawGrid(g2, cfg, rulerTop, laneTop, laneBottom)
@@ -338,23 +313,23 @@ internal class TimelinePanel : JComponent() {
                 g2.fill(head)
             }
 
-            if (m.scrollable) {
+            if (grid.scrollable) {
                 // Soft fades where more content is hidden
                 val clear = Theme.code.alpha(0)
-                if (scrollX > 1) {
+                if (grid.scrollX > 1) {
                     g2.paint = GradientPaint(0f, 0f, Theme.code, 30f, 0f, clear)
                     g2.fill(Rectangle2D.Double(0.0, 1.0, 30.0, h - 2))
                 }
-                if (scrollX < m.maxScroll - 1) {
+                if (grid.scrollX < grid.maxScroll - 1) {
                     g2.paint = GradientPaint((w - 30).toFloat(), 0f, clear, w.toFloat(), 0f, Theme.code)
                     g2.fill(Rectangle2D.Double(w - 30, 1.0, 30.0, h - 2))
                 }
                 // Slim scrollbar
                 val trackY = h - 14
                 g2.color = Theme.field
-                g2.fill(rr(padX, trackY, m.span, 5.0, 2.5))
+                g2.fill(rr(grid.padX, trackY, grid.span, 5.0, 2.5))
                 g2.color = if (grab >= 0) Theme.accent else Theme.faint
-                g2.fill(rr(thumbX(m), trackY, thumbW(m), 5.0, 2.5))
+                g2.fill(rr(thumbX(), trackY, thumbW(), 5.0, 2.5))
             }
 
             if (overlay) drawLegend(g2, w, rulerTop)

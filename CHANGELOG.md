@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A score strip below the timeline: the notes and rests of the take, drawn on the same grid as
+  the timeline and editable in place. Clicking a block turns it into a rest (and back again),
+  dragging the border between two blocks changes their lengths. The border snaps to the nearest
+  grid cell and sticks to bar lines.
+- A "Revert" button that puts the score back the way it was when the take ended.
+
 ## [0.2.1] - 2026-11-18
 
 ### Changed

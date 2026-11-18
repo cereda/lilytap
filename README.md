@@ -35,7 +35,8 @@ launch; the sun/moon button switches it for the session. **Ctrl+Enter** (Cmd+Ent
 a take; Esc aborts.
 
 After a take, the **Raw taps** button (off by default) shows what you actually played as ghost
-bars under the notes snapped to the grid (amber line = pressed late, teal = early).
+bars under the notes snapped to the grid (amber line = pressed late, teal = early). It always
+shows the take as it was transcribed, even after you have edited the score below.
 
 Press = note starts, release = note ends, `r` = a rest starts (it lasts until the next press).
 A silence after a release becomes a rest only if it is at least "Smallest rest" long; shorter gaps
@@ -48,6 +49,23 @@ The **No rests** checkbox turns every silence into extra time for the note befor
 transcription never contains a rest: `c4 r4 c4 c4` becomes `c2 c4 c4`. A silence before the very
 first note has no note to join, so it stays a rest. While the box is ticked, "Smallest rest" is
 greyed out — it has nothing left to do.
+
+### The score strip
+
+Below the timeline sits the score of the take: one block for every note and rest, drawn on the
+same grid as the timeline, so a block sits exactly under the beat it belongs to. The block shows
+its LilyPond text (`c4`, `r2`) when there is room for it.
+
+- **Click a block** to turn it into a rest, and click it again to turn it back into a note.
+- **Drag the border between two blocks** to change their lengths: the note before the border
+  grows and the one after it shrinks, or the other way round. The border snaps to the nearest
+  grid cell, and bar lines pull it harder, so a note can be lined up exactly with the bar. Every
+  block keeps at least one cell, and the bar always stays full.
+- The **Revert** button puts the score back the way it was when the take ended.
+
+The LilyPond text in the output box follows every edit. The edits are literal: a rest you leave
+in stays a rest, whatever the "No rests" setting says - that setting applies to the take, not
+to what you make of it afterwards.
 
 ### Audio latency
 
@@ -80,11 +98,12 @@ first note stays a rest). It is the same thing as the "No rests" checkbox in the
 ## Layout
 
 `Rhythm.kt` is the pure transcription logic (taps become a score). `Score.kt` is the score
-itself: the notes and rests, the LilyPond text and the edits that can be made to them. `Run.kt`
-is the terminal CLI, `WindowApp.kt` the window (layout + recording logic), `Timeline.kt` the
-recording timeline, `Widgets.kt` the widget kit (buttons, steppers, etc.), `Theme.kt` the
-colours and `Glyph.kt` the vector icons. `Main.kt`, `Run.kt` and `Gui.kt` form the Clikt CLI
-entry point.
+itself: the notes and rests, the LilyPond text and the edits that can be made to them.
+`GridView.kt` is the grid the timeline and the score strip share, `NotationPanel.kt` the score
+strip itself. `Run.kt` is the terminal CLI, `WindowApp.kt` the window (layout + recording logic),
+`Timeline.kt` the recording timeline, `Widgets.kt` the widget kit (buttons, steppers, etc.),
+`Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt`, `Run.kt` and `Gui.kt` form the
+Clikt CLI entry point.
 
 Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/`.
 
