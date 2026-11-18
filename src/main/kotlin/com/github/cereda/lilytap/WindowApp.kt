@@ -256,9 +256,9 @@ private class WindowApp {
                 )
                 add(
                     row(
+                        labeled(Glyph.NOTE, "Pitch", pitch),
                         labeled(Glyph.BOLT, "Audio latency", withReset(audioLatency, audioLatencyReset)),
                         slot(calibrateButton),
-                        labeled(Glyph.NOTE, "Pitch", pitch),
                     ),
                 )
             }
