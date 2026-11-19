@@ -39,6 +39,8 @@ internal enum class Glyph {
     MOON,
     LAYERS,
     RESET,
+    SCORE,
+    EYE,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -208,6 +210,24 @@ internal fun drawGlyph(
             head.closePath()
             g.fill(head)
             g.stroke = old
+        }
+
+        Glyph.SCORE -> {
+            // Three blocks of different widths: a miniature of the score strip.
+            g.fill(rr(px(0.08), py(0.30), 0.32 * s, 0.40 * s, 0.06 * s))
+            g.fill(rr(px(0.46), py(0.30), 0.12 * s, 0.40 * s, 0.05 * s))
+            g.fill(rr(px(0.64), py(0.30), 0.28 * s, 0.40 * s, 0.06 * s))
+        }
+
+        Glyph.EYE -> {
+            // An eye: the upper and lower lid as two curves, the pupil as a disc.
+            val eye = Path2D.Double()
+            eye.moveTo(px(0.08), py(0.50))
+            eye.curveTo(px(0.30), py(0.12), px(0.70), py(0.12), px(0.92), py(0.50))
+            eye.curveTo(px(0.70), py(0.88), px(0.30), py(0.88), px(0.08), py(0.50))
+            eye.closePath()
+            g.draw(eye)
+            g.fill(Ellipse2D.Double(px(0.5) - 0.15 * s, py(0.5) - 0.15 * s, 0.30 * s, 0.30 * s))
         }
 
         Glyph.LILY -> {

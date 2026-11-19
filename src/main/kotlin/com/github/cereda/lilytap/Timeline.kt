@@ -64,6 +64,8 @@ internal class TimelinePanel(
     init {
         isOpaque = false
         preferredSize = Dimension(760, 130)
+        // The grid tells us when it scrolls, so the score strip below keeps up with us.
+        grid.onChange { repaint() }
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -87,7 +89,6 @@ internal class TimelinePanel(
         addMouseWheelListener { e ->
             if (grid.scrollable) {
                 grid.scrollTo(grid.scrollX + e.preciseWheelRotation * 60)
-                repaint()
             }
         }
     }
@@ -100,7 +101,6 @@ internal class TimelinePanel(
         val room = grid.span - thumbW()
         if (room <= 0) return
         grid.scrollTo((mouseX - grab - grid.padX) / room * grid.maxScroll)
-        repaint()
     }
 
     /** While recording, keeps the playhead in view (called every frame). */
@@ -114,7 +114,6 @@ internal class TimelinePanel(
         val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
         if (target > grid.scrollX) {
             grid.scrollTo(target)
-            repaint()
         }
     }
 

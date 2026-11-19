@@ -90,4 +90,18 @@ class GridViewTest {
         g.config = cfg(bars = 2)
         assertEquals(0.0, g.scrollX)
     }
+
+    @Test
+    fun `scrolling notifies listeners but a no-op scroll does not`() {
+        val g = grid(bars = 4)
+        var calls = 0
+        g.onChange { calls++ }
+        g.scrollTo(100.0)
+        assertEquals(1, calls)
+        g.scrollTo(g.scrollX) // same place: no change, no notification
+        assertEquals(1, calls)
+        g.scrollTo(0.0)
+        assertEquals(2, calls)
+        assertEquals(0.0, g.scrollX)
+    }
 }

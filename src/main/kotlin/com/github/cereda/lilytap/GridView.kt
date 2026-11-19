@@ -21,7 +21,24 @@ internal class GridView {
         set(value) {
             field = value
             scrollX = 0.0
+            changed()
         }
+
+    private val listeners = mutableListOf<() -> Unit>()
+
+    /**
+     * Registers a listener that is called whenever the grid changes: when it is scrolled or
+     * when another recording is set. The panels that draw the grid use this to redraw
+     * themselves, so they never drift apart.
+     */
+    fun onChange(listener: () -> Unit) {
+        listeners += listener
+    }
+
+    /** Tells the listeners that the grid has changed. */
+    private fun changed() {
+        for (listener in listeners) listener()
+    }
 
     /**
      * The width of the view in pixels. Both panels must have the same width, or the strip
@@ -70,6 +87,9 @@ internal class GridView {
 
     /** Scrolls the grid to [x] pixels from the left, as far as it goes. */
     fun scrollTo(x: Double) {
-        scrollX = x.coerceIn(0.0, maxScroll)
+        val clamped = x.coerceIn(0.0, maxScroll)
+        if (clamped == scrollX) return
+        scrollX = clamped
+        changed()
     }
 }

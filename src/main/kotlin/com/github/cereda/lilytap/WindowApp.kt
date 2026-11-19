@@ -145,9 +145,19 @@ private class WindowApp {
     private val output = CodeArea()
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
+    private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
     private val themeButton = IconButton(Glyph.SUN)
     private val scroll = JScrollPane(output)
     private val stageRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
+    private val stageBody = JPanel(GridBagLayout()).apply { isOpaque = false }
+
+    /** The header of the score strip: its name on the left, Revert on the right. */
+    private val scoreHeader =
+        JPanel(BorderLayout()).apply {
+            isOpaque = false
+            add(GlyphLabel(Glyph.SCORE, "Score", 13f, { Theme.text }, Font.BOLD), BorderLayout.WEST)
+            add(revert, BorderLayout.EAST)
+        }
     private var showRaw = false
     private var enterGuard = false
     private val metronome = Metronome()
@@ -159,6 +169,9 @@ private class WindowApp {
 
     /** The score the take had right after it ended, so Revert can put it back. */
     private var takeScore: Score? = null
+
+    /** Whether the score strip is shown. */
+    private var scoreVisible = true
 
     /** The last key press seen, used to recognise X11 auto-repeat. */
     private var lastPress: KeyEvent? = null
@@ -290,7 +303,7 @@ private class WindowApp {
         stageRight.apply {
             isOpaque = false
             add(rawToggle)
-            add(revert)
+            add(scoreToggle)
             add(beatDots)
         }
         val stage = buildStage()
@@ -355,6 +368,7 @@ private class WindowApp {
         start.toolTipText = "Start (Ctrl+Enter, or Cmd+Enter on macOS). Esc aborts. Press r for a rest."
         copy.onClick = { copyOutput() }
         rawToggle.onClick = { toggleRaw() }
+        scoreToggle.onClick = { toggleScoreStrip() }
         themeButton.onClick = { applyTheme(!Theme.isDark) }
         calibrateButton.onClick = { if (session == null) calibrate() }
         latencyReset.onClick = { latency.value = 0.0 }
@@ -369,6 +383,7 @@ private class WindowApp {
         Runtime.getRuntime().addShutdownHook(Thread { metronome.close() })
 
         updateRawToggle()
+        updateScoreToggle()
         applyTheme(Theme.isDark)
         frame.iconImage = logoImage(64)
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
@@ -399,6 +414,7 @@ private class WindowApp {
         time.refreshTheme()
         pitch.refreshTheme()
         updateRawToggle()
+        updateScoreToggle()
         themeButton.glyph = if (dark) Glyph.SUN else Glyph.MOON
         themeButton.toolTipText = if (dark) "Switch to light theme" else "Switch to dark theme"
         frame.repaint()
@@ -412,6 +428,22 @@ private class WindowApp {
 
     private fun updateRawToggle() {
         rawToggle.accentOverride = if (showRaw) Theme.accent else null
+    }
+
+    /** Shows or hides the score strip. The timeline takes the room it leaves. */
+    private fun toggleScoreStrip() {
+        scoreVisible = !scoreVisible
+        notation.isVisible = scoreVisible
+        scoreHeader.isVisible = scoreVisible
+        updateScoreToggle()
+        stageBody.revalidate()
+        stageBody.repaint()
+    }
+
+    private fun updateScoreToggle() {
+        scoreToggle.accentOverride = if (scoreVisible) Theme.accent else null
+        scoreToggle.toolTipText =
+            if (scoreVisible) "Hide the score strip" else "Show the score strip"
     }
 
     private fun relayoutStageRight() {
@@ -448,29 +480,36 @@ private class WindowApp {
                 add(status, BorderLayout.CENTER)
                 add(stageRight, BorderLayout.EAST)
             }
-        val stageBody =
-            JPanel(GridBagLayout()).apply {
-                isOpaque = false
-                add(
-                    timeline,
-                    GridBagConstraints().apply {
-                        gridx = 0
-                        gridy = 0
-                        weightx = 1.0
-                        weighty = 1.0
-                        fill = GridBagConstraints.BOTH
-                    },
-                )
-                add(
-                    notation,
-                    GridBagConstraints().apply {
-                        gridx = 0
-                        gridy = 1
-                        weightx = 1.0
-                        fill = GridBagConstraints.BOTH
-                    },
-                )
-            }
+        stageBody.add(
+            timeline,
+            GridBagConstraints().apply {
+                gridx = 0
+                gridy = 0
+                weightx = 1.0
+                weighty = 1.0
+                fill = GridBagConstraints.BOTH
+            },
+        )
+        stageBody.add(
+            scoreHeader,
+            GridBagConstraints().apply {
+                gridx = 0
+                gridy = 1
+                weightx = 1.0
+                fill = GridBagConstraints.HORIZONTAL
+                // Room between the timeline and the strip, so they read as two sections.
+                insets = Insets(14, 0, 6, 0)
+            },
+        )
+        stageBody.add(
+            notation,
+            GridBagConstraints().apply {
+                gridx = 0
+                gridy = 2
+                weightx = 1.0
+                fill = GridBagConstraints.BOTH
+            },
+        )
         return Card().apply {
             layout = BorderLayout(0, 12)
             border = BorderFactory.createEmptyBorder(14, 16, 16, 16)

@@ -62,6 +62,8 @@ its LilyPond text (`c4`, `r2`) when there is room for it.
   grid cell, and bar lines pull it harder, so a note can be lined up exactly with the bar. Every
   block keeps at least one cell, and the bar always stays full.
 - The **Revert** button puts the score back the way it was when the take ended.
+- The eye icon next to "Raw taps" shows and hides the whole strip; the timeline expands to fill
+  the space it leaves. Nothing is persisted, so the strip is visible again on the next launch.
 
 The LilyPond text in the output box follows every edit. The edits are literal: a rest you leave
 in stays a rest, whatever the "No rests" setting says - that setting applies to the take, not

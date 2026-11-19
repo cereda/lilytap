@@ -52,8 +52,10 @@ internal class NotationPanel(
 
     init {
         isOpaque = false
-        preferredSize = Dimension(760, 56)
+        preferredSize = Dimension(760, 68)
         toolTipText = "Click a note to turn it into a rest. Drag a border to change its length."
+        // The strip shares the grid with the timeline: when it scrolls, the strip follows.
+        grid.onChange { repaint() }
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -101,6 +103,13 @@ internal class NotationPanel(
             }
         addMouseListener(mouse)
         addMouseMotionListener(mouse)
+        // The wheel scrolls the grid, and with it the timeline.
+        addMouseWheelListener { e ->
+            if (grid.scrollable) {
+                grid.scrollTo(grid.scrollX + e.preciseWheelRotation * 60)
+                repaint()
+            }
+        }
     }
 
     /** The border closest to the x pixel, or -1 when the mouse is not near one. */
@@ -269,16 +278,21 @@ internal class NotationPanel(
         w: Double,
         h: Double,
     ) {
+        val title = "Your score will show up here"
+        val hint = "Click a note to turn it into a rest, drag a border to change its length."
+        g2.font = Theme.font(13f, Font.BOLD)
+        val titleFm = g2.fontMetrics
+        g2.font = Theme.font(12f)
+        val hintFm = g2.fontMetrics
+        // The two lines are one block, and the block sits in the middle of the panel.
+        val gap = 6.0
+        val blockTop = (h - (titleFm.ascent + titleFm.descent + gap + hintFm.ascent + hintFm.descent)) / 2
         g2.font = Theme.font(13f, Font.BOLD)
         g2.color = Theme.dim
-        var fm = g2.fontMetrics
-        var msg = "Your score will show up here"
-        g2.drawString(msg, ((w - fm.stringWidth(msg)) / 2).toFloat(), (h / 2 + 4).toFloat())
+        g2.drawString(title, ((w - titleFm.stringWidth(title)) / 2).toFloat(), (blockTop + titleFm.ascent).toFloat())
         g2.font = Theme.font(12f)
         g2.color = Theme.faint
-        fm = g2.fontMetrics
-        msg = "Click a note to turn it into a rest, drag a border to change its length."
-        g2.drawString(msg, ((w - fm.stringWidth(msg)) / 2).toFloat(), (h / 2 + 24).toFloat())
+        g2.drawString(hint, ((w - hintFm.stringWidth(hint)) / 2).toFloat(), (blockTop + titleFm.height + gap + hintFm.ascent).toFloat())
     }
 
     companion object {

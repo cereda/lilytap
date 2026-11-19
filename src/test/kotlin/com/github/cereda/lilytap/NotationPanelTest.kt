@@ -3,9 +3,11 @@ package com.github.cereda.lilytap
 
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /** The score strip: clicking a block toggles it, dragging a border resizes it. */
 class NotationPanelTest {
@@ -137,5 +139,36 @@ class NotationPanelTest {
         panel.paint(graphics)
         graphics.dispose()
         assertNotNull(image.colorModel)
+    }
+
+    @Test
+    fun `the empty hint is vertically centred in the strip`() {
+        val (panel, _) = panel()
+        panel.setSize(400, 68)
+        panel.score = null
+        val image = BufferedImage(400, 68, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        panel.paint(graphics)
+        graphics.dispose()
+        // Background is the card colour; rows that contain text ink differ from it.
+        val background = image.getRGB(200, 2)
+        val rowInk = IntArray(image.height)
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) {
+                if (image.getRGB(x, y) != background) rowInk[y]++
+            }
+        }
+        var total = 0
+        var weighted = 0L
+        for (y in 0 until image.height) {
+            total += rowInk[y]
+            weighted += rowInk[y].toLong() * y
+        }
+        val centreY = weighted.toDouble() / total
+        // The hint block sits between the border rows; its centre should be near the panel centre.
+        assertTrue(
+            abs(centreY - (image.height / 2.0)) <= 4.0,
+            "hint centre $centreY is far from panel centre ${image.height / 2}",
+        )
     }
 }

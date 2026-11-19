@@ -171,6 +171,8 @@ internal class PillButton(
 
     override fun getPreferredSize(): Dimension {
         val fm = getFontMetrics(font)
+        // An empty text makes the button icon-only: a small round-ish pill with just the glyph.
+        if (text.isEmpty()) return Dimension(maxOf(minW, 40), heightPx)
         var w = 40 + fm.stringWidth(text)
         if (glyph != null) w += 23
         return Dimension(maxOf(w, minW), heightPx)
@@ -214,10 +216,13 @@ internal class PillButton(
             val gl = glyph
             val tw = fm.stringWidth(text)
             val gw = if (gl != null) 23 else 0
-            val startX = (w - (gw + tw)) / 2
+            // An icon-only button centres its glyph; otherwise the glyph sits before the text.
+            val startX = if (tw == 0 && gl != null) (w - 16.0) / 2 else (w - (gw + tw)) / 2
             if (gl != null) drawGlyph(g2, gl, startX, (h - 16) / 2, 16.0, fg)
             g2.color = fg
-            g2.drawString(text, (startX + gw).toFloat(), ((h - fm.height) / 2 + fm.ascent).toFloat())
+            if (tw > 0) {
+                g2.drawString(text, (startX + gw).toFloat(), ((h - fm.height) / 2 + fm.ascent).toFloat())
+            }
         }
     }
 }
@@ -801,7 +806,7 @@ internal class ThinScrollBar : BasicScrollBarUI() {
 }
 
 /** Text area with a ghost hint while empty. */
-internal class CodeArea : JTextArea(6, 40) {
+internal class CodeArea : JTextArea(4, 40) {
     init {
         font = Theme.mono(14f)
         margin = Insets(10, 12, 10, 12)
