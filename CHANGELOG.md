@@ -7,17 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-11-19
+
 ### Fixed
-- `Player.toneSamples()` now computes attack/release envelopes independently, so short notes don't fade to silence.
-- `Player.play()` join logic simplified to a single blocking wait before starting a new thread.
-- `WindowApp.onFrame()` no longer has a dead code path when `takeScore` is null during playback, and no longer double-repaints the timeline.
-- Playback now scrolls the shared timeline/score grid to follow the playhead: it snaps back to the
-  start when **Play** is pressed, follows a long score, and pins at the end instead of letting the
-  playhead run off-screen. `WindowApp.onFrame()` now updates `TimelinePanel.playbackPositionMs`,
-  which `follow()` needs to compute the scroll target.
+- Playback now scrolls the shared timeline/score grid to follow the playhead. `WindowApp.onFrame()`
+  updates `TimelinePanel.playbackPositionMs` before calling `follow()`, so the scroll target is
+  current; the view snaps back to the beginning when **Play** is pressed, follows a long score,
+  and pins at the end instead of letting the playhead run off-screen.
+- `WindowApp.startPlayback()` resets the shared grid to the beginning.
+- Restored the timeline repaint in the non-scrollable recording path, so the playhead keeps moving
+  on short takes.
 
 ### Improved
-- `Player.close()` closes the audio line first to unblock in-progress writes, then joins the thread with a longer timeout.
+- New `TimelinePanelTest` covers the follow maths and painting; `WindowAppTest` guards that
+  `onFrame()` feeds the timeline position.
+- The README playback section documents the scrolling behaviour.
+
+## [0.4.10] - 2026-11-19
+
+### Fixed
+- `TimelinePanel.follow()` gained a playback branch and `WindowApp.onFrame()` called it while
+  playing. The view still did not move because the timeline's playback position was never updated;
+  this is fixed in 0.4.11.
+
+## [0.4.9] - 2026-11-19
+
+### Fixed
+- The timeline now draws the score blocks during playback, when there is no active recording
+  session, instead of showing only the playhead.
+- `TimelinePanel` gained a `score` property, set by `WindowApp.showScore()` and cleared by
+  `clearScore()`.
+
+## [0.4.8] - 2026-11-19
+
+### Fixed
+- `TimelinePanel.follow()` now always repaints after attempting to scroll, so the playhead no
+  longer freezes once the view reaches `maxScroll`.
+
+## [0.4.7] - 2026-11-19
+
+### Changed
+- Re-tagged 0.4.6; no code changes.
+
+## [0.4.6] - 2026-11-19
+
+### Fixed
+- `Player.play()` uses `compareAndSet()` for the playing flag, preventing a TOCTOU race where two
+  threads could both start playback.
+- `Metronome.close()` interrupts any running `run()` thread, so it leaves `sleepUntil()` promptly
+  instead of waiting for the sleep deadline.
+
+## [0.4.5] - 2026-11-19
+
+### Fixed
+- `Player.play()` interrupts and re-joins a previous playback thread that is still alive after the
+  initial join budget, preventing two writers from sharing the audio line.
+- `WindowApp.stopPlayback()` closes the player instead of only stopping it, releasing the audio
+  line.
+- The code area's empty hint no longer starts with a stray `%`.
+
+### Improved
+- `NotationPanel`'s wheel handler no longer double-repaints: `grid.scrollTo()` already notifies the
+  grid listeners.
+
+## [0.4.4] - 2026-11-19
+
+### Fixed
+- `Player.toneSamples()` computes attack/release envelopes independently, so short notes don't fade
+  to silence.
+- `Player.play()` joins a previous playback thread with a single blocking wait before starting a
+  new one.
+- `WindowApp.onFrame()` no longer has a dead code path when `takeScore` is null during playback,
+  and no longer double-repaints the timeline.
+- `TimelinePanel.follow()` repaints the playhead even when the grid does not scroll.
+
+### Improved
+- `Player.close()` closes the audio line first to unblock in-progress writes, then joins the thread
+  with a longer timeout.
 
 ## [0.4.3] - 2026-11-19
 
@@ -105,7 +171,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[0.4.3]: https://github.com/cereda/lilytap/compare/v0.4.2...v0.4.3
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.4.11...HEAD
+[0.4.11]: https://github.com/cereda/lilytap/compare/v0.4.10...v0.4.11
+[0.4.10]: https://github.com/cereda/lilytap/compare/v0.4.9...v0.4.10
+[0.4.9]: https://github.com/cereda/lilytap/compare/v0.4.8...v0.4.9
+[0.4.8]: https://github.com/cereda/lilytap/compare/v0.4.7...v0.4.8
+[0.4.7]: https://github.com/cereda/lilytap/compare/v0.4.6...v0.4.7
+[0.4.6]: https://github.com/cereda/lilytap/compare/v0.4.5...v0.4.6
+[0.4.5]: https://github.com/cereda/lilytap/compare/v0.4.4...v0.4.5
+[0.4.4]: https://github.com/cereda/lilytap/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/cereda/lilytap/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/cereda/lilytap/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/cereda/lilytap/compare/v0.4.0...v0.4.1
