@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-19
+
 ### Added
 - Playback: play the edited score back through the metronome audio, with the pitch setting the
   tone. A playhead moves across the timeline and score strip as the score plays, and a Play /
@@ -46,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
+[0.4.0]: https://github.com/cereda/lilytap/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cereda/lilytap/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/cereda/lilytap/releases/tag/v0.2.1
 [0.2.0]: https://github.com/cereda/lilytap/releases/tag/v0.2.0
