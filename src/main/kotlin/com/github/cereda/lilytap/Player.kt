@@ -14,6 +14,9 @@ import kotlin.math.sin
 /** How playback sounds: the score's pitch, or a percussive click on every note onset. */
 enum class PlaybackSound { NOTE, BEAT }
 
+/** Breathing room between [Player.play] and the first event, so the thread is ready in time. */
+private const val PLAYBACK_LEAD_NANOS = 40_000_000L
+
 /**
  * Plays a [Score] through the default audio output, advancing a playhead across its events.
  *
@@ -116,20 +119,24 @@ class Player(
     }
 
     /**
-     * Plays [score] from the start. [onPosition] is invoked (from the playback thread) with the
-     * current position in milliseconds, at each event start. Rests are reported but stay silent.
+     * Starts playing [score] on its own thread. [onPosition] is invoked (from the playback thread)
+     * with the current position in milliseconds, at each event start. Rests are reported but stay
+     * silent. [onDone] is invoked when playback reaches the end or [stop] is called.
      *
-     * Returns when playback reaches the end or [stop] is called. Throws if already playing.
-     * [startNanos] is the reference time for the score start (System.nanoTime() base), so that
-     * audio and visual playhead stay in sync even if the playback thread starts late.
+     * Returns the `System.nanoTime()` reference used for the score start, or 0 when the player is
+     * already closed. The reference is sampled here, after the audio line is open, and points a
+     * short lead-in into the future: opening the line can take tens of milliseconds, and sampling
+     * the reference before that would make the first note start late while later events, which
+     * are scheduled from the same absolute origin, stay in time.
+     *
+     * Throws if playback is already running.
      */
     fun play(
         score: Score,
-        startNanos: Long,
         onPosition: (Double) -> Unit = {},
         onDone: (() -> Unit)? = null,
-    ) {
-        if (closed.get()) return
+    ): Long {
+        if (closed.get()) return 0L
         require(!playing.get()) { "Already playing" }
         // Ensure any previous playback thread has fully exited before starting a new one.
         playbackThread?.join(2_000)
@@ -143,9 +150,10 @@ class Player(
         }
         if (closed.get()) {
             playing.set(false)
-            return
+            return 0L
         }
 
+        val origin = System.nanoTime() + PLAYBACK_LEAD_NANOS
         val thread =
             thread(isDaemon = true, name = "playback") {
                 val latencyNanos = (audioLatencyMs * 1_000_000).roundToLong()
@@ -154,7 +162,7 @@ class Player(
 
                 try {
                     for (event in score.events) {
-                        if (!advanceEvent(event, startNanos, config, freq, latencyNanos, onPosition)) break
+                        if (!advanceEvent(event, origin, config, freq, latencyNanos, onPosition)) break
                     }
                 } finally {
                     playing.set(false)
@@ -163,6 +171,7 @@ class Player(
             }
         playbackThread = thread
         if (closed.get()) stop()
+        return origin
     }
 
     /** Stops playback immediately. Safe to call from any thread. */

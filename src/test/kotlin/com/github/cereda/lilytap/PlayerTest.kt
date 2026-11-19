@@ -25,7 +25,7 @@ class PlayerTest {
     fun `playing a score advances the reported position`() {
         val player = Player(0.0)
         val positions = mutableListOf<Double>()
-        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
+        player.play(score(), onPosition = { positions += it })
         Thread.sleep(300)
         player.stop()
         Thread.sleep(100)
@@ -38,7 +38,7 @@ class PlayerTest {
     fun `stop halts position updates`() {
         val player = Player(0.0)
         val positions = mutableListOf<Double>()
-        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
+        player.play(score(), onPosition = { positions += it })
         Thread.sleep(150)
         val advancingBefore = positions.count { it > 0.0 }
         player.stop()
@@ -56,13 +56,13 @@ class PlayerTest {
     fun `play after stop does not start two threads`() {
         val player = Player(0.0)
         val positions = mutableListOf<Double>()
-        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
+        player.play(score(), onPosition = { positions += it })
         Thread.sleep(150)
         player.stop()
         Thread.sleep(200)
         // Second play should not throw and should not interleave with the stopped thread
         val positions2 = mutableListOf<Double>()
-        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions2 += it })
+        player.play(score(), onPosition = { positions2 += it })
         Thread.sleep(150)
         player.stop()
         Thread.sleep(100)
@@ -74,7 +74,7 @@ class PlayerTest {
     fun `play without onPosition callback`() {
         val player = Player(0.0)
         // Should not throw when onPosition is omitted
-        player.play(score(), startNanos = System.nanoTime())
+        player.play(score())
         Thread.sleep(150)
         player.stop()
         Thread.sleep(100)
@@ -84,7 +84,7 @@ class PlayerTest {
     fun `beat playback still advances the position`() {
         val player = Player(0.0, PlaybackSound.BEAT)
         val positions = mutableListOf<Double>()
-        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
+        player.play(score(), onPosition = { positions += it })
         Thread.sleep(300)
         player.stop()
         Thread.sleep(100)
@@ -96,9 +96,22 @@ class PlayerTest {
         val player = Player(0.0)
         player.close()
         var positions = 0
-        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions++ })
+        val origin = player.play(score(), onPosition = { positions++ })
         Thread.sleep(100)
         assertEquals(0, positions, "a closed player must not start playback")
+        assertEquals(0L, origin, "a closed player has no playback origin")
+    }
+
+    @Test
+    fun `play returns an origin after the player is ready`() {
+        val player = Player(0.0)
+        val before = System.nanoTime()
+        val origin = player.play(score())
+        assertTrue(
+            origin > before,
+            "the origin must be sampled after the audio line is open, with a small lead-in",
+        )
+        player.close()
     }
 
     @Test

@@ -165,7 +165,7 @@ internal class WindowApp {
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
     private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
-    private val soundButton = PillButton("Note", Glyph.NOTE, heightPx = 32)
+    private val soundButton = PillButton("", Glyph.NOTE, heightPx = 32)
     private val playButton = PillButton("", Glyph.PLAY, heightPx = 32)
     private val themeButton = IconButton(Glyph.SUN)
     private val scroll = JScrollPane(output)
@@ -499,27 +499,33 @@ internal class WindowApp {
 
     private fun startPlayback() {
         val score = currentScore() ?: return
+        // Open the audio line before the playback clock starts: opening it can take tens of
+        // milliseconds, and an origin sampled before that made the first note start late.
+        val player = Player(audioLatency.value, playbackSound)
+        currentPlayer = player
         isPlaying = true
         soundButton.isEnabled = false
         playbackPositionMs = 0.0
-        playbackStartNanos = System.nanoTime()
         updatePlayButton()
         timeline.score = score
         timeline.playbackPositionMs = 0.0
         notation.playbackPositionMs = 0.0
         timeline.resetScroll() // Long scores start at the beginning, wherever the take left the view.
+        val origin =
+            player.play(
+                score,
+                onDone = {
+                    SwingUtilities.invokeLater {
+                        if (isPlaying) stopPlayback()
+                    }
+                },
+            )
+        if (origin == 0L) {
+            stopPlayback()
+            return
+        }
+        playbackStartNanos = origin
         frameTimer.start()
-        val player = Player(audioLatency.value, playbackSound)
-        currentPlayer = player
-        player.play(
-            score,
-            playbackStartNanos,
-            onDone = {
-                SwingUtilities.invokeLater {
-                    if (isPlaying) stopPlayback()
-                }
-            },
-        )
     }
 
     private fun stopPlayback() {
@@ -549,14 +555,13 @@ internal class WindowApp {
 
     private fun updateSoundButton() {
         val beat = playbackSound == PlaybackSound.BEAT
-        soundButton.text = if (beat) "Beat" else "Note"
         soundButton.glyph = if (beat) Glyph.METRONOME else Glyph.NOTE
         soundButton.accentOverride = if (beat) Theme.accent else null
         soundButton.toolTipText =
             if (beat) {
-                "Playback sound: a click on every note onset (click again for the score's pitch)."
+                "Playback sound: Beat (a click on every note onset). Click for the score's pitch."
             } else {
-                "Playback sound: the score's pitch (click again for a metronome-style click)."
+                "Playback sound: Note (the score's pitch). Click for a metronome-style click."
             }
     }
 
@@ -968,7 +973,7 @@ internal class WindowApp {
             beatDots.active = r % beats
             status.text =
                 if (calibrating) {
-                    "Calibrating \u00B7 tap with the beeps \u00B7 beat ${r + 1} of ${s.config.bars * beats}"
+                    "Calibrating \u00B7 beat ${r + 1} of ${s.config.bars * beats}"
                 } else {
                     "Recording \u00B7 bar ${r / beats + 1}/${s.config.bars}, beat ${r % beats + 1}"
                 }

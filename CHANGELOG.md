@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Playback has a **Note / Beat** toggle. **Beat** replaces each note onset with a short
-  percussive click (accented on bar downbeats), with a timbre distinct from the metronome;
-  rests stay silent.
+- Playback has a **Note / Beat** toggle (a note/metronome icon next to **Play**). **Beat**
+  replaces each note onset with a short percussive click (accented on bar downbeats), with a
+  timbre distinct from the metronome; rests stay silent.
 
 ### Changed
 - lilytap now launches directly into the window; the shadow jar is the executable
@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session.
 - Playback event timing rounds the fractional cell duration to nanoseconds instead of
   truncating it, removing cumulative drift at tempos such as 63 BPM.
+- The first note of a playback no longer starts late: the audio line is opened before the
+  playback origin is taken, and playback begins after a short lead-in.
+- The timeline header no longer clips long status messages: the sound toggle is icon-only, the
+  per-beat calibration status is shorter, and the status badge elides when it runs out of room.
 - Starting and immediately stopping playback no longer writes to a closed audio line; the
   player rejects playback after `close()`.
 - Calibration records only key presses (not typed/released events), respects Esc, and no longer

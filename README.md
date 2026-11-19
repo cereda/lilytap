@@ -84,10 +84,11 @@ scores scroll along with the playhead so it stays on screen until the end. Click
 (it becomes **Stop**) to halt playback. Playback uses the configured audio latency so the sound
 lines up with the playhead. Nothing is played if there is no score yet.
 
-The **Note / Beat** button next to **Play** switches the playback sound: **Note** is the score's
-pitch, while **Beat** replaces each note onset with a short percussive click (accented on bar
-downbeats) and leaves rests silent. Beat mode makes the rhythm easier to follow when the pitch is
-only a placeholder. Editing a block stops playback, so the sound and the blocks always agree.
+The sound button next to **Play** (a note icon for the score's pitch, a metronome icon for a
+click) switches the playback sound: **Note** is the score's pitch, while **Beat** replaces each
+note onset with a short percussive click (accented on bar downbeats) and leaves rests silent. Beat
+mode makes the rhythm easier to follow when the pitch is only a placeholder. Editing a block
+stops playback, so the sound and the blocks always agree.
 
 ## Audio latency
 

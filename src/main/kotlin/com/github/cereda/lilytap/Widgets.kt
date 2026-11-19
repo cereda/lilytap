@@ -659,7 +659,16 @@ internal class StatusBadge : JComponent() {
             g2.font = font
             g2.color = Theme.text
             val fm = g2.fontMetrics
-            g2.drawString(text, 32, ((height - fm.height) / 2 + fm.ascent))
+            // Elide rather than clip when the header runs out of room.
+            val maxText = width - 32.0 - 8.0
+            var shown = text
+            if (maxText > 0 && fm.stringWidth(shown) > maxText) {
+                while (shown.isNotEmpty() && fm.stringWidth(shown + "\u2026") > maxText) {
+                    shown = shown.dropLast(1)
+                }
+                shown += "\u2026"
+            }
+            g2.drawString(shown, 32, ((height - fm.height) / 2 + fm.ascent))
         }
     }
 }
