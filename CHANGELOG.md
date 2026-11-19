@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Player.toneSamples()` now computes attack/release envelopes independently, so short notes don't fade to silence.
 - `Player.play()` join logic simplified to a single blocking wait before starting a new thread.
 - `WindowApp.onFrame()` no longer has a dead code path when `takeScore` is null during playback, and no longer double-repaints the timeline.
+- Playback now scrolls the shared timeline/score grid to follow the playhead: it snaps back to the
+  start when **Play** is pressed, follows a long score, and pins at the end instead of letting the
+  playhead run off-screen. `WindowApp.onFrame()` now updates `TimelinePanel.playbackPositionMs`,
+  which `follow()` needs to compute the scroll target.
 
 ### Improved
 - `Player.close()` closes the audio line first to unblock in-progress writes, then joins the thread with a longer timeout.

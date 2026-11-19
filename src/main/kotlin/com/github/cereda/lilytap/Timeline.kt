@@ -131,30 +131,34 @@ internal class TimelinePanel(
         grid.scrollTo((mouseX - grab - grid.padX) / room * grid.maxScroll)
     }
 
-    /** While recording, keeps the playhead in view (called every frame). */
+    /** Keeps the playhead in view while recording or playing (called every frame). */
     fun follow() {
         val s = session
         if (s != null && !s.done) {
-            // Recording mode
-            if (!grid.scrollable) return
+            // Recording: scroll once the playhead passes 70% of the view.
             val nowMs = (System.nanoTime() - s.originNanos) / 1e6
             val totalMs = s.config.totalCells * s.config.cellMs
-            if (nowMs < 0 || nowMs > totalMs) return
-            val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
-            if (target > grid.scrollX) {
-                grid.scrollTo(target)
+            if (nowMs in 0.0..totalMs && grid.scrollable) {
+                val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
+                if (target > grid.scrollX) grid.scrollTo(target)
             }
         } else if (playbackPositionMs >= 0) {
-            // Playback mode - session is done or null, score is shown
+            // Playback: always keep the playhead in view. scrollTo clamps the target, so this
+            // snaps back to the start when Play is pressed and pins to the end when the score
+            // runs out, instead of letting the playhead march off-screen.
             val sc = score ?: return
-            val cfg = sc.config
-            val totalMs = cfg.totalCells * cfg.cellMs
-            val target = playbackPositionMs / totalMs * grid.totalPx - grid.span * 0.7
-            if (target > grid.scrollX) {
+            val totalMs = sc.config.totalCells * sc.config.cellMs
+            if (totalMs > 0) {
+                val target = playbackPositionMs / totalMs * grid.totalPx - grid.span * 0.7
                 grid.scrollTo(target)
             }
         }
         repaint()
+    }
+
+    /** Scrolls the shared grid back to the start, e.g. when playback begins. */
+    fun resetScroll() {
+        grid.scrollTo(0.0)
     }
 
     /** The horizontal position of a time in ms on the timeline. */

@@ -73,9 +73,10 @@ to what you make of it afterwards.
 
 The **Play** button next to "Raw taps" plays the edited score back through the metronome audio.
 The pitch setting sets the tone, and a playhead moves across both the timeline and the score
-strip as the score plays. Click the button again (it becomes **Stop**) to halt playback.
-Playback uses the configured audio latency so the sound lines up with the playhead. Nothing is
-played if there is no score yet.
+strip as the score plays. Pressing **Play** scrolls the view back to the beginning, and long
+scores scroll along with the playhead so it stays on screen until the end. Click the button again
+(it becomes **Stop**) to halt playback. Playback uses the configured audio latency so the sound
+lines up with the playhead. Nothing is played if there is no score yet.
 
 
 ### Audio latency

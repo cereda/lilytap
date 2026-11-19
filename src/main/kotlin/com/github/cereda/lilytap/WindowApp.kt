@@ -480,6 +480,7 @@ internal class WindowApp {
         updatePlayButton()
         timeline.playbackPositionMs = 0.0
         notation.playbackPositionMs = 0.0
+        timeline.resetScroll() // Long scores start at the beginning, wherever the take left the view.
         timeline.repaint()
         notation.repaint()
         frameTimer.start()
@@ -930,13 +931,15 @@ internal class WindowApp {
         }
 
         if (isPlaying) {
-            timeline.follow() // Scroll the timeline during playback
             takeScore?.let { score ->
                 val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
                 val totalMs = score.config.totalCells * score.config.cellMs
                 val clamped = posMs.coerceIn(0.0, totalMs)
                 playbackPositionMs = clamped
+                timeline.playbackPositionMs = clamped
                 notation.playbackPositionMs = clamped
+                // Follow after the position is updated, or the grid scrolls to a stale spot.
+                timeline.follow()
                 notation.repaint()
                 if (clamped >= totalMs) stopPlayback()
             }

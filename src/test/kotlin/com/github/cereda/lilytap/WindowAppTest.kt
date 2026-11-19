@@ -49,6 +49,45 @@ class WindowAppTest {
     }
 
     @Test
+    fun `onFrame advances the timeline playhead during playback`() {
+        val app = WindowApp()
+
+        val takeScoreField =
+            WindowApp::class.java.declaredFields.find { it.name == "takeScore" }
+                ?: error("takeScore field not found")
+        takeScoreField.isAccessible = true
+        takeScoreField.set(app, score)
+
+        val isPlayingField =
+            WindowApp::class.java.declaredFields.find { it.name == "isPlaying" }
+                ?: error("isPlaying field not found")
+        isPlayingField.isAccessible = true
+        isPlayingField.set(app, true)
+
+        val startField =
+            WindowApp::class.java.declaredFields.find { it.name == "playbackStartNanos" }
+                ?: error("playbackStartNanos field not found")
+        startField.isAccessible = true
+        startField.set(app, System.nanoTime() - 1_000_000_000L)
+
+        val onFrame = WindowApp::class.java.getDeclaredMethod("onFrame")
+        onFrame.isAccessible = true
+        onFrame.invoke(app)
+
+        val timelineField =
+            WindowApp::class.java.declaredFields.find { it.name == "timeline" }
+                ?: error("timeline field not found")
+        timelineField.isAccessible = true
+        val timeline = timelineField.get(app) as TimelinePanel
+        assertTrue(
+            timeline.playbackPositionMs > 0.0,
+            "the timeline should receive the playback position",
+        )
+
+        isPlayingField.set(app, false)
+    }
+
+    @Test
     fun `clearScore stops playback and disables play button`() {
         val app = WindowApp()
 
