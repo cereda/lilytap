@@ -119,7 +119,9 @@ class Player(
             playbackThread?.interrupt()
             playbackThread?.join(2_000)
         }
-        playing.set(true)
+        if (!playing.compareAndSet(false, true)) {
+            check(false) { "Already playing" }
+        }
 
         val thread =
             thread(isDaemon = true, name = "playback") {

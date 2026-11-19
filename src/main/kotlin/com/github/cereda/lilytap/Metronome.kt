@@ -26,6 +26,9 @@ class Metronome : AutoCloseable {
     private val normal = clickSamples(1000.0)
     private val line: SourceDataLine? = openLine()
 
+    /** The thread currently running [run()], so [close()] can interrupt it. */
+    private var currentThread: Thread? = null
+
     /** True if an audio output line could be opened; false means the bell fallback is used. */
     val hasAudio: Boolean get() = line != null
 
@@ -86,14 +89,19 @@ class Metronome : AutoCloseable {
         audioLatencyMs: Double,
         onBeat: (Int) -> Unit,
     ) {
-        val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
-        for (i in 0 until totalBeats) {
-            // shift click earlier so sound arrives at the nominal beat time
-            val clickTime = startNanos + i * beatNanos - latencyNanos
-            sleepUntil(clickTime)
-            if (Thread.currentThread().isInterrupted) return // recording was aborted or finished
-            click(accented = i % beatsPerBar == 0)
-            onBeat(i)
+        currentThread = Thread.currentThread()
+        try {
+            val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
+            for (i in 0 until totalBeats) {
+                // shift click earlier so sound arrives at the nominal beat time
+                val clickTime = startNanos + i * beatNanos - latencyNanos
+                sleepUntil(clickTime)
+                if (Thread.currentThread().isInterrupted) return // recording was aborted or finished
+                click(accented = i % beatsPerBar == 0)
+                onBeat(i)
+            }
+        } finally {
+            currentThread = null
         }
     }
 
@@ -106,6 +114,8 @@ class Metronome : AutoCloseable {
     }
 
     override fun close() {
+        // Interrupt any running run() thread so it exits sleepUntil() promptly.
+        currentThread?.interrupt()
         line?.let {
             it.stop()
             it.close()
