@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-19
+
+### Fixed
+- `Player.sleepUntil()` now checks `Thread.isInterrupted`, so `stop()` interrupts
+  the playback thread and it exits promptly instead of parking for up to 2s.
+- `Player.stop()` now interrupts the playback thread for immediate shutdown.
+- `WindowApp.stopPlayback()` stops `frameTimer` so it doesn't keep firing 15 ms
+  repaints during playback.
+
+### Improved
+- `TimelinePanel.detach()` and `NotationPanel.detach()` remove their grid-change
+  listeners; both are called in the JVM shutdown hook so GridView never holds
+  stale panel references.
+- `Player` tone envelope uses ADSR with sustain decay (0.7) and a quieter second
+  harmonic for a warmer, less organ-like tone.
+
 ## [0.4.1] - 2026-11-19
 
 ### Fixed
@@ -61,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
+[0.4.2]: https://github.com/cereda/lilytap/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/cereda/lilytap/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cereda/lilytap/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cereda/lilytap/compare/v0.2.1...v0.3.0
