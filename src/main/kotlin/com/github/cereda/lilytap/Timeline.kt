@@ -141,10 +141,9 @@ internal class TimelinePanel(
         if (nowMs < 0 || nowMs > totalMs) return
         val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
         if (target > grid.scrollX) {
-            grid.scrollTo(target) // Triggers repaint via grid.onChange listener
-        } else {
-            repaint() // No scroll needed, but repaint for playhead position
+            grid.scrollTo(target)
         }
+        repaint() // Always repaint to update the playhead position
     }
 
     /** The horizontal position of a time in ms on the timeline. */
