@@ -708,6 +708,7 @@ internal class WindowApp {
     private fun showScore(taken: Score) {
         takeScore = taken
         notation.score = taken
+        timeline.score = taken
         output.text = taken.lilypond
         output.caretPosition = 0
         revert.isEnabled = false
@@ -719,6 +720,7 @@ internal class WindowApp {
     private fun clearScore() {
         takeScore = null
         notation.score = null
+        timeline.score = null
         revert.isEnabled = false
         playButton.isEnabled = false
         updatePlayButton()

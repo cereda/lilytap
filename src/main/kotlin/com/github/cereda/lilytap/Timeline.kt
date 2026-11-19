@@ -68,6 +68,9 @@ internal class TimelinePanel(
             repaint()
         }
 
+    /** The score to show during playback when there's no active recording session. */
+    var score: Score? = null
+
     private var grab = -1.0 // offset inside the scrollbar thumb while dragging, < 0 otherwise
 
     /** Removes this panel's grid-change listener, so GridView doesn't hold a stale reference. */
@@ -210,7 +213,7 @@ internal class TimelinePanel(
             g2.draw(rr(0.5, 0.5, w - 1, h - 1, 14.0))
 
             val s = session
-            val cfg = s?.config ?: grid.config
+            val cfg = s?.config ?: score?.config ?: grid.config
             if (cfg == null || grid.span <= 0) {
                 drawEmptyState(g2, w, h)
                 return@paint2d
@@ -223,9 +226,9 @@ internal class TimelinePanel(
             val laneBottom = h - if (s != null && grid.scrollable) 26.0 else 14.0
             val laneH = laneBottom - laneTop
 
-            if (s != null) {
-                drawGrid(g2, cfg, rulerTop, laneTop, laneBottom)
+            drawGrid(g2, cfg, rulerTop, laneTop, laneBottom)
 
+            if (s != null) {
                 val nowMs = if (s.done) -1.0 else (System.nanoTime() - s.originNanos) / 1e6
                 val pulse = 0.5 + 0.5 * sin(System.nanoTime() / 1.2e8)
                 val overlay = showRaw && s.done && s.snapped.isNotEmpty()
@@ -309,6 +312,7 @@ internal class TimelinePanel(
                         }
                     }
                 } else {
+                    val laneH = laneBottom - laneTop
                     val noteY = laneTop + laneH * 0.22
                     val noteH = laneH * 0.56
                     for (n in s.finished) solid(x(n.downMs), max(x(n.upMs), x(n.downMs) + 8), noteY, noteH, false)
@@ -341,9 +345,11 @@ internal class TimelinePanel(
                     g2.fill(head)
                 }
                 if (overlay) drawLegend(g2, w, rulerTop)
+            } else if (score != null) {
+                drawScoreBlocks(g2, score!!, cfg, laneTop, laneBottom)
             }
             // Drawn even without an active session, so it shows during playback of a finished take.
-            if (playbackPositionMs >= 0) {
+            if (playbackPositionMs >= 0 && score != null) {
                 val cell = playbackPositionMs / cfg.cellMs
                 val px = grid.xOfCell(cell)
                 if (px >= -10 && px <= w + 10) {
@@ -427,6 +433,50 @@ internal class TimelinePanel(
             g2.color = Theme.dim
             g2.drawString(label, (ix + 20).toFloat(), (cy + fm.ascent / 2 - 1).toFloat())
             ix += widths[i]
+        }
+    }
+
+    /** Draws score blocks during playback when there's no active session. */
+    private fun drawScoreBlocks(
+        g2: Graphics2D,
+        score: Score,
+        cfg: Config,
+        laneTop: Double,
+        laneBottom: Double,
+    ) {
+        val laneH = laneBottom - laneTop
+        val noteY = laneTop + laneH * 0.22
+        val noteH = laneH * 0.56
+        for (event in score.events) {
+            val sx1 = grid.xOfCell(event.startCell * cfg.cellMs)
+            val sx2 = max(grid.xOfCell(event.endCell * cfg.cellMs), sx1 + 4)
+            if (event.kind == TapKind.NOTE) {
+                val r = minOf(7.0, (sx2 - sx1) / 2, noteH / 2)
+                g2.color =
+                    Theme.accent.alpha(
+                        if (playbackPositionMs >= event.startCell * cfg.cellMs &&
+                            playbackPositionMs <= event.endCell * cfg.cellMs
+                        ) {
+                            120
+                        } else {
+                            34
+                        },
+                    )
+                g2.fill(rr(sx1 - 3, noteY - 3, sx2 - sx1 + 6, noteH + 6, r + 3))
+                g2.paint = GradientPaint(sx1.toFloat(), 0f, Theme.accent, (sx1 + max(sx2 - sx1, 40.0)).toFloat(), 0f, Theme.accent2)
+                g2.fill(rr(sx1, noteY, sx2 - sx1, noteH, r))
+                g2.color = Color(255, 255, 255, 50)
+                g2.stroke = BasicStroke(1f)
+                g2.draw(rr(sx1 + 0.5, noteY + 0.5, sx2 - sx1 - 1, noteH - 1, r))
+            } else {
+                val sx1 = grid.xOfCell(event.startCell * cfg.cellMs)
+                val sx2 = max(grid.xOfCell(event.endCell * cfg.cellMs), sx1 + 4)
+                g2.color = Theme.warn.alpha(35)
+                g2.fill(rr(sx1, noteY, sx2 - sx1, noteH, 4.0))
+                g2.color = Theme.warn.alpha(150)
+                g2.stroke = BasicStroke(1.2f)
+                g2.draw(rr(sx1 + 0.5, noteY + 0.5, sx2 - sx1 - 1, noteH - 1, 4.0))
+            }
         }
     }
 
