@@ -8,7 +8,6 @@ import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.SourceDataLine
 import kotlin.concurrent.thread
 import kotlin.math.PI
-import kotlin.math.exp
 import kotlin.math.sin
 
 /**
@@ -33,6 +32,7 @@ class Player(
     val hasAudio: Boolean get() = line != null
 
     private val playing = AtomicBoolean(false)
+    private var playbackThread: Thread? = null
 
     private fun openLine(): SourceDataLine? =
         try {
@@ -59,17 +59,27 @@ class Player(
         }
     }
 
-    /** Sine-tone samples for [freq] Hz lasting [seconds], with a short decay so notes don't click. */
+    /** Sine-tone samples for [freq] Hz lasting [seconds], with attack/sustain/release envelope. */
     private fun toneSamples(
         freq: Double,
         seconds: Double,
     ): ByteArray {
         val frames = (sampleRate * seconds).toInt().coerceAtLeast(1)
         val out = ByteArray(frames * 2)
+        val attackFrames = (sampleRate * 0.01).toInt().coerceAtLeast(1) // 10 ms fade-in
+        val releaseFrames = (sampleRate * 0.05).toInt().coerceAtLeast(1) // 50 ms fade-out
         for (i in 0 until frames) {
             val t = i / sampleRate.toDouble()
-            // Decay over the note so sustained notes don't sound like a flat organ.
-            val env = exp(-t * 4.0)
+            val env =
+                when {
+                    i < attackFrames -> i.toDouble() / attackFrames
+
+                    // attack
+                    i > frames - releaseFrames -> (frames - i).toDouble() / releaseFrames
+
+                    // release
+                    else -> 1.0 // sustain
+                }
             val value = (sin(2 * PI * freq * t) * env * 0.5 * Short.MAX_VALUE).toInt()
             out[2 * i] = (value and 0xFF).toByte()
             out[2 * i + 1] = ((value shr 8) and 0xFF).toByte()
@@ -94,34 +104,39 @@ class Player(
      * current position in milliseconds relative to the start of the score.
      *
      * Returns when playback reaches the end or [stop] is called. Throws if already playing.
+     * [startNanos] is the reference time for the score start (System.nanoTime() base), so that
+     * audio and visual playhead stay in sync even if the playback thread starts late.
      */
     fun play(
         score: Score,
+        startNanos: Long,
         onPosition: (Double) -> Unit,
         onDone: (() -> Unit)? = null,
     ) {
         require(!playing.get()) { "Already playing" }
+        playbackThread?.join(500)
         playing.set(true)
 
-        thread(isDaemon = true, name = "playback") {
-            val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
-            val startNanos = System.nanoTime()
-            val totalCells = score.totalCells
-            val config = score.config
-            val freq = pitchFrequency(config.pitch)
+        val thread =
+            thread(isDaemon = true, name = "playback") {
+                val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
+                val totalCells = score.totalCells
+                val config = score.config
+                val freq = pitchFrequency(config.pitch)
 
-            try {
-                for (event in score.events) {
-                    if (!advanceEvent(event, startNanos, config, freq, latencyNanos)) break
-                    val positionMs = event.startCell.toDouble() * config.cellMs
-                    onPosition(positionMs)
+                try {
+                    for (event in score.events) {
+                        if (!advanceEvent(event, startNanos, config, freq, latencyNanos)) break
+                        val positionMs = event.startCell.toDouble() * config.cellMs
+                        onPosition(positionMs)
+                    }
+                } finally {
+                    playing.set(false)
+                    onPosition(0.0)
+                    onDone?.invoke()
                 }
-            } finally {
-                playing.set(false)
-                onPosition(0.0)
-                onDone?.invoke()
             }
-        }
+        playbackThread = thread
     }
 
     /** Stops playback immediately. Safe to call from any thread. */
@@ -162,6 +177,7 @@ class Player(
 
     override fun close() {
         stop()
+        playbackThread?.join(500)
         line?.let {
             it.stop()
             it.close()

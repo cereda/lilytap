@@ -199,137 +199,139 @@ internal class TimelinePanel(
             g2.draw(rr(0.5, 0.5, w - 1, h - 1, 14.0))
 
             val s = session
-            if (s == null || grid.span <= 0) {
+            val cfg = s?.config ?: grid.config
+            if (cfg == null || grid.span <= 0) {
                 drawEmptyState(g2, w, h)
                 return@paint2d
             }
             g2.clip = rr(1.0, 1.0, w - 2, h - 2, 13.0)
 
-            val cfg = s.config
             val totalMs = cfg.totalCells * cfg.cellMs
             val rulerTop = 10.0
             val laneTop = 34.0
-            val laneBottom = h - if (grid.scrollable) 26.0 else 14.0
+            val laneBottom = h - if (s != null && grid.scrollable) 26.0 else 14.0
             val laneH = laneBottom - laneTop
 
-            drawGrid(g2, cfg, rulerTop, laneTop, laneBottom)
+            if (s != null) {
+                drawGrid(g2, cfg, rulerTop, laneTop, laneBottom)
 
-            val nowMs = if (s.done) -1.0 else (System.nanoTime() - s.originNanos) / 1e6
-            val pulse = 0.5 + 0.5 * sin(System.nanoTime() / 1.2e8)
-            val overlay = showRaw && s.done && s.snapped.isNotEmpty()
+                val nowMs = if (s.done) -1.0 else (System.nanoTime() - s.originNanos) / 1e6
+                val pulse = 0.5 + 0.5 * sin(System.nanoTime() / 1.2e8)
+                val overlay = showRaw && s.done && s.snapped.isNotEmpty()
 
-            // Fixed corner radius, so long notes stay rounded rectangles instead of pills
-            fun solid(
-                x1: Double,
-                x2: Double,
-                y: Double,
-                hh: Double,
-                live: Boolean,
-            ) {
-                if (x2 < -10 || x1 > w + 10) return
-                val nw = x2 - x1
-                val r = minOf(7.0, nw / 2, hh / 2)
-                g2.color = Theme.accent.alpha(if (live) (40 + 40 * pulse).toInt() else 34)
-                g2.fill(rr(x1 - 3, y - 3, nw + 6, hh + 6, r + 3))
-                g2.paint = GradientPaint(x1.toFloat(), 0f, Theme.accent, (x1 + max(nw, 40.0)).toFloat(), 0f, Theme.accent2)
-                g2.fill(rr(x1, y, nw, hh, r))
-                g2.color = Color(255, 255, 255, if (live) 120 else 50)
-                g2.stroke = BasicStroke(1f)
-                g2.draw(rr(x1 + 0.5, y + 0.5, nw - 1, hh - 1, r))
-            }
+                // Fixed corner radius, so long notes stay rounded rectangles instead of pills
+                fun solid(
+                    x1: Double,
+                    x2: Double,
+                    y: Double,
+                    hh: Double,
+                    live: Boolean,
+                ) {
+                    if (x2 < -10 || x1 > w + 10) return
+                    val nw = x2 - x1
+                    val r = minOf(7.0, nw / 2, hh / 2)
+                    g2.color = Theme.accent.alpha(if (live) (40 + 40 * pulse).toInt() else 34)
+                    g2.fill(rr(x1 - 3, y - 3, nw + 6, hh + 6, r + 3))
+                    g2.paint = GradientPaint(x1.toFloat(), 0f, Theme.accent, (x1 + max(nw, 40.0)).toFloat(), 0f, Theme.accent2)
+                    g2.fill(rr(x1, y, nw, hh, r))
+                    g2.color = Color(255, 255, 255, if (live) 120 else 50)
+                    g2.stroke = BasicStroke(1f)
+                    g2.draw(rr(x1 + 0.5, y + 0.5, nw - 1, hh - 1, r))
+                }
 
-            fun ghost(
-                x1: Double,
-                x2: Double,
-                y: Double,
-                hh: Double,
-            ) {
-                if (x2 < -10 || x1 > w + 10) return
-                val nw = x2 - x1
-                val r = minOf(5.0, nw / 2, hh / 2)
-                g2.color = Theme.accent.alpha(40)
-                g2.fill(rr(x1, y, nw, hh, r))
-                g2.color = Theme.accent.alpha(190)
-                g2.stroke = BasicStroke(1.2f)
-                g2.draw(rr(x1 + 0.5, y + 0.5, nw - 1, hh - 1, r))
-            }
+                fun ghost(
+                    x1: Double,
+                    x2: Double,
+                    y: Double,
+                    hh: Double,
+                ) {
+                    if (x2 < -10 || x1 > w + 10) return
+                    val nw = x2 - x1
+                    val r = minOf(5.0, nw / 2, hh / 2)
+                    g2.color = Theme.accent.alpha(40)
+                    g2.fill(rr(x1, y, nw, hh, r))
+                    g2.color = Theme.accent.alpha(190)
+                    g2.stroke = BasicStroke(1.2f)
+                    g2.draw(rr(x1 + 0.5, y + 0.5, nw - 1, hh - 1, r))
+                }
 
-            /** A rest: an outlined, dim block that spans the silence. */
-            fun rest(
-                x1: Double,
-                x2: Double,
-                y: Double,
-                hh: Double,
-            ) {
-                if (x2 < -10 || x1 > w + 10) return
-                val nw = max(x2 - x1, 6.0)
-                g2.color = Theme.warn.alpha(35)
-                g2.fill(rr(x1, y, nw, hh, 4.0))
-                g2.color = Theme.warn.alpha(150)
-                g2.stroke = BasicStroke(1.2f)
-                g2.draw(rr(x1 + 0.5, y + 0.5, nw - 1, hh - 1, 4.0))
-            }
+                /** A rest: an outlined, dim block that spans the silence. */
+                fun rest(
+                    x1: Double,
+                    x2: Double,
+                    y: Double,
+                    hh: Double,
+                ) {
+                    if (x2 < -10 || x1 > w + 10) return
+                    val nw = max(x2 - x1, 6.0)
+                    g2.color = Theme.warn.alpha(35)
+                    g2.fill(rr(x1, y, nw, hh, 4.0))
+                    g2.color = Theme.warn.alpha(150)
+                    g2.stroke = BasicStroke(1.2f)
+                    g2.draw(rr(x1 + 0.5, y + 0.5, nw - 1, hh - 1, 4.0))
+                }
 
-            if (overlay) {
-                // Top row: what was written (snapped to the grid). Bottom row: what you actually played.
-                val snY = laneTop + laneH * 0.10
-                val snH = laneH * 0.46
-                val gY = snY + snH + laneH * 0.12
-                val gH = laneH * 0.20
-                val midY = snY + snH + laneH * 0.06
-                for (n in s.snapped) {
-                    val sx1 = x(n.startCell * cfg.cellMs)
-                    val sx2 = max(x(n.endCell * cfg.cellMs) - 1.5, sx1 + 4)
-                    if (n.raw.kind == TapKind.REST) {
-                        rest(sx1, sx2, snY, snH)
-                        continue
+                if (overlay) {
+                    // Top row: what was written (snapped to the grid). Bottom row: what you actually played.
+                    val snY = laneTop + laneH * 0.10
+                    val snH = laneH * 0.46
+                    val gY = snY + snH + laneH * 0.12
+                    val gH = laneH * 0.20
+                    val midY = snY + snH + laneH * 0.06
+                    for (n in s.snapped) {
+                        val sx1 = x(n.startCell * cfg.cellMs)
+                        val sx2 = max(x(n.endCell * cfg.cellMs) - 1.5, sx1 + 4)
+                        if (n.raw.kind == TapKind.REST) {
+                            rest(sx1, sx2, snY, snH)
+                            continue
+                        }
+                        val rx1 = x(n.raw.downMs)
+                        val rx2 = max(x(n.raw.upMs), rx1 + 4)
+                        solid(sx1, sx2, snY, snH, false)
+                        ghost(rx1, rx2, gY, gH)
+                        val shift = rx1 - sx1
+                        if (abs(shift) > 1.5) {
+                            g2.color = if (shift > 0) Theme.warn else Theme.accent2 // late : early
+                            g2.stroke = BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                            g2.draw(Line2D.Double(sx1, midY, rx1, midY))
+                            g2.fill(Ellipse2D.Double(rx1 - 2.5, midY - 2.5, 5.0, 5.0))
+                        }
                     }
-                    val rx1 = x(n.raw.downMs)
-                    val rx2 = max(x(n.raw.upMs), rx1 + 4)
-                    solid(sx1, sx2, snY, snH, false)
-                    ghost(rx1, rx2, gY, gH)
-                    val shift = rx1 - sx1
-                    if (abs(shift) > 1.5) {
-                        g2.color = if (shift > 0) Theme.warn else Theme.accent2 // late : early
+                } else {
+                    val noteY = laneTop + laneH * 0.22
+                    val noteH = laneH * 0.56
+                    for (n in s.finished) solid(x(n.downMs), max(x(n.upMs), x(n.downMs) + 8), noteY, noteH, false)
+                    for (down in s.held.values) solid(x(down), max(x(nowMs), x(down) + 8), noteY, noteH, true)
+                    for (restAt in s.rests) {
+                        val rx = x(restAt)
+                        g2.color = Theme.warn.alpha(160)
                         g2.stroke = BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-                        g2.draw(Line2D.Double(sx1, midY, rx1, midY))
-                        g2.fill(Ellipse2D.Double(rx1 - 2.5, midY - 2.5, 5.0, 5.0))
+                        g2.draw(Line2D.Double(rx, noteY, rx, noteY + noteH))
                     }
                 }
-            } else {
-                val noteY = laneTop + laneH * 0.22
-                val noteH = laneH * 0.56
-                for (n in s.finished) solid(x(n.downMs), max(x(n.upMs), x(n.downMs) + 8), noteY, noteH, false)
-                for (down in s.held.values) solid(x(down), max(x(nowMs), x(down) + 8), noteY, noteH, true)
-                for (restAt in s.rests) {
-                    val rx = x(restAt)
-                    g2.color = Theme.warn.alpha(160)
-                    g2.stroke = BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-                    g2.draw(Line2D.Double(rx, noteY, rx, noteY + noteH))
+
+                // Playhead
+                if (nowMs in 0.0..totalMs) {
+                    val px = x(nowMs)
+                    g2.color = Theme.rec.alpha(26)
+                    g2.stroke = BasicStroke(10f)
+                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
+                    g2.color = Theme.rec.alpha(56)
+                    g2.stroke = BasicStroke(5f)
+                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
+                    g2.color = Theme.rec
+                    g2.stroke = BasicStroke(2f)
+                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom + 2))
+                    val head = Path2D.Double()
+                    head.moveTo(px - 6, rulerTop)
+                    head.lineTo(px + 6, rulerTop)
+                    head.lineTo(px, rulerTop + 9)
+                    head.closePath()
+                    g2.fill(head)
                 }
+                if (overlay) drawLegend(g2, w, rulerTop)
             }
-
-            // Playhead
-            if (nowMs in 0.0..totalMs) {
-                val px = x(nowMs)
-                g2.color = Theme.rec.alpha(26)
-                g2.stroke = BasicStroke(10f)
-                g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
-                g2.color = Theme.rec.alpha(56)
-                g2.stroke = BasicStroke(5f)
-                g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
-                g2.color = Theme.rec
-                g2.stroke = BasicStroke(2f)
-                g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom + 2))
-                val head = Path2D.Double()
-                head.moveTo(px - 6, rulerTop)
-                head.lineTo(px + 6, rulerTop)
-                head.lineTo(px, rulerTop + 9)
-                head.closePath()
-                g2.fill(head)
-            }
-
-            // Playback playhead: a thin line moving across the score.
+            // Drawn even without an active session, so it shows during playback of a finished take.
             if (playbackPositionMs >= 0) {
                 val cell = playbackPositionMs / cfg.cellMs
                 val px = grid.xOfCell(cell)
@@ -346,7 +348,7 @@ internal class TimelinePanel(
                 }
             }
 
-            if (grid.scrollable) {
+            if (s != null && grid.scrollable) {
                 // Soft fades where more content is hidden
                 val clear = Theme.code.alpha(0)
                 if (grid.scrollX > 1) {
@@ -364,8 +366,6 @@ internal class TimelinePanel(
                 g2.color = if (grab >= 0) Theme.accent else Theme.faint
                 g2.fill(rr(thumbX(), trackY, thumbW(), 5.0, 2.5))
             }
-
-            if (overlay) drawLegend(g2, w, rulerTop)
         }
     }
 

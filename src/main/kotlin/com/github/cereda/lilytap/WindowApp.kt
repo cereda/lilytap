@@ -478,6 +478,7 @@ private class WindowApp {
             thread(isDaemon = true, name = "playback") {
                 player.play(
                     score,
+                    playbackStartNanos,
                     { pos ->
                         SwingUtilities.invokeLater {
                             if (isPlaying) {
@@ -534,6 +535,7 @@ private class WindowApp {
             copy,
             calibrateButton,
         ).forEach { it.isEnabled = on }
+        playButton.isEnabled = on && takeScore != null
     }
 
     /**

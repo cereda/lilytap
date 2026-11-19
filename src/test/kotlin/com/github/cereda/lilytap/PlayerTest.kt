@@ -23,7 +23,7 @@ class PlayerTest {
     fun `playing a score advances the reported position`() {
         val player = Player(0.0)
         val positions = mutableListOf<Double>()
-        player.play(score(), onPosition = { positions += it })
+        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
         Thread.sleep(300)
         player.stop()
         Thread.sleep(100)
@@ -36,7 +36,7 @@ class PlayerTest {
     fun `stop halts position updates`() {
         val player = Player(0.0)
         val positions = mutableListOf<Double>()
-        player.play(score(), onPosition = { positions += it })
+        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
         Thread.sleep(150)
         val advancingBefore = positions.count { it > 0.0 }
         player.stop()
@@ -48,5 +48,23 @@ class PlayerTest {
     @Test
     fun `hasAudio is a boolean`() {
         assertNotNull(Player(0.0).hasAudio)
+    }
+
+    @Test
+    fun `play after stop does not start two threads`() {
+        val player = Player(0.0)
+        val positions = mutableListOf<Double>()
+        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
+        Thread.sleep(150)
+        player.stop()
+        Thread.sleep(200)
+        // Second play should not throw and should not interleave with the stopped thread
+        val positions2 = mutableListOf<Double>()
+        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions2 += it })
+        Thread.sleep(150)
+        player.stop()
+        Thread.sleep(100)
+        assertTrue(positions2.size > 1, "second play should produce positions")
+        assertTrue(positions2.dropLastWhile { it == 0.0 }.any { it > 0.0 }, "second position should advance")
     }
 }
