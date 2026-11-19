@@ -133,20 +133,28 @@ internal class TimelinePanel(
 
     /** While recording, keeps the playhead in view (called every frame). */
     fun follow() {
-        val s = session ?: return
-        if (s.done) return
-        if (!grid.scrollable) {
-            repaint() // Still repaint to show the moving playhead
-            return
+        val s = session
+        if (s != null && !s.done) {
+            // Recording mode
+            if (!grid.scrollable) return
+            val nowMs = (System.nanoTime() - s.originNanos) / 1e6
+            val totalMs = s.config.totalCells * s.config.cellMs
+            if (nowMs < 0 || nowMs > totalMs) return
+            val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
+            if (target > grid.scrollX) {
+                grid.scrollTo(target)
+            }
+        } else if (playbackPositionMs >= 0) {
+            // Playback mode - session is done or null, score is shown
+            val sc = score ?: return
+            val cfg = sc.config
+            val totalMs = cfg.totalCells * cfg.cellMs
+            val target = playbackPositionMs / totalMs * grid.totalPx - grid.span * 0.7
+            if (target > grid.scrollX) {
+                grid.scrollTo(target)
+            }
         }
-        val nowMs = (System.nanoTime() - s.originNanos) / 1e6
-        val totalMs = s.config.totalCells * s.config.cellMs
-        if (nowMs < 0 || nowMs > totalMs) return
-        val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
-        if (target > grid.scrollX) {
-            grid.scrollTo(target)
-        }
-        repaint() // Always repaint to update the playhead position
+        repaint()
     }
 
     /** The horizontal position of a time in ms on the timeline. */

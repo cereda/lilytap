@@ -930,6 +930,7 @@ internal class WindowApp {
         }
 
         if (isPlaying) {
+            timeline.follow() // Scroll the timeline during playback
             takeScore?.let { score ->
                 val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
                 val totalMs = score.config.totalCells * score.config.cellMs
