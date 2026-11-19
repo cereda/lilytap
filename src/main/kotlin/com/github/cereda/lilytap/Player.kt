@@ -112,8 +112,13 @@ class Player(
         onDone: (() -> Unit)? = null,
     ) {
         require(!playing.get()) { "Already playing" }
-        // Ensure any previous playback thread has finished before starting a new one.
+        // Ensure any previous playback thread has fully exited before starting a new one.
         playbackThread?.join(2_000)
+        if (playbackThread?.isAlive == true) {
+            // Still alive after join budget; interrupt and wait once more.
+            playbackThread?.interrupt()
+            playbackThread?.join(2_000)
+        }
         playing.set(true)
 
         val thread =

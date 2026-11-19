@@ -829,7 +829,7 @@ internal class CodeArea : JTextArea(4, 40) {
             g.paint2d { g2 ->
                 g2.font = font
                 g2.color = Theme.faint
-                g2.drawString("% your transcription will appear here", margin.left, margin.top + g2.fontMetrics.ascent)
+                g2.drawString("Your transcription will appear here", margin.left, margin.top + g2.fontMetrics.ascent)
             }
         }
     }

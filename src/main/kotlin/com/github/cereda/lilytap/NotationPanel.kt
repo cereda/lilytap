@@ -131,10 +131,10 @@ internal class NotationPanel(
         addMouseListener(mouse)
         addMouseMotionListener(mouse)
         // The wheel scrolls the grid, and with it the timeline.
+        // grid.scrollTo() notifies listeners (repaint), so no extra repaint needed here.
         addMouseWheelListener { e ->
             if (grid.scrollable) {
                 grid.scrollTo(grid.scrollX + e.preciseWheelRotation * 60)
-                repaint()
             }
         }
     }

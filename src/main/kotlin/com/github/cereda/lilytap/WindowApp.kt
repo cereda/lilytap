@@ -501,7 +501,7 @@ internal class WindowApp {
 
     private fun stopPlayback() {
         isPlaying = false
-        currentPlayer?.stop()
+        currentPlayer?.close()
         currentPlayer = null
         playbackThread?.interrupt()
         playbackThread = null
