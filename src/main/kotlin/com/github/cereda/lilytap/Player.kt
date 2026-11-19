@@ -59,7 +59,7 @@ class Player(
         }
     }
 
-    /** Sine-tone samples for [freq] Hz lasting [seconds], with attack/sustain/release envelope. */
+    /** Sine-tone samples for [freq] Hz lasting [seconds], with ADSR envelope and a second harmonic. */
     private fun toneSamples(
         freq: Double,
         seconds: Double,
@@ -67,7 +67,8 @@ class Player(
         val frames = (sampleRate * seconds).toInt().coerceAtLeast(1)
         val out = ByteArray(frames * 2)
         val attackFrames = (sampleRate * 0.01).toInt().coerceAtLeast(1) // 10 ms fade-in
-        val releaseFrames = (sampleRate * 0.05).toInt().coerceAtLeast(1) // 50 ms fade-out
+        val releaseFrames = (sampleRate * 0.08).toInt().coerceAtLeast(1) // 80 ms fade-out
+        val sustainLevel = 0.7
         for (i in 0 until frames) {
             val t = i / sampleRate.toDouble()
             val env =
@@ -75,12 +76,14 @@ class Player(
                     i < attackFrames -> i.toDouble() / attackFrames
 
                     // attack
-                    i > frames - releaseFrames -> (frames - i).toDouble() / releaseFrames
+                    i > frames - releaseFrames -> (frames - i).toDouble() / releaseFrames * sustainLevel
 
                     // release
-                    else -> 1.0 // sustain
+                    else -> sustainLevel // sustain
                 }
-            val value = (sin(2 * PI * freq * t) * env * 0.5 * Short.MAX_VALUE).toInt()
+            // Fundamental plus a quieter second harmonic for warmth.
+            val sample = sin(2 * PI * freq * t) + 0.3 * sin(4 * PI * freq * t)
+            val value = (sample * env * 0.4 * Short.MAX_VALUE).toInt()
             out[2 * i] = (value and 0xFF).toByte()
             out[2 * i + 1] = ((value shr 8) and 0xFF).toByte()
         }
@@ -142,6 +145,7 @@ class Player(
     /** Stops playback immediately. Safe to call from any thread. */
     fun stop() {
         playing.set(false)
+        playbackThread?.interrupt()
     }
 
     /**
@@ -168,7 +172,7 @@ class Player(
     }
 
     private fun sleepUntil(target: Long) {
-        while (playing.get()) {
+        while (playing.get() && !Thread.currentThread().isInterrupted) {
             val remaining = target - System.nanoTime()
             if (remaining <= 0) return
             if (remaining > 2_000_000) LockSupport.parkNanos(remaining - 1_500_000) else Thread.onSpinWait()

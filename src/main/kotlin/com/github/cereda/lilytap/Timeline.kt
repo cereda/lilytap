@@ -70,11 +70,18 @@ internal class TimelinePanel(
 
     private var grab = -1.0 // offset inside the scrollbar thumb while dragging, < 0 otherwise
 
+    /** Removes this panel's grid-change listener, so GridView doesn't hold a stale reference. */
+    private val removeGridListener = grid.onChange { repaint() }
+
+    /** Detaches this panel from the shared grid. Call when the panel is no longer needed. */
+    fun detach() {
+        removeGridListener()
+    }
+
     init {
         isOpaque = false
         preferredSize = Dimension(760, 130)
         // The grid tells us when it scrolls, so the score strip below keeps up with us.
-        grid.onChange { repaint() }
         // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
         // instead of mutating shared state during paint.
         addComponentListener(

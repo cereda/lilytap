@@ -390,7 +390,13 @@ private class WindowApp {
         KeyboardFocusManager
             .getCurrentKeyboardFocusManager()
             .addKeyEventDispatcher(KeyEventDispatcher { e -> handleKey(e) })
-        Runtime.getRuntime().addShutdownHook(Thread { metronome.close() })
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                metronome.close()
+                timeline.detach()
+                notation.detach()
+            },
+        )
 
         updateRawToggle()
         updateScoreToggle()
@@ -501,6 +507,7 @@ private class WindowApp {
         currentPlayer = null
         playbackThread?.interrupt()
         playbackThread = null
+        frameTimer.stop()
         playbackPositionMs = -1.0
         timeline.playbackPositionMs = -1.0
         notation.playbackPositionMs = -1.0

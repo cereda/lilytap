@@ -61,12 +61,19 @@ internal class NotationPanel(
             repaint()
         }
 
+    /** Removes this panel's grid-change listener, so GridView doesn't hold a stale reference. */
+    private val removeGridListener = grid.onChange { repaint() }
+
+    /** Detaches this panel from the shared grid. Call when the panel is no longer needed. */
+    fun detach() {
+        removeGridListener()
+    }
+
     init {
         isOpaque = false
         preferredSize = Dimension(760, 68)
         toolTipText = "Click a note to turn it into a rest. Drag a border to change its length."
         // The strip shares the grid with the timeline: when it scrolls, the strip follows.
-        grid.onChange { repaint() }
         // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
         // instead of mutating shared state during paint.
         addComponentListener(
