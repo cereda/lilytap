@@ -146,6 +146,7 @@ private class WindowApp {
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
     private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
+    private val playButton = PillButton("", Glyph.PLAY, heightPx = 32)
     private val themeButton = IconButton(Glyph.SUN)
     private val scroll = JScrollPane(output)
     private val stageRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
@@ -164,6 +165,7 @@ private class WindowApp {
     private val frameTimer = Timer(15) { onFrame() }
     private val copyReset = Timer(1500) { resetCopyButton() }.apply { isRepeats = false }
     private var session: Session? = null
+    private var currentPlayer: Player? = null
     private var calibrating = false
     private val calibrationOffsets = mutableListOf<Double>()
 
@@ -172,6 +174,12 @@ private class WindowApp {
 
     /** Whether the score strip is shown. */
     private var scoreVisible = true
+
+    /** Current playback position in ms relative to the start of the score (-1 when not playing). */
+    private var playbackPositionMs = -1.0
+    private var playbackStartNanos = 0L
+    private var isPlaying = false
+    private var playbackThread: Thread? = null
 
     /** The last key press seen, used to recognise X11 auto-repeat. */
     private var lastPress: KeyEvent? = null
@@ -304,6 +312,7 @@ private class WindowApp {
             isOpaque = false
             add(rawToggle)
             add(scoreToggle)
+            add(playButton)
             add(beatDots)
         }
         val stage = buildStage()
@@ -375,6 +384,7 @@ private class WindowApp {
         audioLatencyReset.onClick = { audioLatency.value = 0.0 }
         revert.onClick = { revertScore() }
         notation.onEdit = { edited -> scoreChanged(edited) }
+        playButton.onClick = { togglePlayback() }
         // "Smallest rest" only means something when rests are written at all.
         noRests.onChange = { checked -> minRest.isEnabled = !checked }
         KeyboardFocusManager
@@ -444,6 +454,63 @@ private class WindowApp {
         scoreToggle.accentOverride = if (scoreVisible) Theme.accent else null
         scoreToggle.toolTipText =
             if (scoreVisible) "Hide the score strip" else "Show the score strip"
+    }
+
+    /** Starts or stops playback of the current score. */
+    private fun togglePlayback() {
+        if (isPlaying) stopPlayback() else startPlayback()
+    }
+
+    private fun startPlayback() {
+        val score = takeScore ?: return
+        isPlaying = true
+        playbackPositionMs = 0.0
+        playbackStartNanos = System.nanoTime()
+        updatePlayButton()
+        timeline.playbackPositionMs = 0.0
+        notation.playbackPositionMs = 0.0
+        timeline.repaint()
+        notation.repaint()
+        frameTimer.start()
+        val player = Player(audioLatency.value)
+        currentPlayer = player
+        playbackThread =
+            thread(isDaemon = true, name = "playback") {
+                player.play(
+                    score,
+                    { pos ->
+                        SwingUtilities.invokeLater {
+                            if (isPlaying) {
+                                playbackPositionMs = pos
+                            }
+                        }
+                    },
+                    {
+                        SwingUtilities.invokeLater {
+                            if (isPlaying) stopPlayback()
+                        }
+                    },
+                )
+            }
+    }
+
+    private fun stopPlayback() {
+        isPlaying = false
+        currentPlayer?.stop()
+        currentPlayer = null
+        playbackThread?.interrupt()
+        playbackThread = null
+        playbackPositionMs = -1.0
+        timeline.playbackPositionMs = -1.0
+        notation.playbackPositionMs = -1.0
+        updatePlayButton()
+        timeline.repaint()
+        notation.repaint()
+    }
+
+    private fun updatePlayButton() {
+        playButton.glyph = if (isPlaying) Glyph.STOP else Glyph.PLAY
+        playButton.toolTipText = if (isPlaying) "Stop playback" else "Play the score"
     }
 
     private fun relayoutStageRight() {
@@ -637,6 +704,8 @@ private class WindowApp {
         output.text = taken.lilypond
         output.caretPosition = 0
         revert.isEnabled = false
+        playButton.isEnabled = true
+        updatePlayButton()
     }
 
     /** Throws the score away: there is nothing to edit until the next take. */
@@ -644,6 +713,9 @@ private class WindowApp {
         takeScore = null
         notation.score = null
         revert.isEnabled = false
+        playButton.isEnabled = false
+        updatePlayButton()
+        stopPlayback()
     }
 
     private fun resetCopyButton() {
@@ -841,11 +913,26 @@ private class WindowApp {
     }
 
     private fun onFrame() {
-        val s = session ?: return
-        timeline.follow()
-        timeline.repaint()
-        status.repaint() // keeps the dot pulsing
-        if (System.nanoTime() >= s.endNanos) finish()
+        val s = session
+        if (s != null) {
+            timeline.follow()
+            timeline.repaint()
+            status.repaint() // keeps the dot pulsing
+            if (System.nanoTime() >= s.endNanos) finish()
+        }
+
+        if (isPlaying) {
+            val score = takeScore ?: return
+            val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
+            val totalMs = score.config.totalCells * score.config.cellMs
+            val clamped = posMs.coerceIn(0.0, totalMs)
+            playbackPositionMs = clamped
+            timeline.playbackPositionMs = clamped
+            notation.playbackPositionMs = clamped
+            timeline.repaint()
+            notation.repaint()
+            if (clamped >= totalMs) stopPlayback()
+        }
     }
 
     /** Receives every key event in the window; while recording it consumes all of them. */
@@ -998,6 +1085,7 @@ private class WindowApp {
         frameTimer.stop()
         s.ticker.interrupt()
         s.ticker.join(300)
+        stopPlayback()
         setControlsEnabled(true)
         start.text = "Start"
         start.glyph = Glyph.PLAY

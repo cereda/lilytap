@@ -61,6 +61,13 @@ internal class TimelinePanel(
             repaint()
         }
 
+    /** Current playback position in ms (-1 when not playing). */
+    var playbackPositionMs: Double = -1.0
+        set(v) {
+            field = v
+            repaint()
+        }
+
     private var grab = -1.0 // offset inside the scrollbar thumb while dragging, < 0 otherwise
 
     init {
@@ -320,6 +327,23 @@ internal class TimelinePanel(
                 head.lineTo(px, rulerTop + 9)
                 head.closePath()
                 g2.fill(head)
+            }
+
+            // Playback playhead: a thin line moving across the score.
+            if (playbackPositionMs >= 0) {
+                val cell = playbackPositionMs / cfg.cellMs
+                val px = grid.xOfCell(cell)
+                if (px >= -10 && px <= w + 10) {
+                    g2.color = Theme.ok
+                    g2.stroke = BasicStroke(2f)
+                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
+                    val head = Path2D.Double()
+                    head.moveTo(px - 4, rulerTop)
+                    head.lineTo(px + 4, rulerTop)
+                    head.lineTo(px, rulerTop + 7)
+                    head.closePath()
+                    g2.fill(head)
+                }
             }
 
             if (grid.scrollable) {

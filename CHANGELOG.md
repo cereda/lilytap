@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Playback: play the edited score back through the metronome audio, with the pitch setting the
+  tone. A playhead moves across the timeline and score strip as the score plays, and a Play /
+  Stop button controls playback. The configured audio latency is applied so the sound lines up
+  with the playhead.
+
 ## [0.3.0] - 2026-11-19
 
 ### Added

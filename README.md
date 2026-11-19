@@ -69,6 +69,15 @@ The LilyPond text in the output box follows every edit. The edits are literal: a
 in stays a rest, whatever the "No rests" setting says - that setting applies to the take, not
 to what you make of it afterwards.
 
+### Playback
+
+The **Play** button next to "Raw taps" plays the edited score back through the metronome audio.
+The pitch setting sets the tone, and a playhead moves across both the timeline and the score
+strip as the score plays. Click the button again (it becomes **Stop**) to halt playback.
+Playback uses the configured audio latency so the sound lines up with the playhead. Nothing is
+played if there is no score yet.
+
+
 ### Audio latency
 
 On some systems the click reaches your ears noticeably later than the visual playhead moves. The

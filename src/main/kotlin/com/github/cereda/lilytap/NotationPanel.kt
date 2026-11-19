@@ -21,6 +21,8 @@ import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.geom.Line2D
+import java.awt.geom.Path2D
 import javax.swing.JComponent
 import kotlin.math.abs
 import kotlin.math.max
@@ -51,6 +53,13 @@ internal class NotationPanel(
     private var pressX = 0.0
     private var pressIndex = -1 // the block that was pressed
     private var hoverBorder = -1
+
+    /** Current playback position in ms (-1 when not playing). */
+    var playbackPositionMs: Double = -1.0
+        set(v) {
+            field = v
+            repaint()
+        }
 
     init {
         isOpaque = false
@@ -199,6 +208,23 @@ internal class NotationPanel(
                 drawBlock(g2, event, s.config, BlockBox(x1, x2, top, top + blockH))
             }
             drawHoveredBorder(g2, s, top, blockH)
+
+            // Playback playhead: a thin line moving across the score blocks.
+            if (playbackPositionMs >= 0) {
+                val cell = playbackPositionMs / s.config.cellMs
+                val px = grid.xOfCell(cell)
+                if (px >= -10 && px <= w + 10) {
+                    g2.color = Theme.ok
+                    g2.stroke = BasicStroke(2f)
+                    g2.draw(Line2D.Double(px, top - 6, px, top + blockH + 6))
+                    val head = Path2D.Double()
+                    head.moveTo(px - 4, top - 6)
+                    head.lineTo(px + 4, top - 6)
+                    head.lineTo(px, top + 1)
+                    head.closePath()
+                    g2.fill(head)
+                }
+            }
         }
     }
 
