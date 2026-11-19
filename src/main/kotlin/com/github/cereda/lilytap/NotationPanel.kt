@@ -17,6 +17,8 @@ import java.awt.Font
 import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -56,6 +58,15 @@ internal class NotationPanel(
         toolTipText = "Click a note to turn it into a rest. Drag a border to change its length."
         // The strip shares the grid with the timeline: when it scrolls, the strip follows.
         grid.onChange { repaint() }
+        // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
+        // instead of mutating shared state during paint.
+        addComponentListener(
+            object : ComponentAdapter() {
+                override fun componentResized(e: ComponentEvent) {
+                    grid.viewWidth = e.component.width
+                }
+            },
+        )
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -172,7 +183,6 @@ internal class NotationPanel(
             g2.color = Theme.line
             g2.draw(rr(0.5, 0.5, w - 1, h - 1, 14.0))
 
-            grid.viewWidth = width
             val s = score
             if (s == null || grid.span <= 0) {
                 drawHint(g2, w, h)

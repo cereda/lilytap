@@ -30,9 +30,12 @@ internal class GridView {
      * Registers a listener that is called whenever the grid changes: when it is scrolled or
      * when another recording is set. The panels that draw the grid use this to redraw
      * themselves, so they never drift apart.
+     *
+     * @return a function that removes this listener, so short-lived panels can detach.
      */
-    fun onChange(listener: () -> Unit) {
+    fun onChange(listener: () -> Unit): () -> Unit {
         listeners += listener
+        return { listeners.remove(listener) }
     }
 
     /** Tells the listeners that the grid has changed. */

@@ -12,6 +12,8 @@ import java.awt.Font
 import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.geom.Ellipse2D
@@ -66,6 +68,15 @@ internal class TimelinePanel(
         preferredSize = Dimension(760, 130)
         // The grid tells us when it scrolls, so the score strip below keeps up with us.
         grid.onChange { repaint() }
+        // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
+        // instead of mutating shared state during paint.
+        addComponentListener(
+            object : ComponentAdapter() {
+                override fun componentResized(e: ComponentEvent) {
+                    grid.viewWidth = e.component.width
+                }
+            },
+        )
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -181,7 +192,6 @@ internal class TimelinePanel(
             g2.draw(rr(0.5, 0.5, w - 1, h - 1, 14.0))
 
             val s = session
-            grid.viewWidth = width
             if (s == null || grid.span <= 0) {
                 drawEmptyState(g2, w, h)
                 return@paint2d
