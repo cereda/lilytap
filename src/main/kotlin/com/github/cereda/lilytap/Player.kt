@@ -71,16 +71,11 @@ class Player(
         val sustainLevel = 0.7
         for (i in 0 until frames) {
             val t = i / sampleRate.toDouble()
-            val env =
-                when {
-                    i < attackFrames -> i.toDouble() / attackFrames
-
-                    // attack
-                    i > frames - releaseFrames -> (frames - i).toDouble() / releaseFrames * sustainLevel
-
-                    // release
-                    else -> sustainLevel // sustain
-                }
+            // Attack fades in from 0 to 1 over attackFrames.
+            val attackEnv = if (i < attackFrames) i.toDouble() / attackFrames else 1.0
+            // Release fades from sustainLevel to 0 over the last releaseFrames.
+            val releaseEnv = if (i > frames - releaseFrames) (frames - i).toDouble() / releaseFrames else 1.0
+            val env = minOf(attackEnv, releaseEnv) * sustainLevel
             // Fundamental plus a quieter second harmonic for warmth.
             val sample = sin(2 * PI * freq * t) + 0.3 * sin(4 * PI * freq * t)
             val value = (sample * env * 0.4 * Short.MAX_VALUE).toInt()
@@ -117,11 +112,8 @@ class Player(
         onDone: (() -> Unit)? = null,
     ) {
         require(!playing.get()) { "Already playing" }
-        playbackThread?.join(500)
-        if (playbackThread?.isAlive == true) {
-            // Previous thread still alive after join budget; wait once more.
-            playbackThread?.join(2_000)
-        }
+        // Ensure any previous playback thread has finished before starting a new one.
+        playbackThread?.join(2_000)
         playing.set(true)
 
         val thread =
@@ -185,10 +177,12 @@ class Player(
 
     override fun close() {
         stop()
-        playbackThread?.join(500)
+        // Close the line first to unblock any in-progress write
         line?.let {
             it.stop()
             it.close()
         }
+        // Then join the thread with a longer timeout
+        playbackThread?.join(1_000)
     }
 }

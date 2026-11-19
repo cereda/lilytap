@@ -132,13 +132,18 @@ internal class TimelinePanel(
     fun follow() {
         val s = session ?: return
         if (s.done) return
-        if (!grid.scrollable) return
+        if (!grid.scrollable) {
+            repaint() // Still repaint to show the moving playhead
+            return
+        }
         val nowMs = (System.nanoTime() - s.originNanos) / 1e6
         val totalMs = s.config.totalCells * s.config.cellMs
         if (nowMs < 0 || nowMs > totalMs) return
         val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
         if (target > grid.scrollX) {
-            grid.scrollTo(target)
+            grid.scrollTo(target) // Triggers repaint via grid.onChange listener
+        } else {
+            repaint() // No scroll needed, but repaint for playhead position
         }
     }
 

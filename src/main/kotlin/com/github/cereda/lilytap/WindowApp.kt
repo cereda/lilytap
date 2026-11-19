@@ -922,23 +922,21 @@ internal class WindowApp {
     private fun onFrame() {
         val s = session
         if (s != null) {
-            timeline.follow()
-            timeline.repaint()
+            timeline.follow() // Repaints the timeline (including playhead)
             status.repaint() // keeps the dot pulsing
             if (System.nanoTime() >= s.endNanos) finish()
         }
 
         if (isPlaying) {
-            val score = takeScore ?: return
-            val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
-            val totalMs = score.config.totalCells * score.config.cellMs
-            val clamped = posMs.coerceIn(0.0, totalMs)
-            playbackPositionMs = clamped
-            timeline.playbackPositionMs = clamped
-            notation.playbackPositionMs = clamped
-            timeline.repaint()
-            notation.repaint()
-            if (clamped >= totalMs) stopPlayback()
+            takeScore?.let { score ->
+                val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
+                val totalMs = score.config.totalCells * score.config.cellMs
+                val clamped = posMs.coerceIn(0.0, totalMs)
+                playbackPositionMs = clamped
+                notation.playbackPositionMs = clamped
+                notation.repaint()
+                if (clamped >= totalMs) stopPlayback()
+            }
         }
     }
 

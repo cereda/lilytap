@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Player.toneSamples()` now computes attack/release envelopes independently, so short notes don't fade to silence.
+- `Player.play()` join logic simplified to a single blocking wait before starting a new thread.
+- `WindowApp.onFrame()` no longer has a dead code path when `takeScore` is null during playback, and no longer double-repaints the timeline.
+
+### Improved
+- `Player.close()` closes the audio line first to unblock in-progress writes, then joins the thread with a longer timeout.
+
 ## [0.4.3] - 2026-11-19
 
 ### Fixed
