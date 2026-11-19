@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.SourceDataLine
-import kotlin.math.PI
-import kotlin.math.exp
-import kotlin.math.sin
 
 /**
  * Plays a metronome click through the default audio output, falling back to the terminal bell
@@ -17,20 +16,18 @@ import kotlin.math.sin
  * course of a recording.
  *
  * Audio output latency cannot be reliably auto-measured through the Java Sound API, so the
- * caller must supply [audioLatencyMs] (see --audio-latency on the CLI).
+ * caller must supply [audioLatencyMs] (the window's **Audio latency** setting).
  */
 class Metronome : AutoCloseable {
     private val sampleRate = 44_100f
     private val format = AudioFormat(sampleRate, 16, 1, true, false)
-    private val accent = clickSamples(1600.0)
-    private val normal = clickSamples(1000.0)
+    private val accent = clickWave(1600.0, 0.025, 180.0, sampleRate)
+    private val normal = clickWave(1000.0, 0.025, 180.0, sampleRate)
     private val line: SourceDataLine? = openLine()
+    private val closed = AtomicBoolean(false)
 
     /** The thread currently running [run()], so [close()] can interrupt it. */
-    private var currentThread: Thread? = null
-
-    /** True if an audio output line could be opened; false means the bell fallback is used. */
-    val hasAudio: Boolean get() = line != null
+    private val currentThread = AtomicReference<Thread?>(null)
 
     private fun openLine(): SourceDataLine? =
         try {
@@ -43,24 +40,17 @@ class Metronome : AutoCloseable {
             null
         }
 
-    private fun clickSamples(freq: Double): ByteArray {
-        val frames = (sampleRate * 0.025).toInt() // 25 ms
-        val out = ByteArray(frames * 2)
-        for (i in 0 until frames) {
-            val t = i / sampleRate.toDouble()
-            val value = (sin(2 * PI * freq * t) * exp(-t * 180) * 0.8 * Short.MAX_VALUE).toInt()
-            out[2 * i] = (value and 0xFF).toByte()
-            out[2 * i + 1] = ((value shr 8) and 0xFF).toByte()
-        }
-        return out
-    }
-
     /** Plays a single click (accented or normal) on the audio line, or the terminal bell. */
     fun click(accented: Boolean) {
+        if (closed.get()) return
         val data = if (accented) accent else normal
         val l = line
         if (l != null) {
-            l.write(data, 0, data.size)
+            try {
+                l.write(data, 0, data.size)
+            } catch (_: IllegalStateException) {
+                // The line was closed by shutdown between the checks above.
+            }
         } else {
             print("\u0007")
             System.out.flush()
@@ -78,7 +68,7 @@ class Metronome : AutoCloseable {
      *
      * [audioLatencyMs] is the measured audio output latency in milliseconds —
      * there is no reliable way to auto-measure this in the Java Sound API, so
-     * the caller provides it (see --audio-latency on the CLI).
+     * the caller provides it (the window's **Audio latency** setting).
      */
     @Suppress("LongParameterList")
     fun run(
@@ -89,19 +79,21 @@ class Metronome : AutoCloseable {
         audioLatencyMs: Double,
         onBeat: (Int) -> Unit,
     ) {
-        currentThread = Thread.currentThread()
+        if (closed.get()) return
+        val me = Thread.currentThread()
+        currentThread.set(me)
         try {
             val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
             for (i in 0 until totalBeats) {
                 // shift click earlier so sound arrives at the nominal beat time
                 val clickTime = startNanos + i * beatNanos - latencyNanos
                 sleepUntil(clickTime)
-                if (Thread.currentThread().isInterrupted) return // recording was aborted or finished
+                if (me.isInterrupted) return // recording was aborted or finished
                 click(accented = i % beatsPerBar == 0)
                 onBeat(i)
             }
         } finally {
-            currentThread = null
+            currentThread.compareAndSet(me, null)
         }
     }
 
@@ -114,11 +106,12 @@ class Metronome : AutoCloseable {
     }
 
     override fun close() {
+        if (!closed.compareAndSet(false, true)) return
         // Interrupt any running run() thread so it exits sleepUntil() promptly.
-        currentThread?.interrupt()
+        currentThread.getAndSet(null)?.interrupt()
         line?.let {
-            it.stop()
-            it.close()
+            runCatching { it.stop() }
+            runCatching { it.close() }
         }
     }
 }

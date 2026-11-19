@@ -98,4 +98,30 @@ class TimelinePanelTest {
         graphics.dispose()
         assertNotNull(image.colorModel)
     }
+
+    @Test
+    fun `score blocks are drawn at their cell positions`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        panel.score =
+            Score(
+                listOf(
+                    Event(TapKind.NOTE, 0, 4),
+                    Event(TapKind.REST, 4, 4),
+                ),
+                cfg,
+            )
+        val image = BufferedImage(400, 130, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        try {
+            panel.paint(graphics)
+        } finally {
+            graphics.dispose()
+        }
+        // The rest starts at cell 4. If blocks were positioned with milliseconds instead of
+        // cells, it would be drawn far off-screen and this pixel would stay background.
+        val x = grid.xOfCell(5.5).toInt()
+        val pixel = image.getRGB(x, 70) and 0xFFFFFF
+        assertTrue(pixel != Theme.code.rgb, "the rest block should be visible at cell 5.5")
+    }
 }

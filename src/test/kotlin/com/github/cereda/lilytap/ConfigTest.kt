@@ -61,4 +61,31 @@ class ConfigTest {
         assertEquals(50.0, cfg.latencyMs)
         assertEquals("d", cfg.pitch)
     }
+
+    @Test
+    fun `non-finite BPM is rejected`() {
+        assertFailsWith<IllegalArgumentException> {
+            Config(Double.POSITIVE_INFINITY, TimeSignature(4, 4), 2, 1, 0.0, "c")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Config(Double.NaN, TimeSignature(4, 4), 2, 1, 0.0, "c")
+        }
+    }
+
+    @Test
+    fun `non-finite latency is rejected`() {
+        assertFailsWith<IllegalArgumentException> {
+            Config(60.0, TimeSignature(4, 4), 2, 1, Double.NaN, "c")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Config(60.0, TimeSignature(4, 4), 2, 1, Double.POSITIVE_INFINITY, "c")
+        }
+    }
+
+    @Test
+    fun `blank pitch is rejected`() {
+        assertFailsWith<IllegalArgumentException> {
+            Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "   ")
+        }
+    }
 }

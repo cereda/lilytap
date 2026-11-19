@@ -70,6 +70,11 @@ internal class TimelinePanel(
 
     /** The score to show during playback when there's no active recording session. */
     var score: Score? = null
+        set(v) {
+            field = v
+            if (grid.config == null) grid.config = v?.config
+            repaint()
+        }
 
     private var grab = -1.0 // offset inside the scrollbar thumb while dragging, < 0 otherwise
 
@@ -163,9 +168,9 @@ internal class TimelinePanel(
 
     /** The horizontal position of a time in ms on the timeline. */
     private fun x(ms: Double): Double {
-        val s = session ?: return 0.0
-        val totalMs = s.config.totalCells * s.config.cellMs
-        return grid.xOfCell(ms.coerceIn(0.0, totalMs) / s.config.cellMs)
+        val cfg = session?.config ?: score?.config ?: grid.config ?: return 0.0
+        val totalMs = cfg.totalCells * cfg.cellMs
+        return grid.xOfCell(ms.coerceIn(0.0, totalMs) / cfg.cellMs)
     }
 
     /** Draws the alternating bar bands, the bar numbers and the grid lines. */
@@ -178,11 +183,10 @@ internal class TimelinePanel(
     ) {
         val w = width.toDouble()
         val laneH = laneBottom - laneTop
-        val barMs = cfg.cellsPerBar * cfg.cellMs
         g2.font = Theme.font(11f, Font.BOLD)
         for (b in 0 until cfg.bars) {
-            val x0 = x(b * barMs)
-            val x1 = x((b + 1) * barMs)
+            val x0 = grid.xOfCell((b * cfg.cellsPerBar).toDouble())
+            val x1 = grid.xOfCell(((b + 1) * cfg.cellsPerBar).toDouble())
             if (x1 < -40 || x0 > w + 40) continue
             if (b % 2 == 1) {
                 g2.color = Color(255, 255, 255, 7)
@@ -194,7 +198,7 @@ internal class TimelinePanel(
 
         g2.stroke = BasicStroke(1f)
         for (cell in 0..cfg.totalCells) {
-            val xx = x(cell * cfg.cellMs)
+            val xx = grid.xOfCell(cell.toDouble())
             if (xx <= -40 || xx >= w + 40) continue
             when {
                 cell % cfg.cellsPerBar == 0 -> {
@@ -240,7 +244,11 @@ internal class TimelinePanel(
 
             drawGrid(g2, cfg, rulerTop, laneTop, laneBottom)
 
-            if (s != null) {
+            val playingScore = score.takeIf { playbackPositionMs >= 0 }
+            if (playingScore != null) {
+                // During playback show the edited score, not the take's raw notes.
+                drawScoreBlocks(g2, playingScore, cfg, laneTop, laneBottom)
+            } else if (s != null) {
                 val nowMs = if (s.done) -1.0 else (System.nanoTime() - s.originNanos) / 1e6
                 val pulse = 0.5 + 0.5 * sin(System.nanoTime() / 1.2e8)
                 val overlay = showRaw && s.done && s.snapped.isNotEmpty()
@@ -460,8 +468,8 @@ internal class TimelinePanel(
         val noteY = laneTop + laneH * 0.22
         val noteH = laneH * 0.56
         for (event in score.events) {
-            val sx1 = grid.xOfCell(event.startCell * cfg.cellMs)
-            val sx2 = max(grid.xOfCell(event.endCell * cfg.cellMs), sx1 + 4)
+            val sx1 = grid.xOfCell(event.startCell.toDouble())
+            val sx2 = max(grid.xOfCell(event.endCell.toDouble()), sx1 + 4)
             if (event.kind == TapKind.NOTE) {
                 val r = minOf(7.0, (sx2 - sx1) / 2, noteH / 2)
                 g2.color =
@@ -481,8 +489,6 @@ internal class TimelinePanel(
                 g2.stroke = BasicStroke(1f)
                 g2.draw(rr(sx1 + 0.5, noteY + 0.5, sx2 - sx1 - 1, noteH - 1, r))
             } else {
-                val sx1 = grid.xOfCell(event.startCell * cfg.cellMs)
-                val sx2 = max(grid.xOfCell(event.endCell * cfg.cellMs), sx1 + 4)
                 g2.color = Theme.warn.alpha(35)
                 g2.fill(rr(sx1, noteY, sx2 - sx1, noteH, 4.0))
                 g2.color = Theme.warn.alpha(150)

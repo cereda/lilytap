@@ -85,13 +85,14 @@ data class Config(
     val noRests: Boolean = false,
 ) {
     init {
-        require(bpm > 0) { "BPM must be positive" }
+        require(bpm.isFinite() && bpm > 0) { "BPM must be positive" }
         require(subdivisions >= 1) { "Subdivisions must be at least 1" }
         require(timeSignature.unitsPerBeat % subdivisions == 0) {
             "Subdivisions ($subdivisions) too fine for time signature $timeSignature"
         }
         require(bars >= 1) { "Need at least one bar" }
-        require(pitch.isNotEmpty()) { "Pitch must not be empty" }
+        require(latencyMs.isFinite()) { "Latency must be finite" }
+        require(pitch.isNotBlank()) { "Pitch must not be blank" }
     }
 
     /** Internal grid units in a single cell. */
@@ -147,7 +148,7 @@ data class SnappedNote(
  * A key held down: pressed at [downMs], released at [upMs] (relative to the start of bar 1).
  *
  * @property kind [TapKind.NOTE] for a sounding note, [TapKind.REST] for a silence. A rest is
- * instantaneous: it lasts until the next press, like a rest tap in the terminal version.
+ * instantaneous: it lasts until the next press.
  */
 data class HeldNote(
     val downMs: Double,
@@ -286,7 +287,7 @@ fun transcribe(
  * A note that overlaps the next one is cut where the next one starts.
  *
  * A note whose [HeldNote.kind] is [TapKind.REST] is a silence instead: it lasts until the next
- * press, like a rest tap in the terminal version.
+ * press.
  *
  * When [Config.noRests] is set, no silence is ever written: every rest is absorbed into the note
  * before it, and a leading silence (one with no note before it) stays a rest.

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Playback has a **Note / Beat** toggle. **Beat** replaces each note onset with a short
+  percussive click (accented on bar downbeats), with a timbre distinct from the metronome;
+  rests stay silent.
+
+### Changed
+- lilytap now launches directly into the window; the shadow jar is the executable
+  (`java -jar build/libs/lilytap.jar`) and the `run`/`gui` subcommands are gone.
+- Calibration adds the measured residual to the configured audio latency instead of replacing
+  it, and includes the first recorded bar.
+
+### Removed
+- The terminal CLI (`run` subcommand), its options and the terminal recorder.
+- The `clikt` and `jline` dependencies.
+
+### Fixed
+- Playback now uses the edited score, and the timeline shows the edited score (not the raw take)
+  during playback. Editing a block stops playback, so sound and blocks cannot disagree.
+- Score blocks on the timeline are positioned by grid cell; they used to be converted to
+  milliseconds before the pixel mapping, which put later blocks far off-screen.
+- The timeline grid no longer collapses to the left edge when it has a score but no active
+  session.
+- Playback event timing rounds the fractional cell duration to nanoseconds instead of
+  truncating it, removing cumulative drift at tempos such as 63 BPM.
+- Starting and immediately stopping playback no longer writes to a closed audio line; the
+  player rejects playback after `close()`.
+- Calibration records only key presses (not typed/released events), respects Esc, and no longer
+  skips the first bar or cancels itself when only one bar is recorded.
+- `Metronome` publishes its running thread atomically, so `close()` can always interrupt it;
+  closing is idempotent and ignores clicks on a closed line.
+- `Config` rejects non-finite BPM and latency values and blank pitches.
+
 ## [0.4.11] - 2026-11-19
 
 ### Fixed

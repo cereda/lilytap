@@ -46,8 +46,10 @@ fun launchWindow() {
     // Must be set before AWT starts: smoother text everywhere.
     System.setProperty("awt.useSystemAAFontSettings", "on")
     System.setProperty("swing.aatext", "true")
+    // Detecting the OS theme can spawn a process and wait for it; keep that off the EDT.
+    val dark = osPrefersDark()
     SwingUtilities.invokeLater {
-        Theme.set(osPrefersDark())
+        Theme.set(dark)
         try {
             // Metal everywhere: our widgets are custom painted, so a native L&F only adds inconsistency.
             UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName())
@@ -79,6 +81,23 @@ private fun escapeHtml(text: String): String =
         .replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
+
+/**
+ * The offset of a calibration tap from the nearest beat, in milliseconds, or null when the tap
+ * falls outside the recorded bars. [ms] is measured from the first recorded beat, not from the
+ * count-in, so the first bar is included.
+ */
+internal fun calibrationOffsetMs(
+    ms: Double,
+    beatMs: Double,
+    totalBeats: Int,
+): Double? {
+    if (!ms.isFinite() || !beatMs.isFinite()) return null
+    if (beatMs <= 0 || totalBeats <= 0 || ms < 0) return null
+    val beatIndex = Math.round(ms / beatMs).toInt()
+    if (beatIndex !in 0 until totalBeats) return null
+    return ms - beatIndex * beatMs
+}
 
 /** Best-effort OS dark-mode check, used only on the very first launch. Falls back to dark. */
 private fun osPrefersDark(): Boolean {
@@ -146,6 +165,7 @@ internal class WindowApp {
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
     private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
+    private val soundButton = PillButton("Note", Glyph.NOTE, heightPx = 32)
     private val playButton = PillButton("", Glyph.PLAY, heightPx = 32)
     private val themeButton = IconButton(Glyph.SUN)
     private val scroll = JScrollPane(output)
@@ -179,7 +199,7 @@ internal class WindowApp {
     private var playbackPositionMs = -1.0
     private var playbackStartNanos = 0L
     private var isPlaying = false
-    private var playbackThread: Thread? = null
+    private var playbackSound = PlaybackSound.NOTE
 
     /** The last key press seen, used to recognise X11 auto-repeat. */
     private var lastPress: KeyEvent? = null
@@ -305,6 +325,7 @@ internal class WindowApp {
 
         rawToggle.isEnabled = false
         rawToggle.toolTipText = "Show your raw key presses as ghosts under the snapped notes. Amber = pressed late, teal = early."
+        soundButton.isEnabled = false
         beatDots.isVisible = false
         revert.isEnabled = false
         revert.toolTipText = "Put the score back the way it was when the take ended."
@@ -312,6 +333,7 @@ internal class WindowApp {
             isOpaque = false
             add(rawToggle)
             add(scoreToggle)
+            add(soundButton)
             add(playButton)
             add(beatDots)
         }
@@ -385,6 +407,7 @@ internal class WindowApp {
         revert.onClick = { revertScore() }
         notation.onEdit = { edited -> scoreChanged(edited) }
         playButton.onClick = { togglePlayback() }
+        soundButton.onClick = { togglePlaybackSound() }
         // "Smallest rest" only means something when rests are written at all.
         noRests.onChange = { checked -> minRest.isEnabled = !checked }
         KeyboardFocusManager
@@ -394,6 +417,7 @@ internal class WindowApp {
 
         updateRawToggle()
         updateScoreToggle()
+        updateSoundButton()
         applyTheme(Theme.isDark)
         frame.iconImage = logoImage(64)
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
@@ -436,6 +460,7 @@ internal class WindowApp {
         pitch.refreshTheme()
         updateRawToggle()
         updateScoreToggle()
+        updateSoundButton()
         themeButton.glyph = if (dark) Glyph.SUN else Glyph.MOON
         themeButton.toolTipText = if (dark) "Switch to light theme" else "Switch to dark theme"
         frame.repaint()
@@ -473,52 +498,70 @@ internal class WindowApp {
     }
 
     private fun startPlayback() {
-        val score = takeScore ?: return
+        val score = currentScore() ?: return
         isPlaying = true
+        soundButton.isEnabled = false
         playbackPositionMs = 0.0
         playbackStartNanos = System.nanoTime()
         updatePlayButton()
+        timeline.score = score
         timeline.playbackPositionMs = 0.0
         notation.playbackPositionMs = 0.0
         timeline.resetScroll() // Long scores start at the beginning, wherever the take left the view.
-        timeline.repaint()
-        notation.repaint()
         frameTimer.start()
-        val player = Player(audioLatency.value)
+        val player = Player(audioLatency.value, playbackSound)
         currentPlayer = player
-        playbackThread =
-            thread(isDaemon = true, name = "playback") {
-                player.play(
-                    score,
-                    playbackStartNanos,
-                    onDone = {
-                        SwingUtilities.invokeLater {
-                            if (isPlaying) stopPlayback()
-                        }
-                    },
-                )
-            }
+        player.play(
+            score,
+            playbackStartNanos,
+            onDone = {
+                SwingUtilities.invokeLater {
+                    if (isPlaying) stopPlayback()
+                }
+            },
+        )
     }
 
     private fun stopPlayback() {
         isPlaying = false
         currentPlayer?.close()
         currentPlayer = null
-        playbackThread?.interrupt()
-        playbackThread = null
         frameTimer.stop()
         playbackPositionMs = -1.0
         timeline.playbackPositionMs = -1.0
         notation.playbackPositionMs = -1.0
+        soundButton.isEnabled = currentScore() != null
         updatePlayButton()
-        timeline.repaint()
-        notation.repaint()
     }
 
     private fun updatePlayButton() {
         playButton.glyph = if (isPlaying) Glyph.STOP else Glyph.PLAY
         playButton.toolTipText = if (isPlaying) "Stop playback" else "Play the score"
     }
+
+    /** Toggles the playback sound between the score's pitch and a metronome-style click. */
+    private fun togglePlaybackSound() {
+        if (isPlaying) return
+        playbackSound =
+            if (playbackSound == PlaybackSound.NOTE) PlaybackSound.BEAT else PlaybackSound.NOTE
+        updateSoundButton()
+    }
+
+    private fun updateSoundButton() {
+        val beat = playbackSound == PlaybackSound.BEAT
+        soundButton.text = if (beat) "Beat" else "Note"
+        soundButton.glyph = if (beat) Glyph.METRONOME else Glyph.NOTE
+        soundButton.accentOverride = if (beat) Theme.accent else null
+        soundButton.toolTipText =
+            if (beat) {
+                "Playback sound: a click on every note onset (click again for the score's pitch)."
+            } else {
+                "Playback sound: the score's pitch (click again for a metronome-style click)."
+            }
+    }
+
+    /** The score Play uses: the edited one when there is a take, otherwise whatever the strip shows. */
+    private fun currentScore(): Score? = notation.score ?: takeScore
 
     private fun relayoutStageRight() {
         stageRight.revalidate()
@@ -541,7 +584,8 @@ internal class WindowApp {
             copy,
             calibrateButton,
         ).forEach { it.isEnabled = on }
-        playButton.isEnabled = on && takeScore != null
+        playButton.isEnabled = on && currentScore() != null
+        soundButton.isEnabled = on && currentScore() != null
     }
 
     /**
@@ -691,6 +735,8 @@ internal class WindowApp {
 
     /** The score was edited in the strip: the output follows, and Revert comes alive. */
     private fun scoreChanged(edited: Score) {
+        if (isPlaying) stopPlayback()
+        timeline.score = edited
         output.text = edited.lilypond
         output.caretPosition = 0
         revert.isEnabled = edited != takeScore
@@ -699,7 +745,9 @@ internal class WindowApp {
     /** Puts the score back the way it was when the take ended. */
     private fun revertScore() {
         val original = takeScore ?: return
+        if (isPlaying) stopPlayback()
         notation.score = original
+        timeline.score = original
         output.text = original.lilypond
         output.caretPosition = 0
         revert.isEnabled = false
@@ -714,6 +762,7 @@ internal class WindowApp {
         output.caretPosition = 0
         revert.isEnabled = false
         playButton.isEnabled = true
+        soundButton.isEnabled = true
         updatePlayButton()
     }
 
@@ -724,6 +773,7 @@ internal class WindowApp {
         timeline.score = null
         revert.isEnabled = false
         playButton.isEnabled = false
+        soundButton.isEnabled = false
         updatePlayButton()
         stopPlayback()
     }
@@ -810,7 +860,7 @@ internal class WindowApp {
                     timeSignature = TimeSignature.parse(time.text),
                     subdivisions = subdivisions.selectedText.toInt(),
                     bars = bars.value.roundToInt(),
-                    latencyMs = audioLatency.value,
+                    latencyMs = 0.0,
                     pitch = pitch.text.trim().ifEmpty { "c" },
                 )
             } catch (e: IllegalArgumentException) {
@@ -869,12 +919,15 @@ internal class WindowApp {
 
         if (calibrationOffsets.isNotEmpty()) {
             val avgOffset = calibrationOffsets.average()
-            audioLatency.value = avgOffset
+            // The clicks were already shifted by the configured latency, so the measured offset
+            // is the remaining error: add it to the current value.
+            audioLatency.value = audioLatency.value + avgOffset
+            val corrected = audioLatency.value
             status.mood = Mood.DONE
-            status.text = "Calibrated: ${avgOffset.roundToLong()} ms audio latency."
+            status.text = "Calibrated: ${corrected.roundToLong()} ms audio latency."
             showMessage(
                 "Calibration complete",
-                "${avgOffset.roundToLong()} ms",
+                "${corrected.roundToLong()} ms",
                 "The metronome click will now be shifted earlier by this amount.",
                 Glyph.CHECK,
             )
@@ -931,7 +984,10 @@ internal class WindowApp {
         }
 
         if (isPlaying) {
-            takeScore?.let { score ->
+            val score = currentScore()
+            if (score == null) {
+                stopPlayback()
+            } else {
                 val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
                 val totalMs = score.config.totalCells * score.config.cellMs
                 val clamped = posMs.coerceIn(0.0, totalMs)
@@ -940,7 +996,6 @@ internal class WindowApp {
                 notation.playbackPositionMs = clamped
                 // Follow after the position is updated, or the grid scrolls to a stale spot.
                 timeline.follow()
-                notation.repaint()
                 if (clamped >= totalMs) stopPlayback()
             }
         }
@@ -968,18 +1023,14 @@ internal class WindowApp {
 
         // Calibration mode: record tap offsets instead of normal recording
         if (calibrating) {
-            val ms = (now - s.originNanos) / 1e6
-            val beats = s.config.timeSignature.beats
-            val beatNanosMs = (60_000_000_000.0 / s.config.bpm / 1_000_000.0)
-            val firstBeatMs = beats * beatNanosMs
-            if (ms >= firstBeatMs) {
-                val beatIndex = Math.round((ms - firstBeatMs) / beatNanosMs).toInt()
-                val totalBeats = s.config.bars * beats
-                if (beatIndex >= 0 && beatIndex < totalBeats) {
-                    val nominalTime = firstBeatMs + beatIndex * beatNanosMs
-                    val offset = ms - nominalTime
-                    calibrationOffsets += offset
-                }
+            if (e.keyCode == KeyEvent.VK_ESCAPE && e.id == KeyEvent.KEY_PRESSED) {
+                abort()
+            } else if (e.id == KeyEvent.KEY_PRESSED && !isAutoRepeat(e)) {
+                lastPress = e
+                val ms = (now - s.originNanos) / 1e6
+                val beatMs = 60_000.0 / s.config.bpm
+                val totalBeats = s.config.bars * s.config.timeSignature.beats
+                calibrationOffsetMs(ms, beatMs, totalBeats)?.let { calibrationOffsets += it }
             }
             return true
         }

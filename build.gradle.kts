@@ -36,13 +36,6 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.clikt)
-    implementation(libs.jline) {
-        artifact {
-            classifier = "jdk11"
-        }
-    }
-
     testImplementation(kotlin("test"))
 }
 
@@ -53,7 +46,9 @@ application {
 
 // Shadow: the Kotlin module metadata transformer needs every `META-INF/*.kotlin_module`
 // file, so the default EXCLUDE strategy has to be relaxed to avoid silent drops.
+// The fat jar has a stable name: `java -jar build/libs/lilytap.jar`.
 tasks.named<ShadowJar>("shadowJar") {
+    archiveFileName.set("lilytap.jar")
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
 }
@@ -67,8 +62,8 @@ tapmoc {
 }
 
 // kover: coverage reports and an 80% line coverage floor.
-// Only the public API is unit-testable: the Swing UI needs a display, the CLI needs a
-// terminal and the metronome needs a sound card, so those are left out of the gate.
+// Only the public API is unit-testable: the Swing UI needs a display and the metronome
+// needs a sound card, so those are left out of the gate.
 val koverCoreClasses =
     listOf(
         "com.github.cereda.lilytap.Rhythm*",

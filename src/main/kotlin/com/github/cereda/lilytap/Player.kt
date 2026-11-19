@@ -8,30 +8,43 @@ import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.SourceDataLine
 import kotlin.concurrent.thread
 import kotlin.math.PI
+import kotlin.math.roundToLong
 import kotlin.math.sin
+
+/** How playback sounds: the score's pitch, or a percussive click on every note onset. */
+enum class PlaybackSound { NOTE, BEAT }
 
 /**
  * Plays a [Score] through the default audio output, advancing a playhead across its events.
  *
  * Each [Event] is played at its grid position: notes sound for [lengthCells] cells, rests are
- * silence. The pitch letter sets the tone frequency; rests are silent. Playback runs on its own
- * thread and reports the current position in milliseconds via [onPosition].
+ * silence. [PlaybackSound.NOTE] plays the pitch letter as a tone; [PlaybackSound.BEAT] plays a
+ * short click at the note onset instead, with an accent on bar downbeats. Playback runs on its
+ * own thread and reports the current position in milliseconds via [onPosition].
  *
  * Audio output latency cannot be reliably auto-measured through the Java Sound API, so the caller
- * must supply [audioLatencyMs] (see --audio-latency on the CLI). Playback is shifted earlier by
- * this amount so the sound reaches the listener's ears in time with the visual playhead.
+ * must supply [audioLatencyMs] (the window's **Audio latency** setting). Playback is shifted
+ * earlier by this amount so the sound reaches the listener's ears in time with the visual playhead.
  */
 class Player(
     private val audioLatencyMs: Double = 0.0,
+    private val sound: PlaybackSound = PlaybackSound.NOTE,
 ) : AutoCloseable {
     private val sampleRate = 44_100f
     private val format = AudioFormat(sampleRate, 16, 1, true, false)
     private val line: SourceDataLine? = openLine()
 
+    /** Playback clicks: lower and longer than the recording metronome, so they are distinct. */
+    private val beatClick = clickWave(600.0, 0.035, 120.0, sampleRate)
+    private val beatAccent = clickWave(900.0, 0.035, 120.0, sampleRate)
+
     /** True if an audio output line could be opened; false means playback is silent. */
     val hasAudio: Boolean get() = line != null
 
     private val playing = AtomicBoolean(false)
+    private val closed = AtomicBoolean(false)
+
+    @Volatile
     private var playbackThread: Thread? = null
 
     private fun openLine(): SourceDataLine? =
@@ -90,16 +103,21 @@ class Player(
         val l = line ?: return
         val chunk = 512
         var offset = 0
-        while (offset < samples.size && playing.get()) {
+        while (offset < samples.size && playing.get() && !closed.get()) {
             val n = if (chunk < samples.size - offset) chunk else samples.size - offset
-            l.write(samples, offset, n)
+            try {
+                l.write(samples, offset, n)
+            } catch (_: IllegalStateException) {
+                playing.set(false)
+                return
+            }
             offset += n
         }
     }
 
     /**
      * Plays [score] from the start. [onPosition] is invoked (from the playback thread) with the
-     * current position in milliseconds relative to the start of the score.
+     * current position in milliseconds, at each event start. Rests are reported but stay silent.
      *
      * Returns when playback reaches the end or [stop] is called. Throws if already playing.
      * [startNanos] is the reference time for the score start (System.nanoTime() base), so that
@@ -111,6 +129,7 @@ class Player(
         onPosition: (Double) -> Unit = {},
         onDone: (() -> Unit)? = null,
     ) {
+        if (closed.get()) return
         require(!playing.get()) { "Already playing" }
         // Ensure any previous playback thread has fully exited before starting a new one.
         playbackThread?.join(2_000)
@@ -122,27 +141,28 @@ class Player(
         if (!playing.compareAndSet(false, true)) {
             check(false) { "Already playing" }
         }
+        if (closed.get()) {
+            playing.set(false)
+            return
+        }
 
         val thread =
             thread(isDaemon = true, name = "playback") {
-                val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
-                val totalCells = score.totalCells
+                val latencyNanos = (audioLatencyMs * 1_000_000).roundToLong()
                 val config = score.config
                 val freq = pitchFrequency(config.pitch)
 
                 try {
                     for (event in score.events) {
-                        if (!advanceEvent(event, startNanos, config, freq, latencyNanos)) break
-                        val positionMs = event.startCell.toDouble() * config.cellMs
-                        onPosition(positionMs)
+                        if (!advanceEvent(event, startNanos, config, freq, latencyNanos, onPosition)) break
                     }
                 } finally {
                     playing.set(false)
-                    onPosition(0.0)
                     onDone?.invoke()
                 }
             }
         playbackThread = thread
+        if (closed.get()) stop()
     }
 
     /** Stops playback immediately. Safe to call from any thread. */
@@ -152,24 +172,38 @@ class Player(
     }
 
     /**
-     * Advances playback through a single event: waits for its start time, plays the tone if it is
-     * a note. Returns false if playback was stopped while advancing, in which case the caller
-     * should end the loop.
+     * Advances playback through a single event: waits for its start time, reports the position,
+     * and plays the tone or click if it is a note. Returns false if playback was stopped.
      */
+    @Suppress("LongParameterList")
     private fun advanceEvent(
         event: Event,
         startNanos: Long,
         config: Config,
         freq: Double,
         latencyNanos: Long,
+        onPosition: (Double) -> Unit,
     ): Boolean {
-        val eventStartNanos = startNanos + event.startCell.toLong() * config.cellMs.toLong() * 1_000_000L
-        val clickTime = eventStartNanos - latencyNanos
+        val durationNanos = (event.lengthCells * config.cellMs * 1_000_000.0).roundToLong()
+        val start = eventStartNanos(startNanos, event.startCell, config.cellMs)
+        val clickTime = start - latencyNanos
         sleepUntil(clickTime)
         if (!playing.get()) return false
+        onPosition(event.startCell.toDouble() * config.cellMs)
         if (event.kind == TapKind.NOTE) {
-            val durationSeconds = event.lengthCells * config.cellMs / 1000.0
-            playSamples(toneSamples(freq, durationSeconds))
+            when (sound) {
+                PlaybackSound.NOTE -> {
+                    playSamples(toneSamples(freq, event.lengthCells * config.cellMs / 1000.0))
+                }
+
+                PlaybackSound.BEAT -> {
+                    val accent = event.startCell % config.cellsPerBar == 0
+                    playSamples(if (accent) beatAccent else beatClick)
+                }
+            }
+            // A click is shorter than the note it stands for: wait out the rest of the event,
+            // so the next event still starts on its grid time.
+            sleepUntil(clickTime + durationNanos)
         }
         return playing.get()
     }
@@ -183,13 +217,26 @@ class Player(
     }
 
     override fun close() {
+        if (!closed.compareAndSet(false, true)) return
         stop()
         // Close the line first to unblock any in-progress write
         line?.let {
-            it.stop()
-            it.close()
+            runCatching { it.stop() }
+            runCatching { it.close() }
         }
-        // Then join the thread with a longer timeout
         playbackThread?.join(1_000)
     }
 }
+
+/**
+ * The nanosecond time of a grid cell, rounded to the nearest nanosecond.
+ *
+ * Rounding matters: `cellMs` is fractional for most tempos (63 BPM with two subdivisions
+ * is 476.190… ms), so truncating it once per cell would drift by nearly a tenth of a second
+ * over a long score.
+ */
+internal fun eventStartNanos(
+    startNanos: Long,
+    startCell: Int,
+    cellMs: Double,
+): Long = startNanos + (startCell * cellMs * 1_000_000.0).roundToLong()

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import kotlin.math.roundToLong
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -76,5 +78,48 @@ class PlayerTest {
         Thread.sleep(150)
         player.stop()
         Thread.sleep(100)
+    }
+
+    @Test
+    fun `beat playback still advances the position`() {
+        val player = Player(0.0, PlaybackSound.BEAT)
+        val positions = mutableListOf<Double>()
+        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions += it })
+        Thread.sleep(300)
+        player.stop()
+        Thread.sleep(100)
+        assertTrue(positions.any { it > 0.0 }, "beat playback should advance past the first event")
+    }
+
+    @Test
+    fun `play after close is a no-op`() {
+        val player = Player(0.0)
+        player.close()
+        var positions = 0
+        player.play(score(), startNanos = System.nanoTime(), onPosition = { positions++ })
+        Thread.sleep(100)
+        assertEquals(0, positions, "a closed player must not start playback")
+    }
+
+    @Test
+    fun `event timing rounds fractional cell durations`() {
+        val cellMs = 60_000.0 / 63.0 / 2.0
+        val start = 1_000_000_000L
+        val expected = start + (512 * cellMs * 1_000_000.0).roundToLong()
+        assertEquals(expected, eventStartNanos(start, 512, cellMs))
+        val truncated = start + 512L * cellMs.toLong() * 1_000_000L
+        assertTrue(
+            expected - truncated > 90_000_000L,
+            "rounding should avoid the ~97 ms drift of truncating cellMs",
+        )
+    }
+
+    @Test
+    fun `playback clicks have their own timbre`() {
+        val normal = clickWave(600.0, 0.035, 120.0)
+        val accent = clickWave(900.0, 0.035, 120.0)
+        assertTrue(normal.isNotEmpty())
+        assertEquals(normal.size, accent.size)
+        assertFalse(normal.contentEquals(accent), "the downbeat accent should differ from a normal click")
     }
 }
