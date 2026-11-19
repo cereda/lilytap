@@ -82,7 +82,9 @@ The pitch setting sets the tone, and a playhead moves across both the timeline a
 strip as the score plays. Pressing **Play** scrolls the view back to the beginning, and long
 scores scroll along with the playhead so it stays on screen until the end. Click the button again
 (it becomes **Stop**) to halt playback. Playback uses the configured audio latency so the sound
-lines up with the playhead. Nothing is played if there is no score yet.
+lines up with the playhead: every note is written to the audio output that much earlier, and the
+playhead waits for the same head start before it moves, so the first note lands with the rest.
+Nothing is played if there is no score yet.
 
 The sound button next to **Play** (a note icon for the score's pitch, a metronome icon for a
 click) switches the playback sound: **Note** is the score's pitch, while **Beat** replaces each
@@ -90,14 +92,22 @@ note onset with a short percussive click (accented on bar downbeats) and leaves 
 mode makes the rhythm easier to follow when the pitch is only a placeholder. Editing a block
 stops playback, so the sound and the blocks always agree.
 
+While a score is playing, the settings and the **Calibrate** button are disabled: they describe
+the next take, not the one that is playing, and a calibration would beep over the playback. The
+header button stays live and becomes **Stop**.
+
 ## Audio latency
 
 On some systems the click reaches your ears noticeably later than the visual playhead moves. The
 **Audio latency** setting shifts the click earlier so it sounds on time. The **Calibrate** button
 measures it for you: the metronome plays a count-in, you tap along with the beeps, and the measured
-error is added to the current setting. Only the beeps and the beat dots are shown while calibrating
-— the timeline stays empty on purpose, since a playhead that is out of sync with the audio is
-exactly what you are trying to measure. The round arrow next to a latency setting resets it to zero.
+error is added to the current setting. Only the beeps are shown while calibrating — the timeline
+stays empty and the beat dots are hidden, on purpose: a guide that is out of sync with the audio
+is exactly what you are trying to measure. The round arrow next to a latency setting resets it to
+zero.
+
+Outside calibration, the beat dots and the status text follow the beat itself, so they line up
+with the playhead rather than with the moment the click is written to the sound card.
 
 Nothing is written to disk: the theme follows your OS setting on every launch, and the audio
 latency starts at zero.

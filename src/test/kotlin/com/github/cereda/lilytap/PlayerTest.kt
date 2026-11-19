@@ -115,6 +115,35 @@ class PlayerTest {
     }
 
     @Test
+    fun `play returns an origin that includes the audio latency`() {
+        val player = Player(200.0)
+        val before = System.nanoTime()
+        val origin = player.play(score())
+        val leadMs = (origin - before) / 1_000_000.0
+        assertTrue(
+            leadMs >= 200.0,
+            "the origin must include the audio latency, so the first event has the same head start",
+        )
+        assertTrue(leadMs < 400.0, "the origin must stay close to the latency, was $leadMs ms")
+        player.close()
+    }
+
+    @Test
+    fun `the first event waits for the origin instead of sounding late`() {
+        val player = Player(200.0, PlaybackSound.BEAT)
+        val before = System.nanoTime()
+        var firstAt = Long.MAX_VALUE
+        player.play(score(), onPosition = { firstAt = System.nanoTime() })
+        Thread.sleep(320)
+        val firstMs = (firstAt - before) / 1_000_000.0
+        assertTrue(
+            firstMs >= 190.0,
+            "the first event must not be written in the past, it fired after $firstMs ms",
+        )
+        player.close()
+    }
+
+    @Test
     fun `event timing rounds fractional cell durations`() {
         val cellMs = 60_000.0 / 63.0 / 2.0
         val start = 1_000_000_000L

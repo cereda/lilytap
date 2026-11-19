@@ -31,8 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session.
 - Playback event timing rounds the fractional cell duration to nanoseconds instead of
   truncating it, removing cumulative drift at tempos such as 63 BPM.
-- The first note of a playback no longer starts late: the audio line is opened before the
-  playback origin is taken, and playback begins after a short lead-in.
+- The first note of a playback no longer starts late: the playback origin now includes the audio
+  latency, so the first event has the same head start as the later ones and the score keeps its
+  rhythm from the very first note.
+- The beat dots and the status text follow the beat itself instead of the moment the click is
+  written to the sound card, so the guide lines up with the playhead.
+- Calibration is no longer biased by the beat dots: they are hidden while calibrating, so the
+  taps can only follow the beeps.
+- Calibration no longer reads a late tap as an early one when the output latency is larger than
+  half a beat (250 ms at 120 BPM), which used to drive the audio latency the wrong way.
+- While a score is playing, the settings and the **Calibrate** button are disabled: they describe
+  the next take, and a calibration used to beep over the playback.
 - The timeline header no longer clips long status messages: the sound toggle is icon-only, the
   per-beat calibration status is shorter, and the status badge elides when it runs out of room.
 - Starting and immediately stopping playback no longer writes to a closed audio line; the

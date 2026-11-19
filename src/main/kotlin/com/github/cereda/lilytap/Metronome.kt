@@ -59,8 +59,7 @@ class Metronome : AutoCloseable {
 
     /**
      * Blocks the calling thread, clicking at [startNanos] + [i] * [beatNanos]
-     * minus [audioLatencyMs] for each beat. Invokes [onBeat] after each click.
-     * Returns early if the thread is interrupted.
+     * minus [audioLatencyMs] for each beat. Returns early if the thread is interrupted.
      *
      * Clicks are shifted earlier by [audioLatencyMs] so that the sound reaches
      * the listener's ears at the nominal beat time, aligning the audible click
@@ -77,7 +76,6 @@ class Metronome : AutoCloseable {
         totalBeats: Int,
         beatsPerBar: Int,
         audioLatencyMs: Double,
-        onBeat: (Int) -> Unit,
     ) {
         if (closed.get()) return
         val me = Thread.currentThread()
@@ -90,7 +88,6 @@ class Metronome : AutoCloseable {
                 sleepUntil(clickTime)
                 if (me.isInterrupted) return // recording was aborted or finished
                 click(accented = i % beatsPerBar == 0)
-                onBeat(i)
             }
         } finally {
             currentThread.compareAndSet(me, null)

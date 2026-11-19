@@ -99,6 +99,23 @@ internal fun calibrationOffsetMs(
     return ms - beatIndex * beatMs
 }
 
+/**
+ * The audio latency after a calibration round.
+ *
+ * [offsetMs] is the average distance from a tap to the beat it followed. When it would push the
+ * latency below zero, the taps cannot have been early: they landed after the *next* beat, which
+ * is how a large output latency looks at a fast tempo (half a beat at 120 BPM is 250 ms). Such an
+ * offset is read as a late tap on the beat it followed, one beat further on.
+ */
+internal fun calibratedLatency(
+    currentMs: Double,
+    offsetMs: Double,
+    beatMs: Double,
+): Double {
+    val offset = if (currentMs + offsetMs < 0) offsetMs + beatMs else offsetMs
+    return currentMs + offset
+}
+
 /** Best-effort OS dark-mode check, used only on the very first launch. Falls back to dark. */
 private fun osPrefersDark(): Boolean {
     val os = System.getProperty("os.name").lowercase()
@@ -185,6 +202,9 @@ internal class WindowApp {
     private val frameTimer = Timer(15) { onFrame() }
     private val copyReset = Timer(1500) { resetCopyButton() }.apply { isRepeats = false }
     private var session: Session? = null
+
+    /** The beat the guide was last updated for, so it only changes when a new beat starts. */
+    private var lastBeatIndex = Int.MIN_VALUE
     private var currentPlayer: Player? = null
     private var calibrating = false
     private val calibrationOffsets = mutableListOf<Double>()
@@ -504,7 +524,7 @@ internal class WindowApp {
         val player = Player(audioLatency.value, playbackSound)
         currentPlayer = player
         isPlaying = true
-        soundButton.isEnabled = false
+        setPlaybackControlsEnabled(true)
         playbackPositionMs = 0.0
         updatePlayButton()
         timeline.score = score
@@ -536,7 +556,8 @@ internal class WindowApp {
         playbackPositionMs = -1.0
         timeline.playbackPositionMs = -1.0
         notation.playbackPositionMs = -1.0
-        soundButton.isEnabled = currentScore() != null
+        // While a take is being recorded the settings stay off; they come back with the window.
+        if (session == null) setPlaybackControlsEnabled(false)
         updatePlayButton()
     }
 
@@ -573,7 +594,8 @@ internal class WindowApp {
         stageRight.repaint()
     }
 
-    private fun setControlsEnabled(on: Boolean) {
+    /** The settings that describe the next take; they do not apply while a score is playing. */
+    private val settingControls =
         listOf<JComponent>(
             bpm,
             time,
@@ -586,11 +608,29 @@ internal class WindowApp {
             audioLatency,
             audioLatencyReset,
             pitch,
-            copy,
-            calibrateButton,
-        ).forEach { it.isEnabled = on }
+        )
+
+    private fun setControlsEnabled(on: Boolean) {
+        settingControls.forEach { it.isEnabled = on }
+        copy.isEnabled = on
+        calibrateButton.isEnabled = on
         playButton.isEnabled = on && currentScore() != null
         soundButton.isEnabled = on && currentScore() != null
+    }
+
+    /**
+     * Applies what the playing state does to the controls.
+     *
+     * The score that is playing is fixed, and the settings describe the next take, so they are
+     * disabled while it plays: a changed tempo or latency would not be heard until the next
+     * playback. The header button stays live — it is the **Stop** button then.
+     */
+    private fun setPlaybackControlsEnabled(playing: Boolean) {
+        settingControls.forEach { it.isEnabled = !playing }
+        calibrateButton.isEnabled = !playing
+        start.isEnabled = !playing
+        soundButton.isEnabled = !playing && currentScore() != null
+        playButton.isEnabled = playing || currentScore() != null
     }
 
     /**
@@ -825,7 +865,7 @@ internal class WindowApp {
         val origin = startNanos + beats * beatNanos
         val end = origin + config.bars.toLong() * beats * beatNanos
 
-        val s = Session(config, minRestCells, origin, end)
+        val s = Session(config, minRestCells, startNanos, origin, end, beatNanos)
         session = s
         timeline.session = s
         lastPress = null
@@ -845,18 +885,18 @@ internal class WindowApp {
         beatDots.mood = Mood.COUNT_IN
         status.mood = Mood.COUNT_IN
         status.text = "Get ready..."
+        lastBeatIndex = Int.MIN_VALUE
 
         s.ticker =
             thread(isDaemon = true, name = "metronome") {
-                metronome.run(startNanos, beatNanos, beats + config.bars * beats, beats, audioLatency.value) { i ->
-                    SwingUtilities.invokeLater { if (session === s) showBeat(s, i) }
-                }
+                metronome.run(startNanos, beatNanos, beats + config.bars * beats, beats, audioLatency.value)
             }
         frameTimer.start()
     }
 
     private fun calibrate() {
-        if (session != null) return
+        // A calibration beeps over a take or a playback, so it only runs on an idle window.
+        if (session != null || isPlaying) return
 
         val config =
             try {
@@ -885,10 +925,11 @@ internal class WindowApp {
         val origin = startNanos + beats * beatNanos
         val end = origin + config.bars.toLong() * beats * beatNanos
 
-        val s = Session(config, 1, origin, end)
+        val s = Session(config, 1, startNanos, origin, end, beatNanos)
         session = s
-        // Calibration is about the beeps only: the timeline stays empty so that a visual playhead
-        // that is out of sync with the audio cannot mislead the user.
+        // Calibration is about the beeps only: the timeline stays empty and the beat dots are
+        // hidden, so that a visual guide that is out of sync with the audio cannot mislead the
+        // user (and cannot be mistaken for the audio when the taps are measured).
         timeline.session = null
         output.text = ""
         clearScore()
@@ -902,18 +943,17 @@ internal class WindowApp {
         start.text = "Calibrating..."
         start.glyph = Glyph.STOP
         start.kind = ButtonKind.DANGER
-        beatDots.isVisible = true
+        beatDots.isVisible = false
         beatDots.beats = beats
         beatDots.active = -1
         beatDots.mood = Mood.COUNT_IN
         status.mood = Mood.COUNT_IN
         status.text = "Calibrating \u00B7 tap with the beeps"
+        lastBeatIndex = Int.MIN_VALUE
 
         s.ticker =
             thread(isDaemon = true, name = "metronome") {
-                metronome.run(startNanos, beatNanos, beats + config.bars * beats, beats, audioLatency.value) { i ->
-                    SwingUtilities.invokeLater { if (session === s) showBeat(s, i) }
-                }
+                metronome.run(startNanos, beatNanos, beats + config.bars * beats, beats, audioLatency.value)
             }
         frameTimer.start()
     }
@@ -926,7 +966,8 @@ internal class WindowApp {
             val avgOffset = calibrationOffsets.average()
             // The clicks were already shifted by the configured latency, so the measured offset
             // is the remaining error: add it to the current value.
-            audioLatency.value = audioLatency.value + avgOffset
+            val beatMs = 60_000.0 / s.config.bpm
+            audioLatency.value = calibratedLatency(audioLatency.value, avgOffset, beatMs)
             val corrected = audioLatency.value
             status.mood = Mood.DONE
             status.text = "Calibrated: ${corrected.roundToLong()} ms audio latency."
@@ -956,18 +997,30 @@ internal class WindowApp {
         start.kind = ButtonKind.PRIMARY
     }
 
-    private fun showBeat(
-        s: Session,
-        i: Int,
-    ) {
+    /**
+     * Updates the beat dots and the status text from the session clock.
+     *
+     * The guide follows the nominal beat, not the moment the click is written to the audio line:
+     * the line is written early by the audio latency, so a guide that followed the write would
+     * sit that much ahead of the playhead and of the sound the listener actually hears.
+     */
+    private fun updateBeatDisplay(s: Session) {
+        val index = beatIndexAt(System.nanoTime(), s.startNanos, s.beatNanos)
+        if (index == lastBeatIndex) return
+        lastBeatIndex = index
         val beats = s.config.timeSignature.beats
-        if (i < beats) {
+        if (index < 0) {
             status.mood = Mood.COUNT_IN
             beatDots.mood = Mood.COUNT_IN
-            beatDots.active = i
-            status.text = "Count-in: ${beats - i}"
+            beatDots.active = -1
+            status.text = "Get ready..."
+        } else if (index < beats) {
+            status.mood = Mood.COUNT_IN
+            beatDots.mood = Mood.COUNT_IN
+            beatDots.active = index
+            status.text = "Count-in: ${beats - index}"
         } else {
-            val r = i - beats
+            val r = index - beats
             status.mood = Mood.REC
             beatDots.mood = Mood.REC
             beatDots.active = r % beats
@@ -985,6 +1038,7 @@ internal class WindowApp {
         if (s != null) {
             timeline.follow() // Repaints the timeline (including playhead)
             status.repaint() // keeps the dot pulsing
+            updateBeatDisplay(s)
             if (System.nanoTime() >= s.endNanos) finish()
         }
 
@@ -1011,7 +1065,9 @@ internal class WindowApp {
         // Ctrl/Cmd+Enter starts a take. The chord is never recorded as a note while playing.
         if (e.keyCode == KeyEvent.VK_ENTER) {
             val chord = e.isControlDown || e.isMetaDown
-            if (chord && e.id == KeyEvent.KEY_PRESSED && session == null) {
+            // A take does not start over a playback: the Start button is off while it plays.
+            val idle = session == null && !isPlaying
+            if (chord && e.id == KeyEvent.KEY_PRESSED && idle) {
                 begin()
                 // If begin() failed (invalid settings), session stays null and we fall through
                 // to `session ?: return false`, letting the event propagate unconsumed.

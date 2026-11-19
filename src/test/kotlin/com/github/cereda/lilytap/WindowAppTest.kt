@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -90,6 +91,38 @@ class WindowAppTest {
     }
 
     @Test
+    fun `playback disables the settings until it stops`() {
+        val app = WindowApp()
+
+        val takeScoreField =
+            WindowApp::class.java.declaredFields.find { it.name == "takeScore" }
+                ?: error("takeScore field not found")
+        takeScoreField.isAccessible = true
+        takeScoreField.set(app, score)
+
+        val bpmField =
+            WindowApp::class.java.declaredFields.find { it.name == "bpm" }
+                ?: error("bpm field not found")
+        bpmField.isAccessible = true
+        val bpm = bpmField.get(app) as JComponent
+
+        val startPlayback = WindowApp::class.java.getDeclaredMethod("startPlayback")
+        startPlayback.isAccessible = true
+        startPlayback.invoke(app)
+
+        assertFalse(
+            bpm.isEnabled,
+            "the settings describe the next take, so they are off while a score plays",
+        )
+
+        val stopPlayback = WindowApp::class.java.getDeclaredMethod("stopPlayback")
+        stopPlayback.isAccessible = true
+        stopPlayback.invoke(app)
+
+        assertTrue(bpm.isEnabled, "the settings come back when the playback stops")
+    }
+
+    @Test
     fun `clearScore stops playback and disables play button`() {
         val app = WindowApp()
 
@@ -170,5 +203,27 @@ class WindowAppTest {
         assertEquals(-20.0, calibrationOffsetMs(2980.0, 1000.0, 4))
         assertNull(calibrationOffsetMs(4100.0, 1000.0, 4))
         assertNull(calibrationOffsetMs(-10.0, 1000.0, 4))
+    }
+
+    @Test
+    fun `calibration reads a late tap as a tap on the beat it followed`() {
+        // A tap 200 ms before the next beat is really 300 ms after the beat it followed.
+        assertEquals(300.0, calibratedLatency(0.0, -200.0, 500.0))
+        // A small offset is taken as it is.
+        assertEquals(300.0, calibratedLatency(200.0, 100.0, 500.0))
+        // An early tap lowers the latency, as long as it stays positive.
+        assertEquals(100.0, calibratedLatency(300.0, -200.0, 500.0))
+    }
+
+    @Test
+    fun `the beat index follows the session clock`() {
+        val start = 1_000_000_000L
+        val beat = 500_000_000L
+        assertEquals(-1, beatIndexAt(start - 1, start, beat))
+        assertEquals(-1, beatIndexAt(start - beat, start, beat))
+        assertEquals(0, beatIndexAt(start, start, beat))
+        assertEquals(0, beatIndexAt(start + beat - 1, start, beat))
+        assertEquals(1, beatIndexAt(start + beat, start, beat))
+        assertEquals(4, beatIndexAt(start + 4 * beat, start, beat))
     }
 }

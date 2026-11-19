@@ -129,6 +129,11 @@ class Player(
      * the reference before that would make the first note start late while later events, which
      * are scheduled from the same absolute origin, stay in time.
      *
+     * The reference also includes the audio latency: every event is written [audioLatencyMs]
+     * before its beat, so the first event needs that head start as well. Without it the first
+     * event is written in the past and sounds late, while the later ones, which have the whole
+     * latency available, stay in time.
+     *
      * Throws if playback is already running.
      */
     fun play(
@@ -153,10 +158,12 @@ class Player(
             return 0L
         }
 
-        val origin = System.nanoTime() + PLAYBACK_LEAD_NANOS
+        val latencyNanos = (audioLatencyMs * 1_000_000).roundToLong()
+        // The first event is written `latencyNanos` before its beat, so the origin has to carry
+        // that head start too: otherwise the first event is written in the past and sounds late.
+        val origin = System.nanoTime() + latencyNanos + PLAYBACK_LEAD_NANOS
         val thread =
             thread(isDaemon = true, name = "playback") {
-                val latencyNanos = (audioLatencyMs * 1_000_000).roundToLong()
                 val config = score.config
                 val freq = pitchFrequency(config.pitch)
 

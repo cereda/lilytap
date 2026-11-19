@@ -28,8 +28,13 @@ import kotlin.math.sin
 internal class Session(
     val config: Config,
     val minRestCells: Int,
+    /** The time of the first count-in click. */
+    val startNanos: Long,
+    /** The time of the first recorded beat. */
     val originNanos: Long,
     val endNanos: Long,
+    /** The length of one beat in nanoseconds. */
+    val beatNanos: Long,
 ) {
     val finished = mutableListOf<HeldNote>()
     val held = HashMap<Int, Double>() // keyCode -> press time in ms
@@ -38,6 +43,17 @@ internal class Session(
     var snapped: List<SnappedNote> = emptyList() // filled in when the take finishes
     lateinit var ticker: Thread
 }
+
+/**
+ * The beat sounding at [nowNanos], counted from the first count-in click: 0 is the first
+ * count-in beat, the number of count-in beats is the first recorded beat, and the result is
+ * negative before the count-in starts.
+ */
+internal fun beatIndexAt(
+    nowNanos: Long,
+    startNanos: Long,
+    beatNanos: Long,
+): Int = Math.floorDiv(nowNanos - startNanos, beatNanos).toInt()
 
 /**
  * Draws the bar/beat grid, the notes as you play them, and a glowing playhead.
