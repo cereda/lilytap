@@ -67,4 +67,14 @@ class PlayerTest {
         assertTrue(positions2.size > 1, "second play should produce positions")
         assertTrue(positions2.dropLastWhile { it == 0.0 }.any { it > 0.0 }, "second position should advance")
     }
+
+    @Test
+    fun `play without onPosition callback`() {
+        val player = Player(0.0)
+        // Should not throw when onPosition is omitted
+        player.play(score(), startNanos = System.nanoTime())
+        Thread.sleep(150)
+        player.stop()
+        Thread.sleep(100)
+    }
 }

@@ -113,11 +113,15 @@ class Player(
     fun play(
         score: Score,
         startNanos: Long,
-        onPosition: (Double) -> Unit,
+        onPosition: (Double) -> Unit = {},
         onDone: (() -> Unit)? = null,
     ) {
         require(!playing.get()) { "Already playing" }
         playbackThread?.join(500)
+        if (playbackThread?.isAlive == true) {
+            // Previous thread still alive after join budget; wait once more.
+            playbackThread?.join(2_000)
+        }
         playing.set(true)
 
         val thread =

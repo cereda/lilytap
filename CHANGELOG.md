@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-19
+
+### Fixed
+- `currentPlayer` is now closed in the JVM shutdown hook, so the audio line is
+  released cleanly when the app exits during playback.
+- `Player.play()` now joins any previous playback thread with a fallback wait,
+  preventing two threads from writing to the audio line concurrently.
+- `Player.play()`'s `onPosition` callback is now optional; `WindowApp.onFrame()`
+  is the single source of truth for the playhead position.
+
+### Improved
+- `WindowApp` changed from `private` to `internal` for testability.
+- `registerShutdownHook()` extracted from `show()`, reducing `show()` length.
+- New `WindowAppTest` covers playback start/stop and `clearScore()` transitions.
+- `PlayerTest` covers playing without an `onPosition` callback.
+
 ## [0.4.2] - 2026-11-19
 
 ### Fixed
@@ -77,6 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
+[0.4.3]: https://github.com/cereda/lilytap/compare/v0.4.2...v0.4.3
+[0.4.3]: https://github.com/cereda/lilytap/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/cereda/lilytap/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/cereda/lilytap/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cereda/lilytap/compare/v0.3.0...v0.4.0

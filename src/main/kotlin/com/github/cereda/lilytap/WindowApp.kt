@@ -112,7 +112,7 @@ private fun applyDialogTheme() {
     UIManager.put("ToolTip.border", BorderFactory.createLineBorder(Theme.line))
 }
 
-private class WindowApp {
+internal class WindowApp {
     private val frame = JFrame("lilytap")
     private val bpm = Stepper(60.0, 20.0, 300.0, 1.0) { it.roundToLong().toString() }
     private val time = StyledField("4/4", 4)
@@ -390,13 +390,7 @@ private class WindowApp {
         KeyboardFocusManager
             .getCurrentKeyboardFocusManager()
             .addKeyEventDispatcher(KeyEventDispatcher { e -> handleKey(e) })
-        Runtime.getRuntime().addShutdownHook(
-            Thread {
-                metronome.close()
-                timeline.detach()
-                notation.detach()
-            },
-        )
+        registerShutdownHook()
 
         updateRawToggle()
         updateScoreToggle()
@@ -419,6 +413,17 @@ private class WindowApp {
             }
         for (c in listOf(background, settings, stage, outputCard)) c.addMouseListener(release)
         SwingUtilities.invokeLater { background.requestFocusInWindow() }
+    }
+
+    private fun registerShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                currentPlayer?.close()
+                metronome.close()
+                timeline.detach()
+                notation.detach()
+            },
+        )
     }
 
     private fun applyTheme(dark: Boolean) {
@@ -485,14 +490,7 @@ private class WindowApp {
                 player.play(
                     score,
                     playbackStartNanos,
-                    { pos ->
-                        SwingUtilities.invokeLater {
-                            if (isPlaying) {
-                                playbackPositionMs = pos
-                            }
-                        }
-                    },
-                    {
+                    onDone = {
                         SwingUtilities.invokeLater {
                             if (isPlaying) stopPlayback()
                         }
