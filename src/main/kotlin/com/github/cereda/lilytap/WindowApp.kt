@@ -31,6 +31,8 @@ import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import javax.swing.Timer
 import javax.swing.UIManager
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -53,6 +55,14 @@ internal const val CALIBRATION_BARS = 2
 
 /** The largest audio latency the setting can hold; an output delay is never negative. */
 private const val MAX_AUDIO_LATENCY_MS = 500.0
+
+/**
+ * The time signatures the app offers in the menu next to the field.
+ *
+ * The field takes any other one, so this is a shortcut and not a limit.
+ */
+private val COMMON_METERS =
+    listOf("4/4", "3/4", "2/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4", "6/4", "7/8", "5/8")
 
 /**
  * Launches the Swing (window) version of lilytap.
@@ -181,6 +191,13 @@ internal class WindowApp {
     private val frame = JFrame("lilytap")
     private val bpm = Stepper(60.0, 20.0, 300.0, 1.0) { it.roundToLong().toString() }
     private val time = StyledField("4/4", 4)
+
+    /** The time signatures the app offers; the field next to it takes any other one. */
+    private val timeMenu =
+        MenuButton(COMMON_METERS) { meter ->
+            time.text = meter
+            time.invalid = false
+        }
     private val bars = Stepper(4.0, 1.0, 64.0, 1.0) { it.roundToLong().toString() }
     private val subdivisions = SegmentedControl(listOf("1", "2", "4"), 1)
     private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat"), 0)
@@ -293,6 +310,7 @@ internal class WindowApp {
 
     init {
         wireScoreEditor()
+        wireTimeSignature()
     }
 
     fun show() {
@@ -370,7 +388,7 @@ internal class WindowApp {
                 add(
                     row(
                         labeled(Glyph.METRONOME, "Tempo (BPM)", bpm),
-                        labeled(Glyph.CLOCK, "Time", time),
+                        labeled(Glyph.CLOCK, "Time", timeCell()),
                         labeled(Glyph.BARS, "Bars", bars),
                         labeled(Glyph.GRID, "Cells / beat", subdivisions),
                     ),
@@ -513,6 +531,16 @@ internal class WindowApp {
     }
 
     /**
+     * The time signature field with the menu of common meters beside it.
+     */
+    private fun timeCell(): JComponent =
+        JPanel(BorderLayout(6, 0)).apply {
+            isOpaque = false
+            add(time, BorderLayout.CENTER)
+            add(timeMenu, BorderLayout.EAST)
+        }
+
+    /**
      * Wires the score strip and its header: the edits, the caption and the keys.
      */
     private fun wireScoreEditor() {
@@ -524,6 +552,29 @@ internal class WindowApp {
         splitButton.toolTipText = "Split the selected block in half (S)"
         swapButton.toolTipText = "Swap the two selected blocks (X)"
         mergeButton.toolTipText = "Merge the selected blocks into one (M)"
+    }
+
+    /**
+     * Wires the time signature field and the menu beside it: the menu offers the common
+     * meters, and a text that is not a meter says so, right away, instead of only when the
+     * take is refused.
+     */
+    private fun wireTimeSignature() {
+        timeMenu.toolTipText = "Common time signatures"
+        time.document.addDocumentListener(
+            object : DocumentListener {
+                override fun insertUpdate(e: DocumentEvent) = markTimeSignature()
+
+                override fun removeUpdate(e: DocumentEvent) = markTimeSignature()
+
+                override fun changedUpdate(e: DocumentEvent) = markTimeSignature()
+            },
+        )
+    }
+
+    /** Says whether the text in the time signature field can be used. */
+    private fun markTimeSignature() {
+        time.invalid = runCatching { TimeSignature.parse(time.text) }.isFailure
     }
 
     /**
@@ -692,6 +743,7 @@ internal class WindowApp {
         listOf<JComponent>(
             bpm,
             time,
+            timeMenu,
             bars,
             subdivisions,
             minRest,

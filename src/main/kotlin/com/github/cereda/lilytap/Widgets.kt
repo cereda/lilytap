@@ -22,11 +22,13 @@ import java.awt.event.FocusEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.geom.Ellipse2D
+import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
 import javax.swing.BorderFactory
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import javax.swing.Timer
@@ -224,6 +226,173 @@ internal class PillButton(
                 g2.drawString(text, (startX + gw).toFloat(), ((h - fm.height) / 2 + fm.ascent).toFloat())
             }
         }
+    }
+}
+
+/**
+ * A small button that opens a list of options.
+ *
+ * The button itself only shows a chevron: the value it stands for lives in the field next to
+ * it. The list is drawn by the app itself, so it looks the same on every OS.
+ *
+ * @param items the options, in the order they are listed.
+ * @param onSelect called with the option the user picks.
+ */
+internal class MenuButton(
+    private val items: List<String>,
+    private val onSelect: (String) -> Unit,
+) : JComponent() {
+    private var hover = false
+
+    /** The options the menu lists. */
+    val options: List<String> get() = items
+
+    /** Picks an option, as if the user had clicked it. */
+    fun pick(item: String) {
+        if (item in items) onSelect(item)
+    }
+
+    init {
+        isOpaque = false
+        isFocusable = false
+        cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        preferredSize = Dimension(26, 38)
+        addMouseListener(
+            object : MouseAdapter() {
+                override fun mouseEntered(e: MouseEvent) {
+                    hover = true
+                    repaint()
+                }
+
+                override fun mouseExited(e: MouseEvent) {
+                    hover = false
+                    repaint()
+                }
+
+                override fun mousePressed(e: MouseEvent) {
+                    if (isEnabled) openMenu()
+                }
+            },
+        )
+    }
+
+    /** Opens the list of options under the button. */
+    private fun openMenu() {
+        val popup = JPopupMenu()
+        popup.border = BorderFactory.createEmptyBorder()
+        popup.background = Theme.field
+        popup.add(
+            MenuList(items) { picked ->
+                popup.isVisible = false
+                onSelect(picked)
+            },
+        )
+        popup.show(this, 0, height)
+    }
+
+    override fun paintComponent(g: Graphics) {
+        g.paint2d { g2 ->
+            if (!isEnabled) g2.composite = AlphaComposite.SrcOver.derive(0.4f)
+            val shape = rr(0.5, 0.5, width - 1.0, height - 1.0, 8.0)
+            g2.color = if (hover && isEnabled) Theme.fieldHover else Theme.field
+            g2.fill(shape)
+            g2.color = Theme.line
+            g2.draw(shape)
+            // A small chevron pointing down.
+            g2.color = Theme.dim
+            val cx = width / 2.0
+            val cy = height / 2.0
+            val chevron = Path2D.Double()
+            chevron.moveTo(cx - 5.0, cy - 2.0)
+            chevron.lineTo(cx + 5.0, cy - 2.0)
+            chevron.lineTo(cx, cy + 3.0)
+            chevron.closePath()
+            g2.fill(chevron)
+        }
+    }
+}
+
+/**
+ * The list of options of a [MenuButton], drawn by the app itself.
+ *
+ * @param items the options, in the order they are listed.
+ * @param onSelect called with the option the user picks.
+ */
+private class MenuList(
+    private val items: List<String>,
+    private val onSelect: (String) -> Unit,
+) : JComponent() {
+    private var hover = -1
+
+    init {
+        isOpaque = false
+        font = Theme.font(14f)
+        addMouseListener(
+            object : MouseAdapter() {
+                override fun mousePressed(e: MouseEvent) {
+                    val index = rowAt(e.y)
+                    if (index >= 0) onSelect(items[index])
+                }
+            },
+        )
+        addMouseMotionListener(
+            object : MouseAdapter() {
+                override fun mouseMoved(e: MouseEvent) {
+                    val index = rowAt(e.y)
+                    if (index != hover) {
+                        hover = index
+                        repaint()
+                    }
+                }
+
+                override fun mouseExited(e: MouseEvent) {
+                    hover = -1
+                    repaint()
+                }
+            },
+        )
+    }
+
+    /** The row under the y pixel, or -1. */
+    private fun rowAt(y: Int): Int {
+        val index = (y - PAD) / ROW_HEIGHT
+        return if (index in items.indices) index else -1
+    }
+
+    override fun getPreferredSize(): Dimension {
+        val fm = getFontMetrics(font)
+        val w = items.maxOf { fm.stringWidth(it) } + 28
+        return Dimension(w, items.size * ROW_HEIGHT + 2 * PAD)
+    }
+
+    override fun paintComponent(g: Graphics) {
+        g.paint2d { g2 ->
+            g2.color = Theme.field
+            g2.fill(rr(0.5, 0.5, width - 1.0, height - 1.0, 10.0))
+            g2.color = Theme.line
+            g2.draw(rr(0.5, 0.5, width - 1.0, height - 1.0, 10.0))
+            g2.font = font
+            val fm = g2.fontMetrics
+            items.forEachIndexed { index, item ->
+                val top = PAD + index * ROW_HEIGHT
+                if (index == hover) {
+                    g2.color = Theme.fieldHover
+                    g2.fill(rr(4.0, top.toDouble(), width - 8.0, ROW_HEIGHT.toDouble(), 7.0))
+                }
+                g2.color = Theme.text
+                val tx = 14.0
+                val ty = top + (ROW_HEIGHT + fm.ascent - fm.descent) / 2.0
+                g2.drawString(item, tx.toFloat(), ty.toFloat())
+            }
+        }
+    }
+
+    companion object {
+        /** The height of a row of the list, in pixels. */
+        private const val ROW_HEIGHT = 28
+
+        /** The space above and below the rows, in pixels. */
+        private const val PAD = 6
     }
 }
 
@@ -497,6 +666,15 @@ internal class StyledField(
 ) : JTextField(initial, columns) {
     private var focusedNow = false
 
+    /** When the text in the field cannot be used, the border says so. */
+    var invalid: Boolean = false
+        set(v) {
+            if (v != field) {
+                field = v
+                repaint()
+            }
+        }
+
     init {
         isOpaque = false
         font = Theme.font(15f, Font.BOLD)
@@ -537,7 +715,12 @@ internal class StyledField(
             g2.color = Theme.field
             g2.fill(shape)
             g2.stroke = BasicStroke(if (focusedNow) 1.6f else 1f)
-            g2.color = if (focusedNow) Theme.accent else Theme.line
+            g2.color =
+                when {
+                    invalid -> Theme.rec
+                    focusedNow -> Theme.accent
+                    else -> Theme.line
+                }
             g2.draw(shape)
         }
         super.paintComponent(g)

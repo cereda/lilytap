@@ -38,7 +38,8 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
 ## Options
 
 - **Tempo (BPM)** — beats per minute, counted in the time signature's denominator.
-- **Time** — the time signature, e.g. `4/4` or `6/8`.
+- **Time** — the time signature, e.g. `4/4` or `6/8`. A menu beside the field offers the common
+  meters; the field takes any other one, and its border turns red when the text is not a meter.
 - **Bars** — how many bars to record after the one-bar count-in.
 - **Cells / beat** — the grid resolution: 1, 2 or 4 cells per beat.
 - **Smallest rest** — silences shorter than this are absorbed into the previous note.

@@ -272,6 +272,66 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the time signature menu offers the common meters`() {
+        val app = WindowApp()
+
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "timeMenu" }
+                ?: error("timeMenu field not found")
+        field.isAccessible = true
+        val menu = field.get(app) as MenuButton
+
+        assertEquals(
+            listOf("4/4", "3/4", "2/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4", "6/4", "7/8", "5/8"),
+            menu.options,
+        )
+    }
+
+    @Test
+    fun `picking a meter in the menu fills the field`() {
+        val app = WindowApp()
+
+        val menuField =
+            WindowApp::class.java.declaredFields.find { it.name == "timeMenu" }
+                ?: error("timeMenu field not found")
+        menuField.isAccessible = true
+        val menu = menuField.get(app) as MenuButton
+
+        val timeField =
+            WindowApp::class.java.declaredFields.find { it.name == "time" }
+                ?: error("time field not found")
+        timeField.isAccessible = true
+        val time = timeField.get(app) as StyledField
+
+        menu.pick("6/8")
+        assertEquals("6/8", time.text)
+        assertFalse(time.invalid)
+    }
+
+    @Test
+    fun `a time signature that cannot be used is marked`() {
+        val app = WindowApp()
+
+        val timeField =
+            WindowApp::class.java.declaredFields.find { it.name == "time" }
+                ?: error("time field not found")
+        timeField.isAccessible = true
+        val time = timeField.get(app) as StyledField
+
+        time.text = "6/8"
+        assertFalse(time.invalid, "6/8 is a meter")
+
+        time.text = "11/16"
+        assertFalse(time.invalid, "the field takes any meter, not only the common ones")
+
+        time.text = "6/6"
+        assertTrue(time.invalid, "6/6 is not a meter")
+
+        time.text = ""
+        assertTrue(time.invalid, "an empty field is not a meter")
+    }
+
+    @Test
     fun `the helper message is never cropped`() {
         val app = WindowApp()
 

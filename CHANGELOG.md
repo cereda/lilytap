@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2026-11-20
 
 ### Added
+- The time signature field has a menu of the common meters beside it (4/4, 3/4, 2/4, 2/2, 3/8,
+  6/8, 9/8, 12/8, 5/4, 6/4, 7/8, 5/8). The field still takes any other meter, and its border
+  turns red when the text is not one.
 - The score strip is now an editor: click a block to select it, shift-click to select a range,
   and double-click to turn it into a rest (and back again).
 - The score strip takes the keyboard while it is selected: **S** splits the selected block in
