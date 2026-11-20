@@ -6,6 +6,7 @@ import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -311,6 +312,99 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the tap button carries its icon`() {
+        val app = WindowApp()
+        val tap = iconButton(app, "tapButton")
+        assertEquals(Glyph.TAP, tap.glyph)
+    }
+
+    @Test
+    fun `the tap button is off with the other settings while a take runs`() {
+        val app = WindowApp()
+        val tap = iconButton(app, "tapButton")
+
+        val setControls =
+            WindowApp::class.java.getDeclaredMethod("setControlsEnabled", Boolean::class.javaPrimitiveType)
+        setControls.isAccessible = true
+        setControls.invoke(app, false)
+        assertFalse(tap.isEnabled, "the settings describe the next take, so they are off")
+
+        setControls.invoke(app, true)
+        assertTrue(tap.isEnabled, "the settings come back when the take is over")
+    }
+
+    @Test
+    fun `the taps of the button set the tempo`() {
+        val app = WindowApp()
+        val bpm = stepper(app, "bpm")
+
+        tap(app)
+        Thread.sleep(500)
+        tap(app)
+
+        // Half a second between the taps: 120 BPM.
+        assertTrue(
+            bpm.value in 115.0..125.0,
+            "the tempo should follow the taps, but it was ${bpm.value}",
+        )
+    }
+
+    @Test
+    fun `the tap button is armed while the round listens`() {
+        val app = WindowApp()
+        val tap = iconButton(app, "tapButton")
+
+        assertFalse(tap.armed, "nothing is listening yet")
+        tap(app)
+        assertTrue(tap.armed, "the round listens for the taps that come next")
+    }
+
+    @Test
+    fun `a key press is a tap while the round listens`() {
+        val app = WindowApp()
+        val bpm = stepper(app, "bpm")
+
+        tap(app)
+        Thread.sleep(500)
+        press(app, KeyEvent.VK_SPACE)
+
+        assertTrue(
+            bpm.value in 115.0..125.0,
+            "the key press should set the tempo, but it was ${bpm.value}",
+        )
+    }
+
+    @Test
+    fun `a key press alone does not set the tempo`() {
+        val app = WindowApp()
+        val bpm = stepper(app, "bpm")
+
+        // The round never started, so the keys belong to the app.
+        press(app, KeyEvent.VK_SPACE)
+        assertEquals(60.0, bpm.value, "the tempo only follows a tap round")
+    }
+
+    @Test
+    fun `escape gives up the tap round`() {
+        val app = WindowApp()
+        val bpm = stepper(app, "bpm")
+        val tap = iconButton(app, "tapButton")
+
+        tap(app)
+        Thread.sleep(500)
+        tap(app)
+        val tempo = bpm.value
+
+        press(app, KeyEvent.VK_ESCAPE)
+        assertFalse(tap.armed, "the round is over")
+
+        // The next key press belongs to the app again, so the tempo stays where it was.
+        Thread.sleep(500)
+        press(app, KeyEvent.VK_SPACE)
+        assertEquals(tempo, bpm.value, "the tempo of the cancelled round stays")
+    }
+
+    @Test
     fun `the score buttons carry their icons`() {
         val app = WindowApp()
 
@@ -532,6 +626,56 @@ class WindowAppTest {
                 ?: error("$name field not found")
         field.isAccessible = true
         return field.get(app) as PillButton
+    }
+
+    /** A stepper of the window, by the name of the field that holds it. */
+    private fun stepper(
+        app: WindowApp,
+        name: String,
+    ): Stepper {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == name }
+                ?: error("$name field not found")
+        field.isAccessible = true
+        return field.get(app) as Stepper
+    }
+
+    /** A round icon button of the window, by the name of the field that holds it. */
+    private fun iconButton(
+        app: WindowApp,
+        name: String,
+    ): IconButton {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == name }
+                ?: error("$name field not found")
+        field.isAccessible = true
+        return field.get(app) as IconButton
+    }
+
+    /** A tap on the tap button. */
+    private fun tap(app: WindowApp) {
+        val tapNow = WindowApp::class.java.getDeclaredMethod("tapTempoNow")
+        tapNow.isAccessible = true
+        tapNow.invoke(app)
+    }
+
+    /** A key press in the window. */
+    private fun press(
+        app: WindowApp,
+        keyCode: Int,
+    ) {
+        val handleKey = WindowApp::class.java.getDeclaredMethod("handleKey", KeyEvent::class.java)
+        handleKey.isAccessible = true
+        val event =
+            KeyEvent(
+                JPanel(),
+                KeyEvent.KEY_PRESSED,
+                System.currentTimeMillis(),
+                0,
+                keyCode,
+                KeyEvent.CHAR_UNDEFINED,
+            )
+        handleKey.invoke(app, event)
     }
 
     /** The score strip of the window. */

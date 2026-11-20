@@ -46,6 +46,7 @@ internal enum class Glyph {
     MERGE,
     UNDO,
     REDO,
+    TAP,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -270,6 +271,15 @@ internal fun drawGlyph(
 
         Glyph.REDO -> {
             drawTurnArrow(g, x, y, s, true)
+        }
+
+        Glyph.TAP -> {
+            // The ripples of a tap: a dot in the middle and two rings around it.
+            val cx = px(0.5)
+            val cy = py(0.5)
+            g.draw(Ellipse2D.Double(cx - 0.40 * s, cy - 0.40 * s, 0.80 * s, 0.80 * s))
+            g.draw(Ellipse2D.Double(cx - 0.24 * s, cy - 0.24 * s, 0.48 * s, 0.48 * s))
+            g.fill(Ellipse2D.Double(cx - 0.08 * s, cy - 0.08 * s, 0.16 * s, 0.16 * s))
         }
     }
 

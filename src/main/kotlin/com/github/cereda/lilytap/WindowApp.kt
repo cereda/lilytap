@@ -34,6 +34,7 @@ import javax.swing.Timer
 import javax.swing.UIManager
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+import javax.swing.text.JTextComponent
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -56,6 +57,20 @@ internal const val CALIBRATION_BARS = 2
 
 /** The largest audio latency the setting can hold; an output delay is never negative. */
 private const val MAX_AUDIO_LATENCY_MS = 500.0
+
+/**
+ * How close two presses of the same key have to be to count as one tap.
+ *
+ * A held key repeats itself, and the repeats come faster than any tempo the app can hold
+ * (300 BPM is a fifth of a second), so two presses that close together are one tap.
+ */
+private const val REPEAT_GUARD_NANOS = 100_000_000L
+
+/** What the status line says when the window waits for a take. */
+private const val IDLE_STATUS = "Set the tempo, press Start, then play with any key"
+
+/** What the status line says while a tap round is listening. */
+private const val TAP_STATUS = "Keep tapping - the tempo follows the taps"
 
 /**
  * The time signatures the app offers in the menu next to the field.
@@ -199,7 +214,7 @@ private fun applyDialogTheme() {
 
 internal class WindowApp {
     private val frame = JFrame("lilytap")
-    private val bpm = Stepper(60.0, 20.0, 300.0, 1.0, width = 138) { it.roundToLong().toString() }
+    private val bpm = Stepper(60.0, 20.0, 300.0, 1.0, width = 104) { it.roundToLong().toString() }
     private val time = StyledField("4/4", 4)
 
     /** The time signatures the app offers; the field next to it takes any other one. */
@@ -217,7 +232,7 @@ internal class WindowApp {
      * the meter.
      */
     private val gridCaption = GlyphLabel(Glyph.GRID, "Cells / beat")
-    private val bars = Stepper(4.0, 1.0, 64.0, 1.0, width = 138) { it.roundToLong().toString() }
+    private val bars = Stepper(4.0, 1.0, 64.0, 1.0, width = 124) { it.roundToLong().toString() }
     private val subdivisions = SegmentedControl(listOf("1", "2", "4"), 1)
     private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat"), 0)
     private val noRests = CheckBox()
@@ -235,6 +250,9 @@ internal class WindowApp {
         PillButton("Calibrate", Glyph.METRONOME, ButtonKind.GHOST, minW = 168, heightPx = 38)
     private val latencyReset = IconButton(Glyph.RESET, 38, 24)
     private val audioLatencyReset = IconButton(Glyph.RESET, 38, 24)
+
+    /** The button that sets the tempo by tapping. */
+    private val tapButton = IconButton(Glyph.TAP, 38, 24)
     private val pitch = StyledField("c", 4)
     private val start = PillButton("Start", Glyph.PLAY, ButtonKind.PRIMARY, minW = 168, heightPx = 48)
     private val status = StatusBadge()
@@ -312,6 +330,29 @@ internal class WindowApp {
     /** The score the take had right after it ended, so Revert can put it back. */
     private var takeScore: Score? = null
 
+    /** The taps of the round that sets the tempo. */
+    private val tapTempo = TapTempo()
+
+    /** The flash of the tap button, so a tap is seen even when the tempo does not move. */
+    private val tapFlash = Timer(220) { tapButton.accentOverride = null }.apply { isRepeats = false }
+
+    /**
+     * The end of a tap round: the button is no longer armed and the status line goes back.
+     *
+     * The round ends when the taps stop, so the keys belong to the app again.
+     */
+    private val tapIdle =
+        Timer(TapTempo.IDLE_MS) {
+            tapButton.armed = false
+            if (session == null && !isPlaying) status.text = IDLE_STATUS
+        }.apply { isRepeats = false }
+
+    /** The key of the last tap, so a key that repeats itself is not counted twice. */
+    private var lastTapKey = 0
+
+    /** When the last tap happened, in nanoseconds. */
+    private var lastTapNanos = 0L
+
     /** Whether the score strip is shown. */
     private var scoreVisible = true
 
@@ -371,11 +412,14 @@ internal class WindowApp {
         add(c, BorderLayout.CENTER)
     }
 
-    fun show() {
-        status.text = "Set the tempo, press Start, then play with any key"
+    /** The tooltips of the settings: what every control does and how it is used. */
+    private fun setToolTips() {
         bpm.toolTipText =
             "Beats per minute: the dotted quarter in a compound meter (6/8), the note value " +
             "otherwise. Click +/-, scroll, or drag the number."
+        tapButton.toolTipText =
+            "Set the tempo by tapping: click this button in time, or press any key. " +
+            "The tempo follows the taps and settles on the median of the intervals."
         bars.toolTipText = "How many bars to record after the one-bar count-in."
         latency.toolTipText = "Delay subtracted from your taps (audio output + reaction time)."
         latencyReset.toolTipText = "Reset the tap latency to 0 ms."
@@ -390,6 +434,11 @@ internal class WindowApp {
             "beat, not on the cells."
         time.toolTipText = "Time signature, e.g. 4/4 or 6/8."
         pitch.toolTipText = "Placeholder pitch printed in the LilyPond output."
+    }
+
+    fun show() {
+        status.text = IDLE_STATUS
+        setToolTips()
 
         /**
          * Reserves the same caption strip as [labeled] without drawing one, so a control placed in
@@ -440,7 +489,7 @@ internal class WindowApp {
                 isOpaque = false
                 add(
                     row(
-                        labeled(Glyph.METRONOME, "Tempo (BPM)", bpm),
+                        labeled(Glyph.METRONOME, "Tempo (BPM)", withReset(bpm, tapButton)),
                         labeled(Glyph.CLOCK, "Time", timeCell()),
                         labeled(Glyph.BARS, "Bars", bars),
                         captioned(gridCaption, subdivisions),
@@ -557,6 +606,11 @@ internal class WindowApp {
         latencyReset.onClick = { latency.value = 0.0 }
         audioLatencyReset.onClick = { audioLatency.value = 0.0 }
         revert.onClick = { revertScore() }
+        tapButton.onClick = {
+            // A tap on the button is not a key, so it does not block the next key press.
+            lastTapKey = 0
+            tapTempoNow()
+        }
         playButton.onClick = { togglePlayback() }
         soundButton.onClick = { togglePlaybackSound() }
         // "Smallest rest" only means something when rests are written at all.
@@ -733,6 +787,8 @@ internal class WindowApp {
 
     private fun startPlayback() {
         val score = currentScore() ?: return
+        // A playback has the window to itself, so a tap round cannot still be listening.
+        endTapRound(restoreStatus = true)
         // Open the audio line before the playback clock starts: opening it can take tens of
         // milliseconds, and an origin sampled before that made the first note start late.
         val player = Player(audioLatency.value, playbackSound)
@@ -812,6 +868,7 @@ internal class WindowApp {
     private val settingControls =
         listOf<JComponent>(
             bpm,
+            tapButton,
             time,
             timeMenu,
             bars,
@@ -1055,6 +1112,8 @@ internal class WindowApp {
     }
 
     private fun begin() {
+        // A take has the keys to itself, so a tap round cannot still be listening.
+        endTapRound(restoreStatus = false)
         val config =
             try {
                 Config(
@@ -1123,6 +1182,9 @@ internal class WindowApp {
     private fun calibrate() {
         // A calibration beeps over a take or a playback, so it only runs on an idle window.
         if (session != null || isPlaying) return
+
+        // The calibration has the keys to itself, so a tap round cannot still be listening.
+        endTapRound(restoreStatus = true)
 
         // The calibration runs on a fixed grid: its own tempo, its own length and its own
         // count-in. The measurement does not depend on the take's settings, and the grid is
@@ -1288,6 +1350,80 @@ internal class WindowApp {
         }
     }
 
+    /**
+     * A tap on the tap button: the tempo follows the taps.
+     *
+     * The button flashes on every tap, so a tap is seen even when it does not move the tempo
+     * yet - the first tap of a round never does. The button stays armed while the round
+     * listens, so the user sees that the key presses count as taps.
+     */
+    private fun tapTempoNow() {
+        val now = System.nanoTime()
+        tapButton.accentOverride = Theme.accent
+        tapFlash.restart()
+        tapButton.armed = true
+        tapIdle.restart()
+        val tempo = tapTempo.tap(now)
+        if (tempo == null) {
+            // The first tap of a round: it only starts the round.
+            status.text = TAP_STATUS
+            return
+        }
+        bpm.value = tempo.toDouble()
+    }
+
+    /**
+     * Ends the tap round: the taps are forgotten and the keys belong to the app again.
+     *
+     * @param restoreStatus true when the status line goes back to the idle message.
+     */
+    private fun endTapRound(restoreStatus: Boolean) {
+        tapTempo.reset()
+        tapButton.armed = false
+        tapButton.accentOverride = null
+        tapFlash.stop()
+        tapIdle.stop()
+        if (restoreStatus && session == null && !isPlaying) status.text = IDLE_STATUS
+    }
+
+    /**
+     * Whether a key press can be a tap at all: a plain key, pressed outside a text field.
+     *
+     * @param e the key event.
+     * @return true when the key could be a tap.
+     */
+    private fun canTap(e: KeyEvent): Boolean {
+        if (e.id != KeyEvent.KEY_PRESSED) return false
+        if (e.isControlDown || e.isMetaDown || e.isAltDown) return false
+        if (e.keyCode in ignoredKeys) return false
+        if (e.keyCode == KeyEvent.VK_ESCAPE) return false
+        val owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
+        return owner !is JTextComponent
+    }
+
+    /**
+     * Whether a key press is a tap of the tempo.
+     *
+     * Only while the round is listening - the button was clicked and the last tap is not too
+     * long ago - and never while a text field has the focus: there the keys are text, not
+     * taps. A key that repeats itself is not a tap either.
+     *
+     * @param e the key event.
+     * @return true when the key press counts as a tap.
+     */
+    private fun isTapKey(e: KeyEvent): Boolean {
+        if (!canTap(e)) return false
+        val now = System.nanoTime()
+        if (!tapTempo.isListening(now)) return false
+        if (isAutoRepeat(e)) return false
+        // A held key repeats itself: two presses of the same key that close together are one tap.
+        if (e.keyCode == lastTapKey && now - lastTapNanos < REPEAT_GUARD_NANOS) return false
+        lastTapKey = e.keyCode
+        lastTapNanos = now
+        lastPress = e
+        return true
+    }
+
     /** Receives every key event in the window; while recording it consumes all of them. */
     private fun handleKey(e: KeyEvent): Boolean {
         // Ctrl/Cmd+Enter starts a take. The chord is never recorded as a note while playing.
@@ -1307,6 +1443,22 @@ internal class WindowApp {
                 return true
             }
         }
+
+        // While the round is listening, a key press is a tap of the tempo. A take has the keys
+        // to itself, so this only happens when the app is idle.
+        if (session == null && isTapKey(e)) {
+            tapTempoNow()
+            return true
+        }
+
+        // Escape gives up a round that is listening: the keys belong to the app again.
+        if (session == null && e.id == KeyEvent.KEY_PRESSED && e.keyCode == KeyEvent.VK_ESCAPE) {
+            if (tapTempo.isListening(System.nanoTime())) {
+                endTapRound(restoreStatus = true)
+                return true
+            }
+        }
+
         val s = session ?: return false
         val now = System.nanoTime()
 

@@ -16,6 +16,13 @@ class GlyphTest {
     }
 
     @Test
+    fun `the tap icon draws a ripple`() {
+        assertTrue(ink(Glyph.TAP) > 0, "the tap icon draws nothing")
+        assertTrue(pixels(Glyph.TAP) != pixels(Glyph.METRONOME), "the tap icon looks like the metronome")
+        assertTrue(pixels(Glyph.TAP) != pixels(Glyph.CLOCK), "the tap icon looks like the clock")
+    }
+
+    @Test
     fun `the score editor icons are different from each other`() {
         val drawn = EDITOR_GLYPHS.map { pixels(it) }
         for (i in drawn.indices) {

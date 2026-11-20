@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The tempo can be set by tapping: the round button next to the tempo field takes the beat of
+  your taps and settles on the median of the intervals, so one slipped tap does not wreck the
+  result. While the button is armed, a key press is a tap too (a text field keeps its keys), and
+  **Esc** gives up a round that is still listening.
+
 ## [0.8.0] - 2026-11-20
 
 ### Added

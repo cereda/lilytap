@@ -38,7 +38,8 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
 ## Options
 
 - **Tempo (BPM)** — beats per minute. The beat is the one you hear: the note value in a simple
-  meter, the dotted quarter in a compound one.
+  meter, the dotted quarter in a compound one. The round button next to it sets the tempo by
+  tapping — see [Tap tempo](#tap-tempo).
 - **Time** — the time signature, e.g. `4/4` or `6/8`. A menu beside the field offers the common
   meters; the field takes any other one, and its border turns red when the text is not a meter.
 - **Bars** — how many bars to record after the one-bar count-in.
@@ -52,6 +53,21 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
 - **Pitch** — the placeholder pitch printed in the LilyPond output and used by Note playback.
 
 After a take, the suggested latency is the configured one plus the timing error that is left.
+
+## Tap tempo
+
+The round button next to the tempo sets the tempo by tapping, the way every DAW does it:
+
+- **Click the button in time.** The tempo field follows the taps, so you watch it settle.
+- **Or press any key** while the button is armed (its ring turns violet). The keys belong to the
+  tap round until it ends, so a text field keeps them: typing a pitch is never a tap.
+- The tempo is the **median of the intervals** between the taps, so one slipped tap does not
+  wreck the result.
+- A pause of more than three and a half seconds ends the round: the next tap starts a new one.
+  **Esc** gives up a round that is still listening.
+
+The tempo stays inside the range the app can hold (20–300 BPM) and is rounded to a whole
+number. The button is greyed out while a take runs or a score plays, like the other settings.
 
 ## No rests
 

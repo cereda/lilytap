@@ -747,6 +747,25 @@ internal class IconButton(
             field = v
             repaint()
         }
+
+    /** When set, the button is drawn in this colour (used for the tap flash). */
+    var accentOverride: Color? = null
+        set(v) {
+            field = v
+            repaint()
+        }
+
+    /**
+     * Whether the button is armed: it waits for what comes next.
+     *
+     * An armed button draws its ring in the accent colour, so the user sees that the app is
+     * listening - the tap button counts the key presses while it is armed.
+     */
+    var armed: Boolean = false
+        set(v) {
+            field = v
+            repaint()
+        }
     var onClick: (() -> Unit)? = null
 
     private var hover = false
@@ -793,10 +812,19 @@ internal class IconButton(
             val d = minOf(width, height) - 1.0
             g2.color = if (hover && isEnabled) Theme.fieldHover else Theme.field
             g2.fill(Ellipse2D.Double(0.5, 0.5, d, d))
-            g2.color = Theme.line
+            val accent = accentOverride
+            g2.color = accent ?: if (armed) Theme.accent.alpha(150) else Theme.line
             g2.draw(Ellipse2D.Double(0.5, 0.5, d, d))
             val gs = glyphPx.toDouble()
-            drawGlyph(g2, glyph, (width - gs) / 2, (height - gs) / 2 + if (pressed) 1 else 0, gs, if (hover) Theme.text else Theme.dim)
+            val ink =
+                accent ?: if (hover) {
+                    Theme.text
+                } else if (armed) {
+                    Theme.accent
+                } else {
+                    Theme.dim
+                }
+            drawGlyph(g2, glyph, (width - gs) / 2, (height - gs) / 2 + if (pressed) 1 else 0, gs, ink)
         }
     }
 }
