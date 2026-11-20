@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-20
+
 ### Added
 - The time signature field has a menu of the common meters beside it (4/4, 3/4, 2/4, 2/2, 3/8,
   6/8, 9/8, 12/8, 5/4, 6/4, 7/8, 5/8). The field still takes any other meter, and its border
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   seconds. The count-in, the beat dots and the bar/beat counter follow the same beat. The grid
   does not move: the cells still cut the note value (the eighth in 6/8), so the eighths of a 6/8
   bar land exactly on it, and the setting says so - its caption reads `Cells / eighth` there.
+- The tempo and the bars are a little narrower, so the settings row reads more evenly.
 
 ## [0.6.0] - 2026-11-20
 
@@ -276,7 +279,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/cereda/lilytap/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/cereda/lilytap/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cereda/lilytap/compare/v0.4.11...v0.5.0
 [0.4.11]: https://github.com/cereda/lilytap/compare/v0.4.10...v0.4.11
