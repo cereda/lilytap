@@ -80,7 +80,7 @@ to what you make of it afterwards.
 
 ### Editing the selected blocks
 
-The strip has the keyboard while it is selected (a thin line along its bottom edge says so), and
+The strip has the keyboard after you click it (a thin line along its bottom edge says so), and
 the header above it carries three buttons - **Split**, **Swap** and **Merge** - that do the same
 thing as the keys. A button is greyed out when the current selection does not allow it, and the
 text next to the "Score" label says what is selected (`c2 selected`, `3 blocks selected`) or what
@@ -94,9 +94,10 @@ just happened (`Split → c4 c4`).
 | **←** **→** | Move the selection one block to the left or to the right. |
 | **Esc** | Clear the selection. |
 
-A silence is always one block: the strip never shows two rests in a row, and the LilyPond text
-follows the same rule. That is why swapping two blocks can merge two silences into one, and why
-splitting a silence turns its second half into a note.
+A silence is always one block: the strip never shows two rests in a row. That is why swapping two
+blocks can merge two silences into one, and why splitting a silence turns its second half into a
+note. (The LilyPond text still spells a long silence with several rests when the meter asks for
+it, e.g. `r2 r8` in 6/8.)
 
 ## Playback
 
