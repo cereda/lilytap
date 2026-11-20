@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-20
+
 ### Added
 - The score strip is now an editor: click a block to select it, shift-click to select a range,
   and double-click to turn it into a rest (and back again).
