@@ -252,6 +252,65 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the undo buttons follow the history of the strip`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val undoButton = button(app, "undoButton")
+        val redoButton = button(app, "redoButton")
+        assertFalse(undoButton.isEnabled, "there is nothing to undo yet")
+        assertFalse(redoButton.isEnabled, "there is nothing to redo yet")
+
+        val notation = notation(app)
+        val grid = grid(app)
+        val x = grid.xOfCell(0.5).toInt()
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false))
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false))
+        notation.handleKey(KeyEvent.VK_S)
+
+        assertTrue(undoButton.isEnabled, "the split can be undone")
+        assertFalse(redoButton.isEnabled, "there is still nothing to redo")
+
+        notation.undo()
+        assertFalse(undoButton.isEnabled, "the split was the only edit")
+        assertTrue(redoButton.isEnabled, "the split can be done again")
+
+        notation.redo()
+        assertTrue(undoButton.isEnabled)
+        assertFalse(redoButton.isEnabled)
+    }
+
+    @Test
+    fun `the revert button can be undone`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val notation = notation(app)
+        val grid = grid(app)
+        val x = grid.xOfCell(0.5).toInt()
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false))
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false))
+        notation.handleKey(KeyEvent.VK_S)
+
+        val output = output(app)
+        assertEquals("c2 c2 |", output.text)
+
+        val revertScore = WindowApp::class.java.getDeclaredMethod("revertScore")
+        revertScore.isAccessible = true
+        revertScore.invoke(app)
+        assertEquals("c1 |", output.text, "the score is back the way the take ended")
+
+        notation.undo()
+        assertEquals("c2 c2 |", output.text, "the split comes back")
+    }
+
+    @Test
     fun `the score buttons carry their icons`() {
         val app = WindowApp()
 
@@ -260,6 +319,8 @@ class WindowAppTest {
                 "splitButton" to Glyph.SPLIT,
                 "swapButton" to Glyph.SWAP,
                 "mergeButton" to Glyph.MERGE,
+                "undoButton" to Glyph.UNDO,
+                "redoButton" to Glyph.REDO,
             )
         for ((name, glyph) in expected) {
             val field =
@@ -380,7 +441,15 @@ class WindowAppTest {
         val header = headerField.get(app) as JComponent
 
         // The widest message the header can show: a long take can have hundreds of blocks.
-        for (text in listOf("512 blocks selected", "12 blocks → c1.", "Nothing selected")) {
+        for (
+        text in
+        listOf(
+            "512 blocks selected",
+            "12 blocks → c1.",
+            "Nothing selected",
+            "Reverted to the take",
+        )
+        ) {
             caption.text = text
             header.setSize(header.preferredSize)
             layOut(header)
@@ -451,6 +520,45 @@ class WindowAppTest {
         assertEquals(0, beatIndexAt(start + beat - 1, start, beat))
         assertEquals(1, beatIndexAt(start + beat, start, beat))
         assertEquals(4, beatIndexAt(start + 4 * beat, start, beat))
+    }
+
+    /** A button of the window, by the name of the field that holds it. */
+    private fun button(
+        app: WindowApp,
+        name: String,
+    ): PillButton {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == name }
+                ?: error("$name field not found")
+        field.isAccessible = true
+        return field.get(app) as PillButton
+    }
+
+    /** The score strip of the window. */
+    private fun notation(app: WindowApp): NotationPanel {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "notation" }
+                ?: error("notation field not found")
+        field.isAccessible = true
+        return field.get(app) as NotationPanel
+    }
+
+    /** The grid the strip and the timeline share. */
+    private fun grid(app: WindowApp): GridView {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "grid" }
+                ?: error("grid field not found")
+        field.isAccessible = true
+        return field.get(app) as GridView
+    }
+
+    /** The box with the LilyPond text. */
+    private fun output(app: WindowApp): CodeArea {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "output" }
+                ?: error("output field not found")
+        field.isAccessible = true
+        return field.get(app) as CodeArea
     }
 }
 

@@ -44,6 +44,8 @@ internal enum class Glyph {
     SPLIT,
     SWAP,
     MERGE,
+    UNDO,
+    REDO,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -206,40 +208,7 @@ internal fun drawGlyph(
         }
 
         Glyph.RESET -> {
-            // Open circle with a clockwise arrow head at top-right: reset (↻).
-            // The arc runs counter-clockwise from top-right around the bottom to bottom-right,
-            // leaving a gap at top-right where the arrow head points clockwise. The stroke is
-            // thinner and the head larger than the other glyphs so the arrow stays legible at
-            // the small sizes the icon buttons use.
-            val stroke = BasicStroke((s * 0.09).toFloat(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-            val old = g.stroke
-            g.stroke = stroke
-            val r = 0.28 * s
-            g.draw(Arc2D.Double(px(0.5) - r, py(0.5) - r, 2 * r, 2 * r, 45.0, 270.0, Arc2D.OPEN))
-
-            val cx = px(0.5)
-            val cy = py(0.5)
-            val a = Math.toRadians(45.0)
-            val tipX = cx + r * Math.cos(a)
-            val tipY = cy - r * Math.sin(a)
-            // clockwise tangent at top-right: down-right
-            val dx = Math.sin(a)
-            val dy = Math.cos(a)
-            val nx = -dy
-            val ny = dx
-            val headLen = 0.22 * s
-            val headHalf = 0.15 * s
-            val ax = tipX + dx * headLen
-            val ay = tipY + dy * headLen
-            val bx = tipX - dx * 0.02 * s
-            val by = tipY - dy * 0.02 * s
-            val head = Path2D.Double()
-            head.moveTo(ax, ay)
-            head.lineTo(bx + nx * headHalf, by + ny * headHalf)
-            head.lineTo(bx - nx * headHalf, by - ny * headHalf)
-            head.closePath()
-            g.fill(head)
-            g.stroke = old
+            drawResetArrow(g, x, y, s)
         }
 
         Glyph.SCORE -> {
@@ -294,10 +263,108 @@ internal fun drawGlyph(
             line(0.50, 0.50, 0.78, 0.50)
             arrowHead(0.88, 0.50, 1.0, 0.0)
         }
+
+        Glyph.UNDO -> {
+            drawTurnArrow(g, x, y, s, false)
+        }
+
+        Glyph.REDO -> {
+            drawTurnArrow(g, x, y, s, true)
+        }
     }
 
     g.stroke = oldStroke
     g.color = oldColor
+}
+
+/**
+ * Draws the reset arrow: an open circle with a clockwise arrow head at the top right.
+ *
+ * The arc runs counter-clockwise from the top right around the bottom to the bottom right,
+ * leaving a gap at the top right where the arrow head points clockwise. The stroke is thinner
+ * and the head larger than the other glyphs have, so the arrow stays legible at the small
+ * sizes the icon buttons use.
+ *
+ * @param g where to draw.
+ * @param x the left edge of the square.
+ * @param y the top edge of the square.
+ * @param s the side of the square.
+ */
+private fun drawResetArrow(
+    g: Graphics2D,
+    x: Double,
+    y: Double,
+    s: Double,
+) {
+    val old = g.stroke
+    g.stroke = BasicStroke((s * 0.09).toFloat(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+    val cx = x + 0.5 * s
+    val cy = y + 0.5 * s
+    val r = 0.28 * s
+    g.draw(Arc2D.Double(cx - r, cy - r, 2 * r, 2 * r, 45.0, 270.0, Arc2D.OPEN))
+
+    val a = Math.toRadians(45.0)
+    val tipX = cx + r * Math.cos(a)
+    val tipY = cy - r * Math.sin(a)
+    // The clockwise tangent at the top right points down and to the right.
+    val dx = Math.sin(a)
+    val dy = Math.cos(a)
+    val nx = -dy
+    val ny = dx
+    val headLen = 0.22 * s
+    val headHalf = 0.15 * s
+    val ax = tipX + dx * headLen
+    val ay = tipY + dy * headLen
+    val bx = tipX - dx * 0.02 * s
+    val by = tipY - dy * 0.02 * s
+    val head = Path2D.Double()
+    head.moveTo(ax, ay)
+    head.lineTo(bx + nx * headHalf, by + ny * headHalf)
+    head.lineTo(bx - nx * headHalf, by - ny * headHalf)
+    head.closePath()
+    g.fill(head)
+    g.stroke = old
+}
+
+/**
+ * Draws the arrow that turns back (the undo) or forward (the redo).
+ *
+ * The arrow curves over the top of the square and comes down at one end: to the left for the
+ * undo, to the right for the redo.
+ *
+ * @param g where to draw.
+ * @param x the left edge of the square.
+ * @param y the top edge of the square.
+ * @param s the side of the square.
+ * @param right true for the redo, false for the undo.
+ */
+private fun drawTurnArrow(
+    g: Graphics2D,
+    x: Double,
+    y: Double,
+    s: Double,
+    right: Boolean,
+) {
+    val start = if (right) 180.0 else 0.0
+    val extent = if (right) -180.0 else 180.0
+    g.draw(Arc2D.Double(x + 0.18 * s, y + 0.12 * s, 0.64 * s, 0.76 * s, start, extent, Arc2D.OPEN))
+
+    // The head at the end of the arc, pointing down and away from the middle.
+    val dx = if (right) 0.3 else -0.3
+    val len = Math.hypot(dx, 1.0)
+    val ux = dx / len
+    val uy = 1.0 / len
+    val tipX = x + (if (right) 0.82 else 0.18) * s
+    val tipY = y + 0.50 * s
+    val baseX = tipX - ux * 0.20 * s
+    val baseY = tipY - uy * 0.20 * s
+    val half = 0.13 * s
+    val head = Path2D.Double()
+    head.moveTo(tipX, tipY)
+    head.lineTo(baseX - uy * half, baseY + ux * half)
+    head.lineTo(baseX + uy * half, baseY - ux * half)
+    head.closePath()
+    g.fill(head)
 }
 
 internal fun drawLogo(

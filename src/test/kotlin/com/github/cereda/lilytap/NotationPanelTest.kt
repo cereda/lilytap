@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -85,9 +86,11 @@ class NotationPanelTest {
     private fun press(
         panel: NotationPanel,
         keyCode: Int,
+        modifiers: Int = 0,
     ) {
         // The window sends the key to the focused component; here the panel gets it directly.
-        val event = KeyEvent(panel, KeyEvent.KEY_PRESSED, 0, 0, keyCode, KeyEvent.CHAR_UNDEFINED)
+        val event =
+            KeyEvent(panel, KeyEvent.KEY_PRESSED, 0, modifiers, keyCode, KeyEvent.CHAR_UNDEFINED)
         for (listener in panel.keyListeners) {
             listener.keyPressed(event)
         }
@@ -347,6 +350,137 @@ class NotationPanelTest {
                 ?.get(0)
                 ?.lengthUnits,
         )
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The history
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the undo key takes the last edit back`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        assertEquals(4, panel.score?.events?.size)
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
+        assertEquals(3, panel.score?.events?.size)
+        assertEquals("c4 c4 c2 |", panel.score?.lilypond)
+    }
+
+    @Test
+    fun `the undo key brings the selection and the caption back`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        assertEquals("c4 → c8 c8", panel.caption)
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
+        assertEquals("c4 selected", panel.caption)
+        assertEquals(1, panel.selectedBlocks)
+    }
+
+    @Test
+    fun `the redo key does the edit again`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK)
+        assertEquals(4, panel.score?.events?.size)
+        assertEquals("c4 → c8 c8", panel.caption)
+    }
+
+    @Test
+    fun `ctrl and y redoes the edit as well`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
+        press(panel, KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK)
+        assertEquals(4, panel.score?.events?.size)
+    }
+
+    @Test
+    fun `a new edit throws away the edits that were undone`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
+        assertTrue(panel.canRedo)
+        press(panel, KeyEvent.VK_S)
+        assertFalse(panel.canRedo, "the undone edit is gone for good")
+    }
+
+    @Test
+    fun `undo at the beginning and redo at the end do nothing`() {
+        val (panel, grid) = panel()
+        val original = score()
+        panel.score = original
+        assertFalse(panel.canUndo)
+        assertFalse(panel.canRedo)
+        panel.undo()
+        panel.redo()
+        assertEquals(original.events, panel.score?.events)
+    }
+
+    @Test
+    fun `a drag is one step in the history`() {
+        val (panel, grid) = panel()
+        val original = score()
+        panel.score = original
+        panel.dispatchEvent(
+            MouseEvent(panel, MouseEvent.MOUSE_PRESSED, 0, 0, grid.xOfCell(2.0).toInt(), 28, 1, false),
+        )
+        panel.dispatchEvent(
+            MouseEvent(panel, MouseEvent.MOUSE_DRAGGED, 0, 0, grid.xOfCell(2.5).toInt(), 28, 1, false),
+        )
+        panel.dispatchEvent(
+            MouseEvent(panel, MouseEvent.MOUSE_DRAGGED, 0, 0, grid.xOfCell(3.0).toInt(), 28, 1, false),
+        )
+        panel.dispatchEvent(
+            MouseEvent(panel, MouseEvent.MOUSE_RELEASED, 0, 0, grid.xOfCell(3.0).toInt(), 28, 1, false),
+        )
+        assertEquals(
+            listOf(
+                event(TapKind.NOTE, 0, 3),
+                event(TapKind.NOTE, 3, 1),
+                event(TapKind.NOTE, 4, 4),
+            ),
+            panel.score?.events,
+        )
+        panel.undo()
+        assertEquals(original.events, panel.score?.events, "the whole drag is one step")
+        assertFalse(panel.canUndo, "there was only one edit to undo")
+    }
+
+    @Test
+    fun `a new score starts the history over`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        assertTrue(panel.canUndo)
+        panel.score = score()
+        assertFalse(panel.canUndo)
+        assertFalse(panel.canRedo)
+    }
+
+    @Test
+    fun `the revert can be undone`() {
+        val (panel, grid) = panel()
+        val original = score()
+        panel.score = original
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        panel.revertTo(original)
+        assertEquals(original.events, panel.score?.events)
+        assertEquals(NotationPanel.REVERTED, panel.caption)
+        panel.undo()
+        assertEquals(4, panel.score?.events?.size, "the split comes back")
     }
 
     // -------------------------------------------------------------------------------------------

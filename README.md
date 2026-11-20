@@ -74,7 +74,8 @@ its LilyPond text (`c4`, `r2`) when there is room for it.
   grows and the one after it shrinks, or the other way round. The border snaps to the nearest
   grid cell, and bar lines pull it harder, so a note can be lined up exactly with the bar. Every
   block keeps at least one cell, and the bar always stays full.
-- The **Revert** button puts the score back the way it was when the take ended.
+- The **Revert** button puts the score back the way it was when the take ended. It is an edit
+  like any other, so **Ctrl+Z** brings your work back if you press it by mistake.
 - The eye icon next to "Raw taps" shows and hides the whole strip; the timeline expands to fill
   the space it leaves. Nothing is persisted, so the strip is visible again on the next launch.
 
@@ -97,11 +98,27 @@ and the blocks that are there now. A long merge says how many blocks it folded t
 | **S** - split | Cuts the selected block in half. The first half keeps the kind of the block and the second half becomes a note, so a silence that is split becomes a silence followed by a note (`r2` becomes `r4 c4`) and a note that is split is re-articulated (`c2` becomes `c4 c4`). |
 | **X** - swap | Trades the two selected blocks. Each keeps its own length and moves in time, so a note that is swapped with the silence next to it keeps sounding for as long as it did - it just starts later. Two silences that end up touching are merged into one. |
 | **M** - merge | Folds the selected blocks into one. A note wins over a silence: the silences inside the range are absorbed by the note, so a note followed by a silence becomes one longer note (`c2 r2` becomes `c1`). |
+| **Ctrl+Z** - undo | Takes the last edit back. The selection and the message come back with it. |
+| **Ctrl+Shift+Z** - redo | Does the edit that was undone again. **Ctrl+Y** does the same. |
 | **←** **→** | Move the selection one block to the left or to the right. |
 | **Esc** | Clear the selection. |
 
 The message in the header always fits: a merge of many blocks says `12 blocks → c1` instead of
 listing every one of them, and the full text is also in the tooltip of the message.
+
+### Undoing an edit
+
+The header carries two more buttons, an arrow that turns back and an arrow that turns forward.
+They are greyed out when there is nothing to undo or to redo, so they say whether there is
+anything to do. The keys do the same thing.
+
+An undo takes one edit back at a time, and the selection and the message come back with it: the
+header says what it said before the edit (`c2 selected` instead of `c2 → c4 c4`). A drag of a
+border is one edit, not one per pixel, and a new take starts the history over. An edit made
+after an undo throws away the edits that were undone - the history is a line, not a tree.
+
+**Revert** is the panic button: it jumps all the way back to the score the take ended with. It is
+an edit like any other, so **Ctrl+Z** brings your work back if you press it by mistake.
 
 A silence is always one block: the strip never shows two rests in a row. That is why swapping two
 blocks can merge two silences into one, and why splitting a silence turns its second half into a

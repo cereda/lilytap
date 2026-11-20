@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The score strip can undo an edit: **Ctrl+Z** takes the last edit back and **Ctrl+Shift+Z**
+  (or **Ctrl+Y**) does it again. The header carries two more buttons for it, and they are greyed
+  out when there is nothing to undo or to redo. The selection and the message come back with the
+  score, and a drag of a border is one edit, not one per pixel.
+- **Revert** is an edit like any other now, so a mis-click on it can be undone.
+
 ## [0.7.0] - 2026-11-20
 
 ### Added

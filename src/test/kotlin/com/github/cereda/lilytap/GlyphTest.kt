@@ -41,6 +41,6 @@ class GlyphTest {
         /** The size of the square the icons are drawn on, in pixels. */
         private const val SIZE = 16
 
-        private val EDITOR_GLYPHS = listOf(Glyph.SPLIT, Glyph.SWAP, Glyph.MERGE)
+        private val EDITOR_GLYPHS = listOf(Glyph.SPLIT, Glyph.SWAP, Glyph.MERGE, Glyph.UNDO, Glyph.REDO)
     }
 }

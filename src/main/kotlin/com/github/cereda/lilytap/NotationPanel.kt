@@ -43,6 +43,23 @@ internal data class ScoreSelection(
 )
 
 /**
+ * A state of the strip: the score, the selection and the caption.
+ *
+ * The history keeps whole states and not differences: the score is a small value object, and a
+ * state brings the selection and the caption back with it, so an undo puts the strip back
+ * exactly as it was.
+ *
+ * @param score the score of the strip.
+ * @param selection the blocks that were selected, or null when nothing was.
+ * @param caption what the header said.
+ */
+private data class Snapshot(
+    val score: Score,
+    val selection: ScoreSelection?,
+    val caption: String,
+)
+
+/**
  * The score strip: the notes and rests of the take, editable in place.
  *
  * The strip shares its grid with the recording timeline, so a block sits exactly under the
@@ -52,15 +69,32 @@ internal data class ScoreSelection(
 internal class NotationPanel(
     private val grid: GridView,
 ) : JComponent() {
-    /** The score to show. */
-    var score: Score? = null
+    /** The score the strip shows. */
+    private var currentScore: Score? = null
+
+    /**
+     * The score to show.
+     *
+     * Setting it from the outside means a new score arrived, not an edit: the selection and
+     * the history start over.
+     */
+    var score: Score?
+        get() = currentScore
         set(value) {
-            field = value
+            currentScore = value
+            undoStack.clear()
+            redoStack.clear()
             clearSelection()
             repaint()
         }
 
-    /** Called whenever the user has edited the score. */
+    /** The states before each edit: undo walks back through them. */
+    private val undoStack = ArrayDeque<Snapshot>()
+
+    /** The states that were undone: redo walks forward through them. */
+    private val redoStack = ArrayDeque<Snapshot>()
+
+    /** Called whenever the score changes, so the output follows. */
     var onEdit: ((Score) -> Unit)? = null
 
     /** Called whenever the selection changes, so the header can follow it. */
@@ -80,6 +114,7 @@ internal class NotationPanel(
     private var dragIndex = -1 // the border being dragged
     private var dragOrigin: Score? = null // the score when the drag started
     private var dragCell = 0 // the cell the dragged border was on
+    private var dragRecorded = false // whether the drag already made a step in the history
     private var pressX = 0.0
     private var pressIndex = -1 // the block that was pressed
     private var hoverBorder = -1
@@ -108,7 +143,7 @@ internal class NotationPanel(
         preferredSize = Dimension(760, 68)
         toolTipText =
             "Click a block to select it, double-click to turn it into a rest, " +
-            "drag a border to change its length. Keys: S splits, X swaps, M merges."
+            "drag a border to change its length. Keys: S splits, X swaps, M merges, Ctrl+Z undoes."
         // The strip shares the grid with the timeline: when it scrolls, the strip follows.
         // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
         // instead of mutating shared state during paint.
@@ -144,6 +179,7 @@ internal class NotationPanel(
                     if (dragIndex >= 0) {
                         dragIndex = -1
                         dragOrigin = null
+                        dragRecorded = false
                         return
                     }
                     // A click is a press and a release that barely moved.
@@ -186,7 +222,7 @@ internal class NotationPanel(
         addKeyListener(
             object : KeyAdapter() {
                 override fun keyPressed(e: KeyEvent) {
-                    handleKey(e.keyCode)
+                    handleKey(e)
                 }
             },
         )
@@ -301,6 +337,87 @@ internal class NotationPanel(
     }
 
     // -------------------------------------------------------------------------------------------
+    // The history
+    // -------------------------------------------------------------------------------------------
+
+    /** Whether there is an edit to undo. */
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+
+    /** Whether there is an edit to redo. */
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
+
+    /**
+     * Remembers the state the strip is in now, so the edit that comes next can be undone.
+     *
+     * A new edit throws away the edits that were undone: the history is a line, not a tree.
+     */
+    private fun pushHistory() {
+        val snapshot = currentSnapshot() ?: return
+        undoStack.addLast(snapshot)
+        redoStack.clear()
+    }
+
+    /** The state the strip is in now, or null when there is no score. */
+    private fun currentSnapshot(): Snapshot? {
+        val s = currentScore ?: return null
+        return Snapshot(s, selection, caption)
+    }
+
+    /**
+     * Takes the score back one edit.
+     *
+     * The selection and the caption come back with it, so the header says what it said before
+     * the edit that was undone.
+     */
+    fun undo() {
+        val snapshot = undoStack.removeLastOrNull() ?: return
+        currentSnapshot()?.let { redoStack.addLast(it) }
+        restore(snapshot)
+    }
+
+    /** Does the edit that was undone again. */
+    fun redo() {
+        val snapshot = redoStack.removeLastOrNull() ?: return
+        currentSnapshot()?.let { undoStack.addLast(it) }
+        restore(snapshot)
+    }
+
+    /**
+     * Puts a state back on the strip: the score, the selection and the caption.
+     *
+     * @param snapshot the state to put back.
+     */
+    private fun restore(snapshot: Snapshot) {
+        currentScore = snapshot.score
+        selection = snapshot.selection
+        anchor = snapshot.selection
+        caption = snapshot.caption
+        repaint()
+        onEdit?.invoke(snapshot.score)
+        onSelectionChange?.invoke()
+    }
+
+    /**
+     * Puts the score of the take back on the strip.
+     *
+     * The revert is an edit like any other, so it can be undone: a mis-click does not throw
+     * the work away.
+     *
+     * @param original the score the take ended with.
+     */
+    fun revertTo(original: Score) {
+        if (currentScore == original) return
+        pushHistory()
+        currentScore = original
+        selection = null
+        anchor = null
+        caption = REVERTED
+        repaint()
+        onEdit?.invoke(original)
+        onSelectionChange?.invoke()
+    }
+
+    // -------------------------------------------------------------------------------------------
     // The edits
     // -------------------------------------------------------------------------------------------
 
@@ -360,7 +477,8 @@ internal class NotationPanel(
         before: String,
     ) {
         val range = selection
-        score = edited
+        pushHistory()
+        currentScore = edited
         // The edit moved the blocks around; the selection follows the music, not the indices.
         range?.let { restoreSelection(it) }
         val after = range?.let { afterText(edited, it) } ?: before
@@ -415,6 +533,31 @@ internal class NotationPanel(
     }
 
     /**
+     * Handles a key press in the strip, with its modifiers.
+     *
+     * Ctrl (or Cmd) with Z undoes the last edit, and with Shift it does it again; Ctrl with Y
+     * redoes it as well, the way Windows does.
+     *
+     * @param e the key event.
+     */
+    internal fun handleKey(e: KeyEvent) {
+        if (e.isControlDown || e.isMetaDown) {
+            when (e.keyCode) {
+                KeyEvent.VK_Z -> {
+                    if (e.isShiftDown) redo() else undo()
+                    return
+                }
+
+                KeyEvent.VK_Y -> {
+                    redo()
+                    return
+                }
+            }
+        }
+        handleKey(e.keyCode)
+    }
+
+    /**
      * Handles a key press in the strip.
      *
      * The keys are read from the key code, so they work with or without shift and whatever
@@ -465,6 +608,7 @@ internal class NotationPanel(
         dragIndex = index
         dragOrigin = s
         dragCell = s.events[index].endUnits / s.config.cellUnits
+        dragRecorded = false
     }
 
     /**
@@ -478,7 +622,13 @@ internal class NotationPanel(
         val target = origin.snapBorder(grid.cellOfX(x))
         val edited = origin.moveBoundary(index, (target - dragCell) * origin.config.cellUnits)
         if (edited == score) return
-        score = edited
+        // The whole drag is one edit: the history gets a step on the first move only.
+        if (!dragRecorded) {
+            pushHistory()
+            dragRecorded = true
+        }
+        currentScore = edited
+        clearSelection()
         onEdit?.invoke(edited)
         repaint()
     }
@@ -711,6 +861,9 @@ internal class NotationPanel(
 
         /** What the header says when nothing is selected. */
         const val NOTHING_SELECTED = "Nothing selected"
+
+        /** What the header says after the score was put back the way the take ended. */
+        const val REVERTED = "Reverted to the take"
     }
 
     /** The box a block is drawn in. */

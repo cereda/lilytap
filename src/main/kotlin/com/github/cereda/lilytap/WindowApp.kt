@@ -21,6 +21,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.concurrent.TimeUnit
 import javax.swing.BorderFactory
+import javax.swing.Box
 import javax.swing.JComponent
 import javax.swing.JDialog
 import javax.swing.JFrame
@@ -258,6 +259,10 @@ internal class WindowApp {
     private val swapButton = PillButton("Swap", Glyph.SWAP, ButtonKind.GHOST, heightPx = 28)
     private val mergeButton = PillButton("Merge", Glyph.MERGE, ButtonKind.GHOST, heightPx = 28)
 
+    /** The way back through the edits of the score strip. */
+    private val undoButton = PillButton("", Glyph.UNDO, ButtonKind.GHOST, heightPx = 28)
+    private val redoButton = PillButton("", Glyph.REDO, ButtonKind.GHOST, heightPx = 28)
+
     /** What the strip has selected, or what it just did. */
     private val scoreCaption =
         JLabel(NotationPanel.NOTHING_SELECTED).apply {
@@ -277,6 +282,9 @@ internal class WindowApp {
                     add(
                         JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
                             isOpaque = false
+                            add(undoButton)
+                            add(redoButton)
+                            add(Box.createHorizontalStrut(6))
                             add(splitButton)
                             add(swapButton)
                             add(mergeButton)
@@ -472,7 +480,7 @@ internal class WindowApp {
         soundButton.isEnabled = false
         beatDots.isVisible = false
         revert.isEnabled = false
-        revert.toolTipText = "Put the score back the way it was when the take ended."
+        revert.toolTipText = "Put the score back the way it was when the take ended. Ctrl+Z undoes it."
         stageRight.apply {
             isOpaque = false
             add(rawToggle)
@@ -597,6 +605,10 @@ internal class WindowApp {
         splitButton.toolTipText = "Split the selected block in half (S)"
         swapButton.toolTipText = "Swap the two selected blocks (X)"
         mergeButton.toolTipText = "Merge the selected blocks into one (M)"
+        undoButton.onClick = { notation.undo() }
+        redoButton.onClick = { notation.redo() }
+        undoButton.toolTipText = "Undo the last edit (Ctrl+Z)"
+        redoButton.toolTipText = "Redo the last undone edit (Ctrl+Shift+Z)"
     }
 
     /**
@@ -648,7 +660,7 @@ internal class WindowApp {
         outputCard: JComponent,
     ) {
         val background = frame.contentPane as JComponent
-        val keepsFocus = setOf(notation, splitButton, swapButton, mergeButton)
+        val keepsFocus = setOf(notation, splitButton, swapButton, mergeButton, undoButton, redoButton)
         val release =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -996,21 +1008,17 @@ internal class WindowApp {
         splitButton.isEnabled = notation.canSplit
         swapButton.isEnabled = notation.canSwap
         mergeButton.isEnabled = notation.canMerge
+        undoButton.isEnabled = notation.canUndo
+        redoButton.isEnabled = notation.canRedo
         scoreCaption.text = notation.caption
         // The tooltip carries the whole message, so a long one is still readable.
         scoreCaption.toolTipText = notation.caption
     }
 
-    /** Puts the score back the way it was when the take ended. */
+    /** Puts the score back the way it was when the take ended. The revert can be undone. */
     private fun revertScore() {
         val original = takeScore ?: return
-        if (isPlaying) stopPlayback()
-        notation.score = original
-        timeline.score = original
-        output.text = original.lilypond
-        output.caretPosition = 0
-        revert.isEnabled = false
-        updateScoreHeader()
+        notation.revertTo(original)
     }
 
     /** Shows the score of a finished take in the strip. */
