@@ -65,6 +65,15 @@ private val COMMON_METERS =
     listOf("4/4", "3/4", "2/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4", "6/4", "7/8", "5/8")
 
 /**
+ * The names of the note values a time signature can name.
+ *
+ * Used by the caption of the grid setting: in a compound meter the cells cut the note value
+ * (the eighth in 6/8), not the beat, so the caption says which note they cut.
+ */
+private val NOTE_NAMES =
+    mapOf(1 to "whole", 2 to "half", 4 to "quarter", 8 to "eighth", 16 to "16th", 32 to "32nd")
+
+/**
  * Launches the Swing (window) version of lilytap.
  *
  * Sets text anti-aliasing system properties before AWT starts, applies the OS-preferred theme,
@@ -198,6 +207,15 @@ internal class WindowApp {
             time.text = meter
             time.invalid = false
         }
+
+    /**
+     * The caption of the grid setting.
+     *
+     * In a simple meter the cells cut the beat; in a compound one they cut the note value
+     * (the eighth in 6/8), because the beat there is the dotted quarter. The caption follows
+     * the meter.
+     */
+    private val gridCaption = GlyphLabel(Glyph.GRID, "Cells / beat")
     private val bars = Stepper(4.0, 1.0, 64.0, 1.0, width = 138) { it.roundToLong().toString() }
     private val subdivisions = SegmentedControl(listOf("1", "2", "4"), 1)
     private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat"), 0)
@@ -313,9 +331,43 @@ internal class WindowApp {
         wireTimeSignature()
     }
 
+    /**
+     * A settings cell: a caption strip above the control.
+     *
+     * @param glyph the icon of the caption.
+     * @param label the text of the caption.
+     * @param c the control.
+     */
+    private fun labeled(
+        glyph: Glyph,
+        label: String,
+        c: JComponent,
+    ) = JPanel(BorderLayout(0, 7)).apply {
+        isOpaque = false
+        add(GlyphLabel(glyph, label), BorderLayout.NORTH)
+        add(c, BorderLayout.CENTER)
+    }
+
+    /**
+     * A settings cell whose caption can change while the window is open.
+     *
+     * @param caption the caption of the cell.
+     * @param c the control.
+     */
+    private fun captioned(
+        caption: GlyphLabel,
+        c: JComponent,
+    ) = JPanel(BorderLayout(0, 7)).apply {
+        isOpaque = false
+        add(caption, BorderLayout.NORTH)
+        add(c, BorderLayout.CENTER)
+    }
+
     fun show() {
         status.text = "Set the tempo, press Start, then play with any key"
-        bpm.toolTipText = "Beats per minute. Click +/-, scroll, or drag the number."
+        bpm.toolTipText =
+            "Beats per minute: the dotted quarter in a compound meter (6/8), the note value " +
+            "otherwise. Click +/-, scroll, or drag the number."
         bars.toolTipText = "How many bars to record after the one-bar count-in."
         latency.toolTipText = "Delay subtracted from your taps (audio output + reaction time)."
         latencyReset.toolTipText = "Reset the tap latency to 0 ms."
@@ -324,19 +376,12 @@ internal class WindowApp {
         calibrateButton.toolTipText = "Tap along with the metronome clicks to measure your audio output latency automatically."
         minRest.toolTipText = "Silences shorter than this are absorbed into the previous note."
         noRests.toolTipText = "Never write rests: every silence is absorbed into the previous note."
-        subdivisions.toolTipText = "Grid cells per beat."
+        subdivisions.toolTipText =
+            "How many grid cells the note value is cut into: 1 = the note value itself " +
+            "(eighths in 6/8), 2 = half of it, 4 = a quarter of it. The click falls on the " +
+            "beat, not on the cells."
         time.toolTipText = "Time signature, e.g. 4/4 or 6/8."
         pitch.toolTipText = "Placeholder pitch printed in the LilyPond output."
-
-        fun labeled(
-            glyph: Glyph,
-            label: String,
-            c: JComponent,
-        ) = JPanel(BorderLayout(0, 7)).apply {
-            isOpaque = false
-            add(GlyphLabel(glyph, label), BorderLayout.NORTH)
-            add(c, BorderLayout.CENTER)
-        }
 
         /**
          * Reserves the same caption strip as [labeled] without drawing one, so a control placed in
@@ -390,7 +435,7 @@ internal class WindowApp {
                         labeled(Glyph.METRONOME, "Tempo (BPM)", bpm),
                         labeled(Glyph.CLOCK, "Time", timeCell()),
                         labeled(Glyph.BARS, "Bars", bars),
-                        labeled(Glyph.GRID, "Cells / beat", subdivisions),
+                        captioned(gridCaption, subdivisions),
                     ),
                 )
                 add(
@@ -572,9 +617,22 @@ internal class WindowApp {
         )
     }
 
-    /** Says whether the text in the time signature field can be used. */
+    /**
+     * Says whether the text in the time signature field can be used, and names the grid cells.
+     *
+     * In a compound meter the cells cut the note value (the eighth in 6/8) and not the beat,
+     * which is the dotted quarter there, so the caption of the grid setting says which note
+     * the cells cut.
+     */
     private fun markTimeSignature() {
-        time.invalid = runCatching { TimeSignature.parse(time.text) }.isFailure
+        val parsed = runCatching { TimeSignature.parse(time.text) }.getOrNull()
+        time.invalid = parsed == null
+        gridCaption.text =
+            if (parsed != null && parsed.isCompound) {
+                "Cells / ${NOTE_NAMES[parsed.beatUnit] ?: "note"}"
+            } else {
+                "Cells / beat"
+            }
     }
 
     /**
@@ -1016,13 +1074,14 @@ internal class WindowApp {
                 1 -> 2
                 else -> 4
             }
-        val minRestCells = maxOf(1, config.subdivisions / fraction)
+        val minRestCells = maxOf(1, config.cellsPerPulse / fraction)
 
-        val beats = config.timeSignature.beats
+        // The musical beat: the note value in a simple meter, the dotted quarter in a compound one.
+        val pulses = config.timeSignature.pulsesPerBar
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
         val startNanos = System.nanoTime() + 800_000_000L
-        val origin = startNanos + beats * beatNanos
-        val end = origin + config.bars.toLong() * beats * beatNanos
+        val origin = startNanos + pulses * beatNanos
+        val end = origin + config.bars.toLong() * pulses * beatNanos
 
         val s = Session(config, minRestCells, startNanos, origin, end, beatNanos)
         session = s
@@ -1039,7 +1098,7 @@ internal class WindowApp {
         start.text = "Stop"
         start.glyph = Glyph.STOP
         start.kind = ButtonKind.DANGER
-        beatDots.beats = beats
+        beatDots.beats = pulses
         beatDots.active = -1
         beatDots.mood = Mood.COUNT_IN
         status.mood = Mood.COUNT_IN
@@ -1048,7 +1107,7 @@ internal class WindowApp {
 
         s.ticker =
             thread(isDaemon = true, name = "metronome") {
-                metronome.run(startNanos, beatNanos, beats + config.bars * beats, beats, audioLatency.value)
+                metronome.run(startNanos, beatNanos, pulses + config.bars * pulses, pulses, audioLatency.value)
             }
         frameTimer.start()
     }
@@ -1069,11 +1128,11 @@ internal class WindowApp {
                 latencyMs = 0.0,
             )
 
-        val beats = config.timeSignature.beats
+        val pulses = config.timeSignature.pulsesPerBar
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
         val startNanos = System.nanoTime() + 800_000_000L
-        val origin = startNanos + beats * beatNanos
-        val end = origin + config.bars.toLong() * beats * beatNanos
+        val origin = startNanos + pulses * beatNanos
+        val end = origin + config.bars.toLong() * pulses * beatNanos
 
         val s = Session(config, 1, startNanos, origin, end, beatNanos)
         session = s
@@ -1094,7 +1153,7 @@ internal class WindowApp {
         start.glyph = Glyph.STOP
         start.kind = ButtonKind.DANGER
         beatDots.isVisible = false
-        beatDots.beats = beats
+        beatDots.beats = pulses
         beatDots.active = -1
         beatDots.mood = Mood.COUNT_IN
         status.mood = Mood.COUNT_IN
@@ -1103,7 +1162,7 @@ internal class WindowApp {
 
         s.ticker =
             thread(isDaemon = true, name = "metronome") {
-                metronome.run(startNanos, beatNanos, beats + config.bars * beats, beats, audioLatency.value)
+                metronome.run(startNanos, beatNanos, pulses + config.bars * pulses, pulses, audioLatency.value)
             }
         frameTimer.start()
     }
@@ -1157,29 +1216,29 @@ internal class WindowApp {
         val index = beatIndexAt(System.nanoTime(), s.startNanos, s.beatNanos)
         if (index == lastBeatIndex) return
         lastBeatIndex = index
-        val beats = s.config.timeSignature.beats
+        val pulses = s.config.timeSignature.pulsesPerBar
         if (index < 0) {
             status.mood = Mood.COUNT_IN
             beatDots.mood = Mood.COUNT_IN
             beatDots.active = -1
             status.text = "Get ready..."
-        } else if (index < beats) {
+        } else if (index < pulses) {
             status.mood = Mood.COUNT_IN
             beatDots.mood = Mood.COUNT_IN
             beatDots.active = index
             // While calibrating there is no beat count: a beat number is a claim about when the
             // beat is, and while the audio is late that claim is wrong.
-            status.text = if (calibrating) "Get ready..." else "Count-in: ${beats - index}"
+            status.text = if (calibrating) "Get ready..." else "Count-in: ${pulses - index}"
         } else {
-            val r = index - beats
+            val r = index - pulses
             status.mood = Mood.REC
             beatDots.mood = Mood.REC
-            beatDots.active = r % beats
+            beatDots.active = r % pulses
             status.text =
                 if (calibrating) {
                     calibrationStatus()
                 } else {
-                    "Recording \u00B7 bar ${r / beats + 1}/${s.config.bars}, beat ${r % beats + 1}"
+                    "Recording \u00B7 bar ${r / pulses + 1}/${s.config.bars}, beat ${r % pulses + 1}"
                 }
         }
     }
@@ -1251,7 +1310,7 @@ internal class WindowApp {
                 lastPress = e
                 val ms = (now - s.originNanos) / 1e6
                 val beatMs = 60_000.0 / s.config.bpm
-                val totalBeats = s.config.bars * s.config.timeSignature.beats
+                val totalBeats = s.config.bars * s.config.timeSignature.pulsesPerBar
                 calibrationOffsetMs(ms, beatMs, totalBeats)?.let {
                     calibrationOffsets += it
                     status.text = calibrationStatus()

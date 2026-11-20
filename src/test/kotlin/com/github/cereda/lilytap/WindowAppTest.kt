@@ -332,6 +332,34 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the grid caption names the note the cells cut`() {
+        val app = WindowApp()
+
+        val captionField =
+            WindowApp::class.java.declaredFields.find { it.name == "gridCaption" }
+                ?: error("gridCaption field not found")
+        captionField.isAccessible = true
+        val caption = captionField.get(app) as GlyphLabel
+
+        val timeField =
+            WindowApp::class.java.declaredFields.find { it.name == "time" }
+                ?: error("time field not found")
+        timeField.isAccessible = true
+        val time = timeField.get(app) as StyledField
+
+        assertEquals("Cells / beat", caption.text, "in a simple meter the cells cut the beat")
+
+        time.text = "6/8"
+        assertEquals("Cells / eighth", caption.text, "in 6/8 they cut the eighth")
+
+        time.text = "6/4"
+        assertEquals("Cells / quarter", caption.text, "in 6/4 they cut the quarter")
+
+        time.text = "4/4"
+        assertEquals("Cells / beat", caption.text)
+    }
+
+    @Test
     fun `the helper message is never cropped`() {
         val app = WindowApp()
 

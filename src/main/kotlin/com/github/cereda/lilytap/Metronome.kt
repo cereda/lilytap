@@ -68,13 +68,16 @@ class Metronome : AutoCloseable {
      * [audioLatencyMs] is the measured audio output latency in milliseconds —
      * there is no reliable way to auto-measure this in the Java Sound API, so
      * the caller provides it (the window's **Audio latency** setting).
+     *
+     * @param totalPulses how many clicks to play: the count-in plus the take.
+     * @param pulsesPerBar how many clicks make a bar; the first one of each bar is accented.
      */
     @Suppress("LongParameterList")
     fun run(
         startNanos: Long,
         beatNanos: Long,
-        totalBeats: Int,
-        beatsPerBar: Int,
+        totalPulses: Int,
+        pulsesPerBar: Int,
         audioLatencyMs: Double,
     ) {
         if (closed.get()) return
@@ -82,12 +85,12 @@ class Metronome : AutoCloseable {
         currentThread.set(me)
         try {
             val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
-            for (i in 0 until totalBeats) {
+            for (i in 0 until totalPulses) {
                 // shift click earlier so sound arrives at the nominal beat time
                 val clickTime = startNanos + i * beatNanos - latencyNanos
                 sleepUntil(clickTime)
                 if (me.isInterrupted) return // recording was aborted or finished
-                click(accented = i % beatsPerBar == 0)
+                click(accented = i % pulsesPerBar == 0)
             }
         } finally {
             currentThread.compareAndSet(me, null)

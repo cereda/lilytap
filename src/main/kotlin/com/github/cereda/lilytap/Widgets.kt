@@ -62,11 +62,19 @@ internal open class Card(
 
 internal class GlyphLabel(
     private val glyph: Glyph?,
-    var text: String,
+    text: String,
     private val fontSize: Float = 12f,
     private val tintOf: () -> Color = { Theme.dim },
     fontStyle: Int = Font.PLAIN,
 ) : JComponent() {
+    /** The caption. Changing it repaints the label. */
+    var text: String = text
+        set(value) {
+            field = value
+            revalidate()
+            repaint()
+        }
+
     init {
         font = Theme.font(fontSize, fontStyle)
         isOpaque = false

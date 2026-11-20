@@ -91,11 +91,12 @@ class RhythmTest {
     }
 
     @Test
-    fun `six eight counts eighth-note beats`() {
-        // beat = eighth; subdivisions 1; taps on beats 1 and 4 -> two dotted quarters
+    fun `six eight counts the dotted quarter beats`() {
+        // The beat in 6/8 is the dotted quarter: at 60 BPM a bar lasts two seconds, and the
+        // two beats of the bar are a second apart.
         assertEquals(
             "c4. c4. |",
-            lily(notes(0, 3000), cfg(ts = TimeSignature(6, 8), sub = 1)),
+            lily(notes(0, 1000), cfg(ts = TimeSignature(6, 8), sub = 1)),
         )
     }
 

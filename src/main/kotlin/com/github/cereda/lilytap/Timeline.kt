@@ -222,7 +222,7 @@ internal class TimelinePanel(
                     g2.draw(Line2D.Double(xx, rulerTop, xx, laneBottom))
                 }
 
-                cell % cfg.subdivisions == 0 -> {
+                cell % cfg.cellsPerPulse == 0 -> {
                     g2.color = Theme.text.alpha(42)
                     g2.draw(Line2D.Double(xx, laneTop - 6, xx, laneBottom))
                 }

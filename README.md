@@ -37,11 +37,14 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
 
 ## Options
 
-- **Tempo (BPM)** — beats per minute, counted in the time signature's denominator.
+- **Tempo (BPM)** — beats per minute. The beat is the one you hear: the note value in a simple
+  meter, the dotted quarter in a compound one.
 - **Time** — the time signature, e.g. `4/4` or `6/8`. A menu beside the field offers the common
   meters; the field takes any other one, and its border turns red when the text is not a meter.
 - **Bars** — how many bars to record after the one-bar count-in.
-- **Cells / beat** — the grid resolution: 1, 2 or 4 cells per beat.
+- **Cells / beat** — the grid resolution: 1, 2 or 4 cells per beat. In a compound meter the
+  caption names the note the cells cut instead (e.g. `Cells / eighth` in 6/8), because there the
+  beat is the dotted quarter.
 - **Smallest rest** — silences shorter than this are absorbed into the previous note.
 - **No rests** — never write a rest: every silence extends the note before it.
 - **Latency** — the delay of *your taps* (reaction time), subtracted from every tap.
@@ -107,9 +110,15 @@ it, e.g. `r4. r8` in 6/8.)
 
 ### Compound meters
 
-In a compound meter - 6/8, 9/8, 12/8, 6/4... - the beat is a dotted note: three of the beats the
-time signature names. The LilyPond text follows that, and a duration is written inside a group of
-three, so it never straddles the division:
+In a compound meter - 6/8, 9/8, 12/8, 6/4... - the beat is a dotted note: three of the note values
+the time signature names. Everything that counts beats follows that beat:
+
+- the **tempo**: 60 BPM in 6/8 is 60 dotted quarters a minute, so a bar lasts two seconds;
+- the **click**: the metronome clicks the dotted quarter (twice a bar in 6/8), and the count-in is
+  one bar of those clicks;
+- the **beat dots** and the bar/beat counter in the status line;
+- the **LilyPond text**: a duration is written inside a group of three, so it never straddles the
+  division.
 
 | in 6/8 | the text |
 |---|---|
@@ -117,6 +126,10 @@ three, so it never straddles the division:
 | a silence of four eighths | `r4. r8` (a dotted quarter and an eighth) |
 | a note that fills the bar | `c4. ~ c4.` |
 | a note of three eighths | `c4.` (a dotted quarter - it fills a group) |
+
+The **grid** does not move: the cells still cut the note value (the eighth in 6/8), so the eighths
+of a 6/8 bar land exactly on the grid, and the setting says so - its caption reads `Cells / eighth`
+instead of `Cells / beat`.
 
 A simple meter (4/4, 3/4, 2/4) is written the way it always was, and an irregular one (5/8, 7/8)
 is left alone: those meters can be grouped in more than one way, and the app does not guess. The

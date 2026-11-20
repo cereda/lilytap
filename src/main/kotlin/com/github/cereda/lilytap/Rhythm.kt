@@ -24,8 +24,8 @@ data class Tap(
 /**
  * A time signature.
  *
- * @property beats the number of beats per bar.
- * @property beatUnit the note value that gets one beat (1 = whole, 2 = half, 4 = quarter, ...).
+ * @property beats the number of note values per bar (the numerator): six eighths in 6/8.
+ * @property beatUnit the note value the signature names (1 = whole, 2 = half, 4 = quarter, ...).
  */
 data class TimeSignature(
     val beats: Int,
@@ -36,18 +36,18 @@ data class TimeSignature(
         require(beatUnit in setOf(1, 2, 4, 8, 16, 32)) { "Beat unit must be 1, 2, 4, 8, 16 or 32" }
     }
 
-    /** Internal grid units in a single beat (a whole note is [UNITS_PER_WHOLE] units). */
-    val unitsPerBeat: Int get() = UNITS_PER_WHOLE / beatUnit
+    /** Internal grid units in a single note value (a whole note is [UNITS_PER_WHOLE] units). */
+    val unitsPerNote: Int get() = UNITS_PER_WHOLE / beatUnit
 
     /** Internal grid units in a full bar. */
-    val unitsPerBar: Int get() = unitsPerBeat * beats
+    val unitsPerBar: Int get() = unitsPerNote * beats
 
     /**
-     * Whether the meter is compound: its beats come in groups of three.
+     * Whether the meter is compound: its note values come in groups of three.
      *
      * In 6/8 the beat is a dotted quarter - three eighths - and not the eighth the time
      * signature names. So 6/8, 9/8, 12/8, 6/4... are compound, while 3/4, 5/8 and 7/8
-     * are not: a simple meter counts its beats one by one, and an irregular one has no
+     * are not: a simple meter counts its note values one by one, and an irregular one has no
      * group the app could rely on.
      */
     val isCompound: Boolean get() = beats > 3 && beats % 3 == 0
@@ -58,7 +58,30 @@ data class TimeSignature(
      * A duration in a compound meter is written inside a group, so a piece of it never
      * crosses the group's border.
      */
-    val groupUnits: Int get() = unitsPerBeat * 3
+    val groupUnits: Int get() = unitsPerNote * 3
+
+    /**
+     * How many note values the musical beat holds.
+     *
+     * Three in a compound meter - the beat is the dotted quarter - and one in a simple one,
+     * where the beat is the note value itself.
+     */
+    val notesPerPulse: Int get() = if (isCompound) 3 else 1
+
+    /**
+     * Internal grid units in one musical beat.
+     *
+     * The dotted quarter in a compound meter, the note value in a simple one. This is the
+     * beat the tempo counts and the metronome clicks.
+     */
+    val unitsPerPulse: Int get() = unitsPerNote * notesPerPulse
+
+    /**
+     * The musical beats in a bar.
+     *
+     * Two in 6/8 (the two dotted quarters of the bar) and four in 4/4.
+     */
+    val pulsesPerBar: Int get() = beats / notesPerPulse
 
     override fun toString() = "$beats/$beatUnit"
 
@@ -81,11 +104,11 @@ data class TimeSignature(
 /**
  * Configuration for a recording session.
  *
- * @property bpm beats per minute, where "beat" is the time signature's denominator
- * (in 6/8, a beat is an eighth note).
+ * @property bpm musical beats per minute: the dotted quarter in a compound meter (in 6/8 a
+ * beat is a dotted quarter), the note value in a simple one.
  * @property timeSignature the time signature of the piece.
- * @property subdivisions grid cells per beat. 1 = beats only, 2 = halves of a beat
- * (eighths in 4/4), 4 = sixteenths in 4/4.
+ * @property subdivisions how many grid cells the note value is cut into. 1 = the note value
+ * itself (eighths in 6/8), 2 = half of it (sixteenths), 4 = a quarter of it (thirty-seconds).
  * @property bars number of bars to record after the one-bar count-in.
  * @property latencyMs constant delay (audio output + reaction) subtracted from every tap.
  * @property pitch placeholder pitch printed in the LilyPond output.
@@ -105,7 +128,7 @@ data class Config(
     init {
         require(bpm.isFinite() && bpm > 0) { "BPM must be positive" }
         require(subdivisions >= 1) { "Subdivisions must be at least 1" }
-        require(timeSignature.unitsPerBeat % subdivisions == 0) {
+        require(timeSignature.unitsPerNote % subdivisions == 0) {
             "Subdivisions ($subdivisions) too fine for time signature $timeSignature"
         }
         require(bars >= 1) { "Need at least one bar" }
@@ -114,10 +137,13 @@ data class Config(
     }
 
     /** Internal grid units in a single cell. */
-    val cellUnits: Int get() = timeSignature.unitsPerBeat / subdivisions
+    val cellUnits: Int get() = timeSignature.unitsPerNote / subdivisions
 
     /** Grid cells in a single bar. */
     val cellsPerBar: Int get() = timeSignature.beats * subdivisions
+
+    /** Grid cells in a single musical beat (the dotted quarter in a compound meter). */
+    val cellsPerPulse: Int get() = timeSignature.notesPerPulse * subdivisions
 
     /** Total grid cells across all recorded bars. */
     val totalCells: Int get() = cellsPerBar * bars
@@ -128,8 +154,17 @@ data class Config(
     /** Total internal grid units across all recorded bars. */
     val totalUnits: Int get() = unitsPerBar * bars
 
-    /** Milliseconds per grid cell. */
-    val cellMs: Double get() = 60_000.0 / bpm / subdivisions
+    /** Milliseconds in a musical beat. */
+    val pulseMs: Double get() = 60_000.0 / bpm
+
+    /**
+     * Milliseconds per grid cell.
+     *
+     * The cell is a part of the note value, so it is that much finer than the musical beat:
+     * in a simple meter the cell is the beat cut into [subdivisions], and in a compound one
+     * the beat holds three note values.
+     */
+    val cellMs: Double get() = 60_000.0 / bpm / (subdivisions * timeSignature.notesPerPulse)
 
     /**
      * Milliseconds per internal grid unit.

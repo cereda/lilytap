@@ -7,12 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.0] - 2026-11-20
-
 ### Added
 - The time signature field has a menu of the common meters beside it (4/4, 3/4, 2/4, 2/2, 3/8,
   6/8, 9/8, 12/8, 5/4, 6/4, 7/8, 5/8). The field still takes any other meter, and its border
   turns red when the text is not one.
+
+### Changed
+- In a compound meter (6/8, 9/8, 12/8, 6/4...) the LilyPond text follows the beat: a duration is
+  written inside a group of three, so a note that crosses a group becomes two tied notes
+  (`c4. ~ c8`) and a silence that crosses one becomes two rests (`r4. r8`). Simple meters are
+  written as they always were, and irregular ones (5/8, 7/8) are left alone.
+- In a compound meter the metronome now clicks the musical beat - the dotted quarter - and the
+  tempo counts those beats: 60 BPM in 6/8 is 60 dotted quarters a minute, so a bar lasts two
+  seconds. The count-in, the beat dots and the bar/beat counter follow the same beat. The grid
+  does not move: the cells still cut the note value (the eighth in 6/8), so the eighths of a 6/8
+  bar land exactly on it, and the setting says so - its caption reads `Cells / eighth` there.
+
+## [0.6.0] - 2026-11-20
+
+### Added
 - The score strip is now an editor: click a block to select it, shift-click to select a range,
   and double-click to turn it into a rest (and back again).
 - The score strip takes the keyboard while it is selected: **S** splits the selected block in
@@ -32,10 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Clicking a block no longer turns it into a rest: a click selects it and a double-click turns it
   into a rest.
-- In a compound meter (6/8, 9/8, 12/8, 6/4...) the LilyPond text follows the beat: a duration is
-  written inside a group of three, so a note that crosses a group becomes two tied notes
-  (`c4. ~ c8`) and a silence that crosses one becomes two rests (`r4. r8`). Simple meters are
-  written as they always were, and irregular ones (5/8, 7/8) are left alone.
 - The message in the header of the score strip now says what the edit did: the blocks before the
   edit, an arrow, and the blocks that are there now (`c2 → c4 c4`). A merge of many blocks says
   how many blocks it folded together (`12 blocks → c1`), so the message always fits.
