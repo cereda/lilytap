@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The header of the score strip carries **Split**, **Swap** and **Merge** buttons that do the
   same as the keys. A button is greyed out when the current selection does not allow it, and the
   header says what is selected or what just happened.
+- The three buttons have their own icons: a block with a cut through it for **Split**, two
+  opposite arrows for **Swap**, and two lines coming together for **Merge**.
 - Splitting cuts a block at its middle: the first half keeps the kind of the block and the second
   half becomes a note, so a silence that is split becomes a silence followed by a note.
 - Swapping trades two neighbouring blocks, each keeping its own length and moving in time.
@@ -25,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Clicking a block no longer turns it into a rest: a click selects it and a double-click turns it
   into a rest.
+- The message in the header of the score strip now says what the edit did: the blocks before the
+  edit, an arrow, and the blocks that are there now (`c2 → c4 c4`). A merge of many blocks says
+  how many blocks it folded together (`12 blocks → c1`), so the message always fits.
 - The score is measured in musical units (a sixty-fourth of a whole note) instead of grid cells,
   so a block can be shorter than a cell and a border can sit inside one. The recording is
   unchanged, and an event on the grid keeps exactly the time it had before.

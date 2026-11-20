@@ -200,7 +200,7 @@ class NotationPanelTest {
             ),
             panel.score?.events,
         )
-        assertEquals("Split → c8 c8", panel.caption)
+        assertEquals("c4 → c8 c8", panel.caption)
     }
 
     @Test
@@ -214,7 +214,34 @@ class NotationPanelTest {
             listOf(event(TapKind.REST, 0, 6), event(TapKind.NOTE, 6, 2)),
             panel.score?.events,
         )
-        assertEquals("Swapped", panel.caption)
+        assertEquals("c4 r2. → r2. c4", panel.caption)
+    }
+
+    @Test
+    fun `a swap that leaves two silences touching shows the merged silence`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 2),
+                    event(TapKind.NOTE, 2, 2),
+                    event(TapKind.REST, 4, 2),
+                    event(TapKind.NOTE, 6, 2),
+                ),
+                config,
+            )
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(2.5).toInt(), shift = true)
+        press(panel, KeyEvent.VK_X)
+        assertEquals(
+            listOf(
+                event(TapKind.NOTE, 0, 2),
+                event(TapKind.REST, 2, 4),
+                event(TapKind.NOTE, 6, 2),
+            ),
+            panel.score?.events,
+        )
+        assertEquals("r4 c4 → c4 r2", panel.caption)
     }
 
     @Test
@@ -228,7 +255,29 @@ class NotationPanelTest {
             listOf(event(TapKind.NOTE, 0, 4), event(TapKind.NOTE, 4, 4)),
             panel.score?.events,
         )
-        assertEquals("Merged into c2", panel.caption)
+        assertEquals("c4 + c4 → c2", panel.caption)
+    }
+
+    @Test
+    fun `a long merge says how many blocks it merged`() {
+        val (panel, grid) = panel(wide)
+        panel.score =
+            Score(
+                List(6) { event(TapKind.NOTE, it * 2, 2) } + event(TapKind.NOTE, 12, 4),
+                wide,
+            )
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(10.5).toInt(), shift = true)
+        press(panel, KeyEvent.VK_M)
+        assertEquals("6 blocks → c1.", panel.caption)
+    }
+
+    @Test
+    fun `turning a block into a rest says what it became`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        doubleClick(panel, grid.xOfCell(1.0).toInt())
+        assertEquals("c4 → r4", panel.caption)
     }
 
     @Test

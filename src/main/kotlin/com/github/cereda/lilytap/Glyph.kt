@@ -41,6 +41,9 @@ internal enum class Glyph {
     RESET,
     SCORE,
     EYE,
+    SPLIT,
+    SWAP,
+    MERGE,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -83,6 +86,33 @@ internal fun drawGlyph(
         }
         if (close) pa.closePath()
         return pa
+    }
+
+    /** Draws a filled arrow head with its tip at (x, y), pointing along (dx, dy). */
+    fun arrowHead(
+        x: Double,
+        y: Double,
+        dx: Double,
+        dy: Double,
+    ) {
+        val len = Math.hypot(dx, dy)
+        if (len == 0.0) return
+        val ux = dx / len
+        val uy = dy / len
+        val nx = -uy
+        val ny = ux
+        val length = 0.20 * s
+        val half = 0.13 * s
+        val tipX = px(x)
+        val tipY = py(y)
+        val baseX = tipX - ux * length
+        val baseY = tipY - uy * length
+        val head = Path2D.Double()
+        head.moveTo(tipX, tipY)
+        head.lineTo(baseX + nx * half, baseY + ny * half)
+        head.lineTo(baseX - nx * half, baseY - ny * half)
+        head.closePath()
+        g.fill(head)
     }
 
     when (glyph) {
@@ -239,6 +269,30 @@ internal fun drawGlyph(
                 g.rotate(Math.toRadians(60.0), cx, cy)
             }
             g.transform = before
+        }
+
+        Glyph.SPLIT -> {
+            // A block with a cut through it: the border that the split makes.
+            g.draw(rr(px(0.10), py(0.30), 0.80 * s, 0.40 * s, 0.08 * s))
+            line(0.5, 0.18, 0.5, 0.82)
+        }
+
+        Glyph.SWAP -> {
+            // Two arrows pointing in opposite directions: the blocks trade places.
+            line(0.10, 0.36, 0.76, 0.36)
+            arrowHead(0.86, 0.36, 1.0, 0.0)
+            line(0.90, 0.64, 0.24, 0.64)
+            arrowHead(0.14, 0.64, -1.0, 0.0)
+        }
+
+        Glyph.MERGE -> {
+            // Two lines that come together and become one arrow.
+            line(0.06, 0.28, 0.30, 0.28)
+            line(0.06, 0.72, 0.30, 0.72)
+            line(0.30, 0.28, 0.50, 0.50)
+            line(0.30, 0.72, 0.50, 0.50)
+            line(0.50, 0.50, 0.78, 0.50)
+            arrowHead(0.88, 0.50, 1.0, 0.0)
         }
     }
 

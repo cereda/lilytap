@@ -81,10 +81,12 @@ to what you make of it afterwards.
 ### Editing the selected blocks
 
 The strip has the keyboard after you click it (a thin line along its bottom edge says so), and
-the header above it carries three buttons - **Split**, **Swap** and **Merge** - that do the same
-thing as the keys. A button is greyed out when the current selection does not allow it, and the
-text next to the "Score" label says what is selected (`c2 selected`, `3 blocks selected`) or what
-just happened (`Split → c4 c4`).
+the header above it carries three buttons - **Split**, **Swap** and **Merge**, each with its own
+icon - that do the same thing as the keys. A button is greyed out when the current selection does
+not allow it, and the text next to the "Score" label says what is selected (`c2 selected`,
+`3 blocks selected`) or what just happened (`c2 → c4 c4`): the blocks before the edit, an arrow,
+and the blocks that are there now. A long merge says how many blocks it folded together
+(`12 blocks → c1`).
 
 | | |
 |---|---|
@@ -93,6 +95,9 @@ just happened (`Split → c4 c4`).
 | **M** - merge | Folds the selected blocks into one. A note wins over a silence: the silences inside the range are absorbed by the note, so a note followed by a silence becomes one longer note (`c2 r2` becomes `c1`). |
 | **←** **→** | Move the selection one block to the left or to the right. |
 | **Esc** | Clear the selection. |
+
+The message in the header always fits: a merge of many blocks says `12 blocks → c1` instead of
+listing every one of them, and the full text is also in the tooltip of the message.
 
 A silence is always one block: the strip never shows two rests in a row. That is why swapping two
 blocks can merge two silences into one, and why splitting a silence turns its second half into a

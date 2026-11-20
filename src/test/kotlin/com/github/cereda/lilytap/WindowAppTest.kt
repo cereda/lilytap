@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.awt.Container
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -240,7 +241,7 @@ class WindowAppTest {
                 ?: error("scoreCaption field not found")
         captionField.isAccessible = true
         val caption = captionField.get(app) as JLabel
-        assertEquals("Split → c2 c2", caption.text)
+        assertEquals("c1 → c2 c2", caption.text)
 
         val splitField =
             WindowApp::class.java.declaredFields.find { it.name == "splitButton" }
@@ -248,6 +249,60 @@ class WindowAppTest {
         splitField.isAccessible = true
         val split = splitField.get(app) as PillButton
         assertFalse(split.isEnabled, "a range of two blocks cannot be split again")
+    }
+
+    @Test
+    fun `the score buttons carry their icons`() {
+        val app = WindowApp()
+
+        val expected =
+            mapOf(
+                "splitButton" to Glyph.SPLIT,
+                "swapButton" to Glyph.SWAP,
+                "mergeButton" to Glyph.MERGE,
+            )
+        for ((name, glyph) in expected) {
+            val field =
+                WindowApp::class.java.declaredFields.find { it.name == name }
+                    ?: error("$name field not found")
+            field.isAccessible = true
+            val button = field.get(app) as PillButton
+            assertEquals(glyph, button.glyph, "$name should carry the ${glyph.name.lowercase()} icon")
+        }
+    }
+
+    @Test
+    fun `the helper message is never cropped`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val captionField =
+            WindowApp::class.java.declaredFields.find { it.name == "scoreCaption" }
+                ?: error("scoreCaption field not found")
+        captionField.isAccessible = true
+        val caption = captionField.get(app) as JLabel
+
+        val headerField =
+            WindowApp::class.java.declaredFields.find { it.name == "scoreHeader" }
+                ?: error("scoreHeader field not found")
+        headerField.isAccessible = true
+        val header = headerField.get(app) as JComponent
+
+        // The widest message the header can show: a long take can have hundreds of blocks.
+        for (text in listOf("512 blocks selected", "12 blocks → c1.", "Nothing selected")) {
+            caption.text = text
+            header.setSize(header.preferredSize)
+            layOut(header)
+            val fm = caption.getFontMetrics(caption.font)
+            assertTrue(
+                caption.width >= fm.stringWidth(text),
+                "the message \"$text\" is cropped: it needs ${fm.stringWidth(text)} pixels " +
+                    "but the header gives it ${caption.width}",
+            )
+        }
     }
 
     @Test
@@ -308,5 +363,13 @@ class WindowAppTest {
         assertEquals(0, beatIndexAt(start + beat - 1, start, beat))
         assertEquals(1, beatIndexAt(start + beat, start, beat))
         assertEquals(4, beatIndexAt(start + 4 * beat, start, beat))
+    }
+}
+
+/** Lays a container out, and every container inside it, so the bounds are the real ones. */
+private fun layOut(container: Container) {
+    container.doLayout()
+    for (child in container.components) {
+        if (child is Container) layOut(child)
     }
 }

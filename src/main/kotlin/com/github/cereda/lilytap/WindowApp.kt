@@ -219,9 +219,9 @@ internal class WindowApp {
     private val stageBody = JPanel(GridBagLayout()).apply { isOpaque = false }
 
     /** The edits the score strip can do to the selected blocks. */
-    private val splitButton = PillButton("Split", null, ButtonKind.GHOST, heightPx = 28)
-    private val swapButton = PillButton("Swap", null, ButtonKind.GHOST, heightPx = 28)
-    private val mergeButton = PillButton("Merge", null, ButtonKind.GHOST, heightPx = 28)
+    private val splitButton = PillButton("Split", Glyph.SPLIT, ButtonKind.GHOST, heightPx = 28)
+    private val swapButton = PillButton("Swap", Glyph.SWAP, ButtonKind.GHOST, heightPx = 28)
+    private val mergeButton = PillButton("Merge", Glyph.MERGE, ButtonKind.GHOST, heightPx = 28)
 
     /** What the strip has selected, or what it just did. */
     private val scoreCaption =
@@ -887,6 +887,8 @@ internal class WindowApp {
         swapButton.isEnabled = notation.canSwap
         mergeButton.isEnabled = notation.canMerge
         scoreCaption.text = notation.caption
+        // The tooltip carries the whole message, so a long one is still readable.
+        scoreCaption.toolTipText = notation.caption
     }
 
     /** Puts the score back the way it was when the take ended. */

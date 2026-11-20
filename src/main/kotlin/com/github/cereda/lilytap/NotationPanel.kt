@@ -311,8 +311,9 @@ internal class NotationPanel(
         if (range.first != range.last) return
         val index = range.first
         if (s.events[index].lengthUnits < 2) return
+        val before = eventText(s.events[index], s.config)
         val edited = s.split(index)
-        applyEdit(edited, "Split → ${eventText(edited.events[index], edited.config)} " + eventText(edited.events[index + 1], edited.config))
+        applyEdit(edited, before)
     }
 
     /** Swaps the two selected blocks: each keeps its length and moves in time. */
@@ -320,8 +321,10 @@ internal class NotationPanel(
         val s = score ?: return
         val range = selectedRange(s) ?: return
         if (range.last - range.first + 1 != 2) return
+        val before =
+            eventText(s.events[range.first], s.config) + " " + eventText(s.events[range.last], s.config)
         val edited = s.swap(range.first)
-        applyEdit(edited, "Swapped")
+        applyEdit(edited, before)
     }
 
     /** Merges the selected blocks into one: a note wins over a silence. */
@@ -329,33 +332,72 @@ internal class NotationPanel(
         val s = score ?: return
         val range = selectedRange(s) ?: return
         if (range.last == range.first) return
+        val before = mergedBefore(s, range)
         val edited = s.merge(range.first, range.last)
-        applyEdit(edited, "Merged into ${eventText(edited.events[range.first], edited.config)}")
+        applyEdit(edited, before)
     }
 
     /** Turns the selected block into a rest, or a rest back into a note. */
     private fun flip(index: Int) {
         val s = score ?: return
-        val wasNote = s.events.getOrNull(index)?.kind == TapKind.NOTE
+        val event = s.events.getOrNull(index) ?: return
+        val before = eventText(event, s.config)
         val edited = s.toggleRest(index)
-        applyEdit(edited, if (wasNote) "Turned into a rest" else "Turned into a note")
+        applyEdit(edited, before)
     }
 
     /**
      * Puts an edited score on the strip and keeps the selection on the same stretch of music.
+     *
+     * The caption says what the edit did: the blocks before the edit, an arrow, and the blocks
+     * that are there now.
+     *
+     * @param edited the edited score.
+     * @param before what the selected blocks were before the edit.
      */
     private fun applyEdit(
         edited: Score,
-        message: String,
+        before: String,
     ) {
         val range = selection
         score = edited
         // The edit moved the blocks around; the selection follows the music, not the indices.
         range?.let { restoreSelection(it) }
-        caption = message
+        val after = range?.let { afterText(edited, it) } ?: before
+        caption = "$before → $after"
         repaint()
         onEdit?.invoke(edited)
         onSelectionChange?.invoke()
+    }
+
+    /**
+     * The blocks that are there now over a stretch of the score.
+     *
+     * @param s the score to read.
+     * @param range the stretch of the score.
+     * @return the LilyPond text of the blocks, separated by spaces.
+     */
+    private fun afterText(
+        s: Score,
+        range: ScoreSelection,
+    ): String = s.events.filter { covers(it, range) }.joinToString(" ") { eventText(it, s.config) }
+
+    /**
+     * The blocks that are about to be merged, as "c2 + r2".
+     *
+     * A long range is shortened to "12 blocks", so the caption stays short enough to be read.
+     *
+     * @param s the score to read.
+     * @param range the indices of the blocks to merge.
+     * @return the text of the blocks before the merge.
+     */
+    private fun mergedBefore(
+        s: Score,
+        range: IntRange,
+    ): String {
+        val parts = range.map { eventText(s.events[it], s.config) }
+        val joined = parts.joinToString(" + ")
+        return if (joined.length <= MAX_CAPTION_PART) joined else "${parts.size} blocks"
     }
 
     /** Selects the blocks that cover a stretch of the score. */
@@ -663,6 +705,9 @@ internal class NotationPanel(
     companion object {
         /** How close to a border the mouse has to be to grab it, in pixels. */
         private const val GRAB_PX = 7.0
+
+        /** How long the "before" part of a caption may be before it is shortened. */
+        private const val MAX_CAPTION_PART = 24
 
         /** What the header says when nothing is selected. */
         const val NOTHING_SELECTED = "Nothing selected"
