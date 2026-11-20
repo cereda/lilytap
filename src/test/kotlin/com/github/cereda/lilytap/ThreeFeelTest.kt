@@ -3,8 +3,6 @@ package com.github.cereda.lilytap
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * The 3-feel: the click of a compound meter falls on every note value (the eighth in 6/8)
@@ -72,23 +70,42 @@ class ThreeFeelTest {
 
     @Test
     fun `the accent marks the bar when the click is the beat`() {
-        assertTrue(accentedClick(0, 1, 4))
-        assertFalse(accentedClick(1, 1, 4))
-        assertFalse(accentedClick(2, 1, 4))
-        assertTrue(accentedClick(4, 1, 4))
+        // One click per beat: the downbeat is the beat, so it takes the accent.
+        assertEquals(ClickAccent.BEAT, clickAccent(0, 1, 4))
+        assertEquals(ClickAccent.NORMAL, clickAccent(1, 1, 4))
+        assertEquals(ClickAccent.NORMAL, clickAccent(2, 1, 4))
+        assertEquals(ClickAccent.BEAT, clickAccent(4, 1, 4))
     }
 
     @Test
     fun `the accent marks the beat when the click is finer`() {
-        // In a 3-feel 6/8 the click falls on the eighth and the accent on the dotted quarter,
-        // so the click and the beat dots agree.
-        assertTrue(accentedClick(0, 3, 6))
-        assertFalse(accentedClick(1, 3, 6))
-        assertFalse(accentedClick(2, 3, 6))
-        assertTrue(accentedClick(3, 3, 6))
-        assertFalse(accentedClick(4, 3, 6))
-        assertFalse(accentedClick(5, 3, 6))
-        assertTrue(accentedClick(6, 3, 6))
+        // In a 3-feel 6/8 the click falls on the eighth, the accent on the dotted quarter,
+        // so the click and the beat dots agree, and the downbeat has a mark of its own.
+        assertEquals(ClickAccent.DOWNBEAT, clickAccent(0, 3, 6))
+        assertEquals(ClickAccent.NORMAL, clickAccent(1, 3, 6))
+        assertEquals(ClickAccent.NORMAL, clickAccent(2, 3, 6))
+        assertEquals(ClickAccent.BEAT, clickAccent(3, 3, 6))
+        assertEquals(ClickAccent.NORMAL, clickAccent(4, 3, 6))
+        assertEquals(ClickAccent.NORMAL, clickAccent(5, 3, 6))
+        assertEquals(ClickAccent.DOWNBEAT, clickAccent(6, 3, 6))
+    }
+
+    @Test
+    fun `a compound meter of three groups marks every group`() {
+        // 9/8 with the 3-feel: nine clicks a bar, the beat on every third one.
+        assertEquals(ClickAccent.DOWNBEAT, clickAccent(0, 3, 9))
+        assertEquals(ClickAccent.BEAT, clickAccent(3, 3, 9))
+        assertEquals(ClickAccent.BEAT, clickAccent(6, 3, 9))
+        assertEquals(ClickAccent.DOWNBEAT, clickAccent(9, 3, 9))
+    }
+
+    @Test
+    fun `only the 3-feel in a compound meter marks the downbeat`() {
+        // 6/8 without the 3-feel: the click is the beat, so the accent is the downbeat and
+        // the bar keeps the accent it has always had.
+        assertEquals(ClickAccent.BEAT, clickAccent(0, 1, 2))
+        assertEquals(ClickAccent.NORMAL, clickAccent(1, 1, 2))
+        assertEquals(ClickAccent.BEAT, clickAccent(2, 1, 2))
     }
 
     @Test

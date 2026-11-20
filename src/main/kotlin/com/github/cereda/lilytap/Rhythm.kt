@@ -214,23 +214,51 @@ data class Onset(
 )
 
 /**
- * Whether the click at [index] is the accented one.
+ * How a click of the metronome is marked.
+ */
+enum class ClickAccent {
+    /** The plain click. */
+    NORMAL,
+
+    /** The accent on the musical beat. */
+    BEAT,
+
+    /** The downbeat of the bar, when the beat is subdivided. */
+    DOWNBEAT,
+}
+
+/**
+ * How the click at [index] is marked.
  *
  * The accent marks the musical beat. When the click falls on the beat - one click per beat -
- * only the first beat of the bar is accented, the way a metronome marks the downbeat. When the
- * 3-feel makes the click fall on the note value, every beat of the bar is accented, so the
- * grouping of the compound meter is audible.
+ * the first beat of the bar is accented, the way a metronome marks the downbeat, and there
+ * the downbeat is the beat, so that is the accent. When the 3-feel makes the click fall on
+ * the note value, every beat of the bar is accented, so that the grouping of the compound
+ * meter is audible, and the downbeat gets a mark of its own, so that the bar is audible too.
  *
  * @param index the number of the click, counting from the first.
  * @param clicksPerBeat how many clicks make a musical beat.
  * @param clicksPerBar how many clicks make a bar.
- * @return true when the click is accented.
+ * @return how the click is marked.
  */
-fun accentedClick(
+fun clickAccent(
     index: Int,
     clicksPerBeat: Int,
     clicksPerBar: Int,
-): Boolean = if (clicksPerBeat > 1) index % clicksPerBeat == 0 else index % clicksPerBar == 0
+): ClickAccent =
+    if (clicksPerBeat > 1) {
+        if (index % clicksPerBar == 0) {
+            ClickAccent.DOWNBEAT
+        } else if (index % clicksPerBeat == 0) {
+            ClickAccent.BEAT
+        } else {
+            ClickAccent.NORMAL
+        }
+    } else if (index % clicksPerBar == 0) {
+        ClickAccent.BEAT
+    } else {
+        ClickAccent.NORMAL
+    }
 
 /**
  * The result of quantizing taps to the grid.

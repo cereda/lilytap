@@ -21,8 +21,9 @@ import javax.sound.sampled.SourceDataLine
 class Metronome : AutoCloseable {
     private val sampleRate = 44_100f
     private val format = AudioFormat(sampleRate, 16, 1, true, false)
-    private val accent = clickWave(1600.0, 0.025, 180.0, sampleRate)
-    private val normal = clickWave(1000.0, 0.025, 180.0, sampleRate)
+    private val normal = ClickSound.NORMAL.wave(sampleRate)
+    private val beat = ClickSound.BEAT.wave(sampleRate)
+    private val downbeat = ClickSound.DOWNBEAT.wave(sampleRate)
     private val line: SourceDataLine? = openLine()
     private val closed = AtomicBoolean(false)
 
@@ -40,10 +41,15 @@ class Metronome : AutoCloseable {
             null
         }
 
-    /** Plays a single click (accented or normal) on the audio line, or the terminal bell. */
-    fun click(accented: Boolean) {
+    /** Plays a single click (the plain one, the beat or the downbeat) on the audio line. */
+    fun click(accent: ClickAccent) {
         if (closed.get()) return
-        val data = if (accented) accent else normal
+        val data =
+            when (accent) {
+                ClickAccent.NORMAL -> normal
+                ClickAccent.BEAT -> beat
+                ClickAccent.DOWNBEAT -> downbeat
+            }
         val l = line
         if (l != null) {
             try {
@@ -69,6 +75,9 @@ class Metronome : AutoCloseable {
      * there is no reliable way to auto-measure this in the Java Sound API, so
      * the caller provides it (the window's **Audio latency** setting).
      *
+     * The clicks are marked by [clickAccent]: the beat is accented, and the downbeat has a
+     * sound of its own when the beat is subdivided.
+     *
      * @param totalClicks how many clicks to play: the count-in plus the take.
      * @param clicksPerBeat how many clicks make a musical beat.
      * @param clicksPerBar how many clicks make a bar.
@@ -92,7 +101,7 @@ class Metronome : AutoCloseable {
                 val clickTime = startNanos + i * clickNanos - latencyNanos
                 sleepUntil(clickTime)
                 if (me.isInterrupted) return // recording was aborted or finished
-                click(accented = accentedClick(i, clicksPerBeat, clicksPerBar))
+                click(accent = clickAccent(i, clicksPerBeat, clicksPerBar))
             }
         } finally {
             currentThread.compareAndSet(me, null)

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The 3-feel marks the downbeat with a sound of its own: a low, long click, so that the bar is
+  audible and not only the grouping of three. Every other meter keeps the accent it has always
+  had.
+
 ## [0.10.0] - 2026-11-20
 
 ### Added

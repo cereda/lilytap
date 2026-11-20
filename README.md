@@ -183,6 +183,11 @@ bar, the beat dots still show the two beats of the bar, and the score is written
 Only the click is finer — and the accent still falls on the beat, so the click and the beat dots
 agree: in 6/8 the click is *click click click* with the accent on the first and the fourth.
 
+The downbeat has a sound of its own: a low, long click, so that the bar is audible and not only
+the grouping of three. Without it, six eighths a bar would be heard as two groups of three with
+no bar line — which is what a compound meter is not. Every other meter keeps the accent it has
+always had: there the click is the beat, and the accent marks the downbeat as it always did.
+
 The button is greyed out in a simple meter (4/4, 3/4, 2/4): there the click is already on the
 note value, so there is nothing to change. It keeps its setting when the meter changes, so a
 compound meter that comes back is still in 3-feel.

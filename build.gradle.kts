@@ -72,6 +72,7 @@ val koverCoreClasses =
         "com.github.cereda.lilytap.Config",
         "com.github.cereda.lilytap.TimeSignature*",
         "com.github.cereda.lilytap.Tap*",
+        "com.github.cereda.lilytap.ClickAccent",
         "com.github.cereda.lilytap.HeldNote",
         "com.github.cereda.lilytap.Onset",
         "com.github.cereda.lilytap.Atom",
