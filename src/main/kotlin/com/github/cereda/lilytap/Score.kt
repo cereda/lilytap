@@ -339,6 +339,10 @@ fun eventText(
  * and also within a bar, where a long value has to be written as several LilyPond tokens
  * (a full bar of 4/2, for instance, is a dotted whole tied to a half).
  *
+ * In a compound meter the pieces are also cut at the groups of three: a duration is written
+ * inside a group, so a note that crosses a group becomes two tied notes (c4. ~ c8) and a
+ * silence that crosses one becomes two rests (r4. r8).
+ *
  * @param events the events to lay out.
  * @param config the session configuration.
  * @return one list of [Atom] per bar.
@@ -358,7 +362,9 @@ fun layout(
         while (remaining > 0) {
             val bar = pos / barUnits
             val chunk = minOf(remaining, barUnits - pos % barUnits)
-            for (u in decompose(chunk)) pieces += bar to u
+            for (piece in splitAtGroups(chunk, pos, config.timeSignature)) {
+                for (u in decompose(piece)) pieces += bar to u
+            }
             pos += chunk
             remaining -= chunk
         }
@@ -367,6 +373,37 @@ fun layout(
         }
     }
     return bars
+}
+
+/**
+ * Splits a chunk of a bar at the group borders of a compound meter.
+ *
+ * The groups of a compound meter are three beats long, and a bar holds a whole number of
+ * them, so the borders fall on the same units everywhere in the score. A simple meter has
+ * no groups, and the chunk comes back whole.
+ *
+ * @param chunk the length of the chunk, in units.
+ * @param pos where the chunk starts, counted from the start of the score.
+ * @param signature the time signature of the take.
+ * @return the lengths of the pieces, in units.
+ */
+private fun splitAtGroups(
+    chunk: Int,
+    pos: Int,
+    signature: TimeSignature,
+): List<Int> {
+    if (!signature.isCompound) return listOf(chunk)
+    val group = signature.groupUnits
+    val pieces = mutableListOf<Int>()
+    var start = pos
+    val end = pos + chunk
+    while (start < end) {
+        val border = (start / group + 1) * group
+        val stop = minOf(end, border)
+        pieces += stop - start
+        start = stop
+    }
+    return pieces
 }
 
 /**

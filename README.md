@@ -102,7 +102,25 @@ listing every one of them, and the full text is also in the tooltip of the messa
 A silence is always one block: the strip never shows two rests in a row. That is why swapping two
 blocks can merge two silences into one, and why splitting a silence turns its second half into a
 note. (The LilyPond text still spells a long silence with several rests when the meter asks for
-it, e.g. `r2 r8` in 6/8.)
+it, e.g. `r4. r8` in 6/8.)
+
+### Compound meters
+
+In a compound meter - 6/8, 9/8, 12/8, 6/4... - the beat is a dotted note: three of the beats the
+time signature names. The LilyPond text follows that, and a duration is written inside a group of
+three, so it never straddles the division:
+
+| in 6/8 | the text |
+|---|---|
+| a note of four eighths | `c4. ~ c8` (a dotted quarter tied to an eighth) |
+| a silence of four eighths | `r4. r8` (a dotted quarter and an eighth) |
+| a note that fills the bar | `c4. ~ c4.` |
+| a note of three eighths | `c4.` (a dotted quarter - it fills a group) |
+
+A simple meter (4/4, 3/4, 2/4) is written the way it always was, and an irregular one (5/8, 7/8)
+is left alone: those meters can be grouped in more than one way, and the app does not guess. The
+blocks of the strip keep their own durations either way - a block of four eighths still says `c2`,
+while the text spells it the way the meter wants it.
 
 ## Playback
 

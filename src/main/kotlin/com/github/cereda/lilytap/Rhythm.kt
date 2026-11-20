@@ -42,6 +42,24 @@ data class TimeSignature(
     /** Internal grid units in a full bar. */
     val unitsPerBar: Int get() = unitsPerBeat * beats
 
+    /**
+     * Whether the meter is compound: its beats come in groups of three.
+     *
+     * In 6/8 the beat is a dotted quarter - three eighths - and not the eighth the time
+     * signature names. So 6/8, 9/8, 12/8, 6/4... are compound, while 3/4, 5/8 and 7/8
+     * are not: a simple meter counts its beats one by one, and an irregular one has no
+     * group the app could rely on.
+     */
+    val isCompound: Boolean get() = beats > 3 && beats % 3 == 0
+
+    /**
+     * Internal grid units in one group of three - the musical beat of a compound meter.
+     *
+     * A duration in a compound meter is written inside a group, so a piece of it never
+     * crosses the group's border.
+     */
+    val groupUnits: Int get() = unitsPerBeat * 3
+
     override fun toString() = "$beats/$beatUnit"
 
     companion object {

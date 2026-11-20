@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Clicking a block no longer turns it into a rest: a click selects it and a double-click turns it
   into a rest.
+- In a compound meter (6/8, 9/8, 12/8, 6/4...) the LilyPond text follows the beat: a duration is
+  written inside a group of three, so a note that crosses a group becomes two tied notes
+  (`c4. ~ c8`) and a silence that crosses one becomes two rests (`r4. r8`). Simple meters are
+  written as they always were, and irregular ones (5/8, 7/8) are left alone.
 - The message in the header of the score strip now says what the edit did: the blocks before the
   edit, an arrow, and the blocks that are there now (`c2 → c4 c4`). A merge of many blocks says
   how many blocks it folded together (`12 blocks → c1`), so the message always fits.

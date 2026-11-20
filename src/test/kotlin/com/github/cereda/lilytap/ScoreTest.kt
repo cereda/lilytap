@@ -4,6 +4,8 @@ package com.github.cereda.lilytap
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * The score model: the notes and rests of a take, and the edits you can make to them.
@@ -333,5 +335,145 @@ class ScoreTest {
         val edited = result.score.toggleRest(1)
         assertEquals("c4 r2. |", edited.lilypond)
         assertEquals("c4 c2. |", result.lilypond)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Compound meters
+    // -------------------------------------------------------------------------------------------
+
+    /** A meter whose beats come in groups of three: 6/8, 9/8, 12/8, 6/4... */
+    private fun compound(
+        beats: Int,
+        unit: Int,
+        bars: Int = 1,
+    ) = Config(60.0, TimeSignature(beats, unit), 2, bars, 0.0, "c")
+
+    /** A note in the units of the meter: a whole note is 64 units, an eighth is 8. */
+    private fun at(
+        kind: TapKind,
+        start: Int,
+        length: Int,
+    ) = Event(kind, start, length)
+
+    @Test
+    fun `a meter is compound when its beats come in groups of three`() {
+        assertTrue(TimeSignature(6, 8).isCompound)
+        assertTrue(TimeSignature(9, 8).isCompound)
+        assertTrue(TimeSignature(12, 8).isCompound)
+        assertTrue(TimeSignature(6, 4).isCompound)
+        assertFalse(TimeSignature(3, 4).isCompound, "3/4 is a simple triple")
+        assertFalse(TimeSignature(4, 4).isCompound)
+        assertFalse(TimeSignature(5, 8).isCompound, "5/8 is irregular")
+        assertFalse(TimeSignature(7, 8).isCompound, "7/8 is irregular")
+    }
+
+    @Test
+    fun `the beat of a compound meter is three of its beats`() {
+        assertEquals(24, TimeSignature(6, 8).groupUnits)
+        assertEquals(24, TimeSignature(9, 8).groupUnits)
+        assertEquals(48, TimeSignature(6, 4).groupUnits)
+    }
+
+    @Test
+    fun `a note that crosses a group is written as two tied notes`() {
+        val s =
+            Score(
+                listOf(
+                    at(TapKind.NOTE, 0, 32),
+                    at(TapKind.REST, 32, 16),
+                ),
+                compound(6, 8),
+            )
+        assertEquals("c4. ~ c8 r4 |", s.lilypond)
+    }
+
+    @Test
+    fun `a silence that crosses a group is written as two rests`() {
+        val s =
+            Score(
+                listOf(
+                    at(TapKind.REST, 0, 32),
+                    at(TapKind.NOTE, 32, 16),
+                ),
+                compound(6, 8),
+            )
+        assertEquals("r4. r8 c4 |", s.lilypond)
+    }
+
+    @Test
+    fun `a note that fills a group is written as a dotted quarter`() {
+        val s =
+            Score(
+                listOf(
+                    at(TapKind.NOTE, 0, 24),
+                    at(TapKind.REST, 24, 24),
+                ),
+                compound(6, 8),
+            )
+        assertEquals("c4. r4. |", s.lilypond)
+    }
+
+    @Test
+    fun `a whole bar of a compound meter is tied inside the groups`() {
+        assertEquals("c4. ~ c4. |", Score(listOf(at(TapKind.NOTE, 0, 48)), compound(6, 8)).lilypond)
+        assertEquals(
+            "c4. ~ c4. ~ c4. ~ c4. |",
+            Score(listOf(at(TapKind.NOTE, 0, 96)), compound(12, 8)).lilypond,
+        )
+        assertEquals("c2. ~ c2. |", Score(listOf(at(TapKind.NOTE, 0, 96)), compound(6, 4)).lilypond)
+    }
+
+    @Test
+    fun `a simple meter is written the way it always was`() {
+        assertEquals("c2 r2 |", score(note(0, 4), rest(4, 4)).lilypond)
+        assertEquals(
+            "c2 r4 |",
+            Score(
+                listOf(
+                    at(TapKind.NOTE, 0, 32),
+                    at(TapKind.REST, 32, 16),
+                ),
+                compound(3, 4),
+            ).lilypond,
+        )
+    }
+
+    @Test
+    fun `an irregular meter is left the way it was`() {
+        assertEquals(
+            "c2 ~ c8 c4 |",
+            Score(
+                listOf(
+                    at(TapKind.NOTE, 0, 40),
+                    at(TapKind.NOTE, 40, 16),
+                ),
+                compound(7, 8),
+            ).lilypond,
+        )
+        assertEquals(
+            "c4. r4 |",
+            Score(
+                listOf(
+                    at(TapKind.NOTE, 0, 24),
+                    at(TapKind.REST, 24, 16),
+                ),
+                compound(5, 8),
+            ).lilypond,
+        )
+    }
+
+    @Test
+    fun `the blocks of a compound meter keep their own durations`() {
+        val s =
+            Score(
+                listOf(
+                    at(TapKind.NOTE, 0, 32),
+                    at(TapKind.REST, 32, 16),
+                ),
+                compound(6, 8),
+            )
+        // The block knows how long it is; the text is what the meter makes of it.
+        assertEquals("c2", eventText(s.events[0], s.config))
+        assertEquals("r4", eventText(s.events[1], s.config))
     }
 }
