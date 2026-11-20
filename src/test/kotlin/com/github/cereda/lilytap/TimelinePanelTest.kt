@@ -23,7 +23,7 @@ class TimelinePanelTest {
         return panel to grid
     }
 
-    private fun score(config: Config) = Score(listOf(Event(TapKind.NOTE, 0, config.totalCells)), config)
+    private fun score(config: Config) = Score(listOf(Event(TapKind.NOTE, 0, config.totalUnits)), config)
 
     private fun playheadX(
         grid: GridView,
@@ -106,8 +106,8 @@ class TimelinePanelTest {
         panel.score =
             Score(
                 listOf(
-                    Event(TapKind.NOTE, 0, 4),
-                    Event(TapKind.REST, 4, 4),
+                    Event(TapKind.NOTE, 0, 32),
+                    Event(TapKind.REST, 32, 32),
                 ),
                 cfg,
             )

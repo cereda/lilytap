@@ -1079,7 +1079,7 @@ internal class WindowApp {
                 stopPlayback()
             } else {
                 val posMs = (System.nanoTime() - playbackStartNanos) / 1e6
-                val totalMs = score.config.totalCells * score.config.cellMs
+                val totalMs = score.config.totalUnits * score.config.unitMs
                 val clamped = posMs.coerceIn(0.0, totalMs)
                 playbackPositionMs = clamped
                 timeline.playbackPositionMs = clamped

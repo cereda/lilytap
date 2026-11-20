@@ -78,28 +78,30 @@ class RhythmEdgeTest {
 
     @Test
     fun `buildEvents with single onset on cell 0 produces one event`() {
-        val events = buildEvents(listOf(Onset(0, TapKind.NOTE)), 8)
+        val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
+        val events = buildEvents(listOf(Onset(0, TapKind.NOTE)), config)
         assertEquals(1, events.size)
-        assertEquals(Event(TapKind.NOTE, 0, 8), events[0])
+        assertEquals(Event(TapKind.NOTE, 0, 64), events[0])
     }
 
     @Test
     fun `buildEvents with onset on cell 4 splits into two events`() {
-        val events = buildEvents(listOf(Onset(4, TapKind.NOTE)), 8)
+        val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
+        val events = buildEvents(listOf(Onset(4, TapKind.NOTE)), config)
         assertEquals(2, events.size)
-        assertEquals(Event(TapKind.REST, 0, 4), events[0])
-        assertEquals(Event(TapKind.NOTE, 4, 4), events[1])
+        assertEquals(Event(TapKind.REST, 0, 32), events[0])
+        assertEquals(Event(TapKind.NOTE, 32, 32), events[1])
     }
 
     @Test
     fun `layout splits note crossing barline with tie`() {
         val config = Config(60.0, TimeSignature(4, 4), 2, 2, 0.0, "c")
         // 8 cells per bar, cellUnits = 8. Note from cell 6 to cell 12 crosses barline at cell 8
-        val events = listOf(Event(TapKind.NOTE, 6, 6))
+        val events = listOf(Event(TapKind.NOTE, 48, 48))
         val bars = layout(events, config)
         assertEquals(2, bars.size)
-        // bar 0: cells 6-7 -> 2 cells * 8 units = 16 units (eighth note) with tie
-        // bar 1: cells 8-11 -> 4 cells * 8 units = 32 units (half note)
+        // bar 0: units 48-64 -> 16 units (eighth note) with tie
+        // bar 1: units 64-96 -> 32 units (half note)
         assertEquals(listOf(Atom(TapKind.NOTE, 16, tieToNext = true)), bars[0])
         assertEquals(listOf(Atom(TapKind.NOTE, 32, tieToNext = false)), bars[1])
     }

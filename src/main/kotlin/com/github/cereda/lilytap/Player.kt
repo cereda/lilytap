@@ -20,8 +20,8 @@ private const val PLAYBACK_LEAD_NANOS = 40_000_000L
 /**
  * Plays a [Score] through the default audio output, advancing a playhead across its events.
  *
- * Each [Event] is played at its grid position: notes sound for [lengthCells] cells, rests are
- * silence. [PlaybackSound.NOTE] plays the pitch letter as a tone; [PlaybackSound.BEAT] plays a
+ * Each [Event] is played at its grid position: notes sound for [Event.lengthUnits] units, rests
+ * are silence. [PlaybackSound.NOTE] plays the pitch letter as a tone; [PlaybackSound.BEAT] plays a
  * short click at the note onset instead, with an accent on bar downbeats. Playback runs on its
  * own thread and reports the current position in milliseconds via [onPosition].
  *
@@ -200,20 +200,20 @@ class Player(
         latencyNanos: Long,
         onPosition: (Double) -> Unit,
     ): Boolean {
-        val durationNanos = (event.lengthCells * config.cellMs * 1_000_000.0).roundToLong()
-        val start = eventStartNanos(startNanos, event.startCell, config.cellMs)
+        val durationNanos = (event.lengthUnits * config.unitMs * 1_000_000.0).roundToLong()
+        val start = eventStartNanos(startNanos, event.startUnits, config.unitMs)
         val clickTime = start - latencyNanos
         sleepUntil(clickTime)
         if (!playing.get()) return false
-        onPosition(event.startCell.toDouble() * config.cellMs)
+        onPosition(event.startUnits.toDouble() * config.unitMs)
         if (event.kind == TapKind.NOTE) {
             when (sound) {
                 PlaybackSound.NOTE -> {
-                    playSamples(toneSamples(freq, event.lengthCells * config.cellMs / 1000.0))
+                    playSamples(toneSamples(freq, event.lengthUnits * config.unitMs / 1000.0))
                 }
 
                 PlaybackSound.BEAT -> {
-                    val accent = event.startCell % config.cellsPerBar == 0
+                    val accent = event.startUnits % config.unitsPerBar == 0
                     playSamples(if (accent) beatAccent else beatClick)
                 }
             }
@@ -245,14 +245,18 @@ class Player(
 }
 
 /**
- * The nanosecond time of a grid cell, rounded to the nearest nanosecond.
+ * The nanosecond time of an event, rounded to the nearest nanosecond.
  *
- * Rounding matters: `cellMs` is fractional for most tempos (63 BPM with two subdivisions
- * is 476.190… ms), so truncating it once per cell would drift by nearly a tenth of a second
- * over a long score.
+ * Rounding matters: the unit is fractional for most tempos (63 BPM with two subdivisions
+ * is 476.190… ms), so truncating it once per event would drift by nearly a tenth of a
+ * second over a long score.
+ *
+ * The time is measured in units, not in cells: a cell is a power of two in units, so
+ * dividing the cell time by it is exact and a cell-aligned event keeps exactly the time
+ * it had before the score was measured in units.
  */
 internal fun eventStartNanos(
     startNanos: Long,
-    startCell: Int,
-    cellMs: Double,
-): Long = startNanos + (startCell * cellMs * 1_000_000.0).roundToLong()
+    startUnits: Int,
+    unitMs: Double,
+): Long = startNanos + (startUnits * unitMs * 1_000_000.0).roundToLong()

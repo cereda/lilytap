@@ -14,6 +14,16 @@ class NotationPanelTest {
     private val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
     private val wide = Config(60.0, TimeSignature(4, 4), 2, 2, 0.0, "c")
 
+    /** The internal units in a grid cell of these configurations. */
+    private val cellUnits = 8
+
+    /** An event that starts at a grid cell and lasts a number of grid cells. */
+    private fun event(
+        kind: TapKind,
+        start: Int,
+        length: Int,
+    ) = Event(kind, start * cellUnits, length * cellUnits)
+
     private fun panel(config: Config = this.config): Pair<NotationPanel, GridView> {
         val grid =
             GridView().apply {
@@ -28,9 +38,9 @@ class NotationPanelTest {
     private fun score() =
         Score(
             listOf(
-                Event(TapKind.NOTE, 0, 2),
-                Event(TapKind.NOTE, 2, 2),
-                Event(TapKind.NOTE, 4, 4),
+                event(TapKind.NOTE, 0, 2),
+                event(TapKind.NOTE, 2, 2),
+                event(TapKind.NOTE, 4, 4),
             ),
             config,
         )
@@ -64,9 +74,9 @@ class NotationPanelTest {
         click(panel, grid.xOfCell(1.0).toInt())
         assertEquals(
             listOf(
-                Event(TapKind.REST, 0, 2),
-                Event(TapKind.NOTE, 2, 2),
-                Event(TapKind.NOTE, 4, 4),
+                event(TapKind.REST, 0, 2),
+                event(TapKind.NOTE, 2, 2),
+                event(TapKind.NOTE, 4, 4),
             ),
             panel.score?.events,
         )
@@ -77,10 +87,10 @@ class NotationPanelTest {
     @Test
     fun `clicking a rest turns it back into a note`() {
         val (panel, grid) = panel()
-        panel.score = Score(listOf(Event(TapKind.REST, 0, 2), Event(TapKind.NOTE, 2, 6)), config)
+        panel.score = Score(listOf(event(TapKind.REST, 0, 2), event(TapKind.NOTE, 2, 6)), config)
         click(panel, grid.xOfCell(1.0).toInt())
         assertEquals(
-            listOf(Event(TapKind.NOTE, 0, 2), Event(TapKind.NOTE, 2, 6)),
+            listOf(event(TapKind.NOTE, 0, 2), event(TapKind.NOTE, 2, 6)),
             panel.score?.events,
         )
     }
@@ -92,9 +102,9 @@ class NotationPanelTest {
         drag(panel, grid.xOfCell(2.0).toInt(), grid.xOfCell(3.0).toInt())
         assertEquals(
             listOf(
-                Event(TapKind.NOTE, 0, 3),
-                Event(TapKind.NOTE, 3, 1),
-                Event(TapKind.NOTE, 4, 4),
+                event(TapKind.NOTE, 0, 3),
+                event(TapKind.NOTE, 3, 1),
+                event(TapKind.NOTE, 4, 4),
             ),
             panel.score?.events,
         )
@@ -107,26 +117,26 @@ class NotationPanelTest {
         // Drag far to the right: the second note keeps one cell.
         drag(panel, grid.xOfCell(2.0).toInt(), 390)
         assertEquals(
-            1,
+            cellUnits,
             panel.score
                 ?.events
                 ?.get(1)
-                ?.lengthCells,
+                ?.lengthUnits,
         )
     }
 
     @Test
     fun `a drag near a bar line sticks to it`() {
         val (panel, grid) = panel(wide)
-        panel.score = Score(listOf(Event(TapKind.NOTE, 0, 2), Event(TapKind.NOTE, 2, 14)), wide)
+        panel.score = Score(listOf(event(TapKind.NOTE, 0, 2), event(TapKind.NOTE, 2, 14)), wide)
         // Cell 7 is close to the bar line at cell 8: the bar line wins.
         drag(panel, grid.xOfCell(2.0).toInt(), grid.xOfCell(7.4).toInt())
         assertEquals(
-            8,
+            8 * cellUnits,
             panel.score
                 ?.events
                 ?.get(0)
-                ?.lengthCells,
+                ?.lengthUnits,
         )
     }
 

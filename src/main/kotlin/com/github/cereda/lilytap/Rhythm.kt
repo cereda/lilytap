@@ -104,8 +104,22 @@ data class Config(
     /** Total grid cells across all recorded bars. */
     val totalCells: Int get() = cellsPerBar * bars
 
+    /** Internal grid units in a single bar. */
+    val unitsPerBar: Int get() = timeSignature.unitsPerBar
+
+    /** Total internal grid units across all recorded bars. */
+    val totalUnits: Int get() = unitsPerBar * bars
+
     /** Milliseconds per grid cell. */
     val cellMs: Double get() = 60_000.0 / bpm / subdivisions
+
+    /**
+     * Milliseconds per internal grid unit.
+     *
+     * A cell is always a power of two in units, so dividing by it is exact: a cell-aligned
+     * event keeps exactly the same time it had when the score was measured in cells.
+     */
+    val unitMs: Double get() = cellMs / cellUnits
 }
 
 /** A grid-cell onset: which cell an event starts on, and whether it is a note or rest. */
@@ -234,10 +248,14 @@ fun quantize(
  * If the first tap isn't on the very first cell, the gap before it becomes a rest.
  *
  * Two rests in a row are written as a single, longer rest.
+ *
+ * @param onsets the snapped onsets, in grid order.
+ * @param config the session configuration: it says how long the score is and how many
+ * internal units a grid cell holds.
  */
 fun buildEvents(
     onsets: List<Onset>,
-    totalCells: Int,
+    config: Config,
 ): List<Event> {
     val all = mutableListOf<Onset>()
     for (onset in onsets) {
@@ -254,9 +272,10 @@ fun buildEvents(
         // the gap joins the rest
         first.cell > 0 -> all.add(0, Onset(0, TapKind.REST))
     }
+    val cell = config.cellUnits
     return all.mapIndexed { i, onset ->
-        val end = all.getOrNull(i + 1)?.cell ?: totalCells
-        Event(onset.kind, onset.cell, end - onset.cell)
+        val end = all.getOrNull(i + 1)?.cell ?: config.totalCells
+        Event(onset.kind, onset.cell * cell, (end - onset.cell) * cell)
     }
 }
 
@@ -272,7 +291,7 @@ fun transcribe(
     config: Config,
 ): Transcription {
     val q = quantize(taps, config)
-    val score = Score(buildEvents(q.onsets, config.totalCells), config)
+    val score = Score(buildEvents(q.onsets, config), config)
     return Transcription(score, q.meanOffsetMs)
 }
 
@@ -361,6 +380,6 @@ fun transcribeHeld(
     minRestCells: Int,
 ): Transcription {
     val q = quantizeHeld(notes, config, minRestCells)
-    val score = Score(buildEvents(q.onsets, config.totalCells), config)
+    val score = Score(buildEvents(q.onsets, config), config)
     return Transcription(score, q.meanOffsetMs, q.snapped)
 }

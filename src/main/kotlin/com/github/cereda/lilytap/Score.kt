@@ -4,23 +4,34 @@ package com.github.cereda.lilytap
 /*
  * The score: what a take becomes, and what the window version lets you change.
  *
- * A score is pure data - a list of events that covers every cell of the recording
+ * A score is pure data - a list of events that covers every unit of the recording
  * window - so it can be edited, rendered and played without touching the recorder.
  *
  * Pipeline:  taps (ms) -> quantize to grid cells -> events (note/rest + length)
  *            -> score -> LilyPond text
+ *
+ * A unit is a sixty-fourth of a whole note ([UNITS_PER_WHOLE]): the recording grid says
+ * where the taps fell, but the score itself is free to hold any duration LilyPond can
+ * write - a note can be split in the middle of a cell, or a border can sit between two
+ * notes that are only a sixteenth apart.
  */
 
 import kotlin.math.abs
 
-/** One piece of a score: a note or a rest, [lengthCells] grid cells long. */
+/**
+ * One piece of a score: a note or a rest, [lengthUnits] internal units long.
+ *
+ * A unit is a sixty-fourth of a whole note ([UNITS_PER_WHOLE]), so an event can be shorter
+ * than a grid cell: the recording grid says where the taps fell, but the score can hold
+ * any duration LilyPond can write.
+ */
 data class Event(
     val kind: TapKind,
-    val startCell: Int,
-    val lengthCells: Int,
+    val startUnits: Int,
+    val lengthUnits: Int,
 ) {
-    /** The first cell after this event. */
-    val endCell: Int get() = startCell + lengthCells
+    /** The first unit after this event. */
+    val endUnits: Int get() = startUnits + lengthUnits
 }
 
 /** One written note or rest in LilyPond output. [tieToNext] means "tie this note into the following one". */
@@ -33,8 +44,8 @@ data class Atom(
 /**
  * A score: the notes and rests of a take, ready to be edited or played.
  *
- * The score covers every cell of the recording window exactly once: the events are
- * contiguous and add up to [Config.totalCells]. That is what keeps a bar full when a
+ * The score covers every unit of the recording window exactly once: the events are
+ * contiguous and add up to [Config.totalUnits]. That is what keeps a bar full when a
  * border is dragged around.
  *
  * @property events the notes and rests, in grid order. Two rests never follow each
@@ -47,20 +58,20 @@ data class Score(
 ) {
     init {
         require(events.isNotEmpty()) { "A score needs at least one event" }
-        var cell = 0
+        var units = 0
         for ((i, event) in events.withIndex()) {
-            require(event.lengthCells >= 1) { "An event must last at least one cell" }
-            require(event.startCell == cell) { "The events of a score must be contiguous" }
+            require(event.lengthUnits >= 1) { "An event must last at least one unit" }
+            require(event.startUnits == units) { "The events of a score must be contiguous" }
             require(i == 0 || events[i - 1].kind != TapKind.REST || event.kind != TapKind.REST) {
                 "Two rests in a row are one rest"
             }
-            cell += event.lengthCells
+            units += event.lengthUnits
         }
-        require(cell == config.totalCells) { "The score must cover all ${config.totalCells} cells" }
+        require(units == config.totalUnits) { "The score must cover all ${config.totalUnits} units" }
     }
 
-    /** The number of grid cells the score covers. */
-    val totalCells: Int get() = config.totalCells
+    /** The number of internal units the score covers. */
+    val totalUnits: Int get() = config.totalUnits
 
     /** The score as LilyPond text, one bar per line. */
     val lilypond: String get() = format(layout(events, config), config.pitch)
@@ -84,31 +95,35 @@ data class Score(
     }
 
     /**
-     * Moves the border between event [index] and the next one by [delta] cells.
+     * Moves the border between event [index] and the next one by [deltaUnits] units.
      *
-     * The event on the left grows by [delta] cells and the one on the right shrinks by the
-     * same amount, so the score keeps covering the same cells. The drag stops when one of
-     * the two would vanish: an event always keeps at least one cell.
+     * The event on the left grows by [deltaUnits] units and the one on the right shrinks by
+     * the same amount, so the score keeps covering the same units. The drag stops when one
+     * of the two would vanish: an event always keeps at least one unit, and an event that
+     * is shorter than a cell (a split note) cannot be made shorter still.
      *
      * @param index the index of the event on the left of the border.
-     * @param delta how many cells to move the border to the right (negative moves left).
+     * @param deltaUnits how many units to move the border to the right (negative moves left).
      * @return the edited score.
      */
     fun moveBoundary(
         index: Int,
-        delta: Int,
+        deltaUnits: Int,
     ): Score {
         require(index in 0 until events.size - 1) { "There is no border at $index" }
         val left = events[index]
         val right = events[index + 1]
-        val shift = delta.coerceIn(-(left.lengthCells - 1), right.lengthCells - 1)
+        val cell = config.cellUnits
+        val minLeft = minOf(cell, left.lengthUnits)
+        val minRight = minOf(cell, right.lengthUnits)
+        val shift = deltaUnits.coerceIn(-(left.lengthUnits - minLeft), right.lengthUnits - minRight)
         if (shift == 0) return this
         val moved = events.toMutableList()
-        moved[index] = left.copy(lengthCells = left.lengthCells + shift)
+        moved[index] = left.copy(lengthUnits = left.lengthUnits + shift)
         moved[index + 1] =
             right.copy(
-                startCell = right.startCell + shift,
-                lengthCells = right.lengthCells - shift,
+                startUnits = right.startUnits + shift,
+                lengthUnits = right.lengthUnits - shift,
             )
         return copy(events = moved)
     }
@@ -118,6 +133,9 @@ data class Score(
      *
      * A bar line pulls harder than an ordinary cell: a border dragged close to one sticks
      * to it, so a note can be lined up exactly with the bar.
+     *
+     * The border is snapped to whole cells: the mouse cannot tell a sixty-fourth of a cell
+     * from its neighbour, so a border that sits inside a cell stays where it is.
      *
      * @param position the position in cells, counted from the start of the score.
      * @param magnetCells how close to a bar line the border has to be to stick to it.
@@ -134,7 +152,7 @@ data class Score(
             } else {
                 Math.round(position).toInt()
             }
-        return snapped.coerceIn(0, totalCells)
+        return snapped.coerceIn(0, config.totalCells)
     }
 
     /**
@@ -164,7 +182,7 @@ private fun mergeRests(events: List<Event>): List<Event> {
     for (event in events) {
         val last = merged.lastOrNull()
         if (last != null && last.kind == TapKind.REST && event.kind == TapKind.REST) {
-            merged[merged.lastIndex] = last.copy(lengthCells = last.lengthCells + event.lengthCells)
+            merged[merged.lastIndex] = last.copy(lengthUnits = last.lengthUnits + event.lengthUnits)
         } else {
             merged += event
         }
@@ -229,8 +247,8 @@ fun layout(
     val bars = List(config.bars) { mutableListOf<Atom>() }
 
     for (event in events) {
-        var pos = event.startCell * config.cellUnits
-        var remaining = event.lengthCells * config.cellUnits
+        var pos = event.startUnits
+        var remaining = event.lengthUnits
         val pieces = mutableListOf<Pair<Int, Int>>() // (bar index, units)
 
         while (remaining > 0) {

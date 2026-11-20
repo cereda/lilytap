@@ -13,7 +13,7 @@ class WindowAppTest {
 
     private val score =
         Score(
-            listOf(Event(TapKind.NOTE, 0, 8)),
+            listOf(Event(TapKind.NOTE, 0, 64)),
             config,
         )
 

@@ -17,15 +17,21 @@ class ScoreTest {
         config: Config = cfg(),
     ) = Score(events.toList(), config)
 
+    /** The internal units in a grid cell of this configuration (a sixteenth of a whole note). */
+    private val cellUnits = 8
+
+    /** A number of grid cells as internal units. */
+    private fun cells(count: Int) = count * cellUnits
+
     private fun note(
         start: Int,
         length: Int,
-    ) = Event(TapKind.NOTE, start, length)
+    ) = Event(TapKind.NOTE, cells(start), cells(length))
 
     private fun rest(
         start: Int,
         length: Int,
-    ) = Event(TapKind.REST, start, length)
+    ) = Event(TapKind.REST, cells(start), cells(length))
 
     // -------------------------------------------------------------------------------------------
     // The shape of a score
@@ -49,7 +55,7 @@ class ScoreTest {
     }
 
     @Test
-    fun `an event must last at least one cell`() {
+    fun `an event must last at least one unit`() {
         assertFailsWith<IllegalArgumentException> {
             Score(listOf(note(0, 0), note(0, 8)), cfg())
         }
@@ -65,8 +71,8 @@ class ScoreTest {
     @Test
     fun `the events add up to the whole recording`() {
         val s = score(note(0, 4), note(4, 4))
-        assertEquals(8, s.totalCells)
-        assertEquals(8, s.events.sumOf { it.lengthCells })
+        assertEquals(64, s.totalUnits)
+        assertEquals(64, s.events.sumOf { it.lengthUnits })
     }
 
     // -------------------------------------------------------------------------------------------
@@ -105,7 +111,7 @@ class ScoreTest {
     fun `editing a score leaves the original alone`() {
         val s = score(note(0, 4), note(4, 4))
         s.toggleRest(0)
-        s.moveBoundary(0, 1)
+        s.moveBoundary(0, cells(1))
         assertEquals(listOf(note(0, 4), note(4, 4)), s.events)
     }
 
@@ -115,36 +121,36 @@ class ScoreTest {
 
     @Test
     fun `moving a border grows the left event and shrinks the right one`() {
-        val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, 2)
+        val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, cells(2))
         assertEquals(listOf(note(0, 6), note(6, 2)), edited.events)
         assertEquals("c2. c4 |", edited.lilypond)
     }
 
     @Test
     fun `moving a border the other way shrinks the left event`() {
-        val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, -2)
+        val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, cells(-2))
         assertEquals(listOf(note(0, 2), note(2, 6)), edited.events)
     }
 
     @Test
     fun `moving a border keeps the bar full`() {
-        val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, -3)
-        assertEquals(8, edited.totalCells)
-        assertEquals(8, edited.events.sumOf { it.lengthCells })
-        assertEquals(edited.events.last().endCell, edited.totalCells)
+        val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, cells(-3))
+        assertEquals(64, edited.totalUnits)
+        assertEquals(64, edited.events.sumOf { it.lengthUnits })
+        assertEquals(edited.events.last().endUnits, edited.totalUnits)
     }
 
     @Test
     fun `a border stops when an event would vanish`() {
         val s = score(note(0, 4), note(4, 4))
-        assertEquals(listOf(note(0, 7), note(7, 1)), s.moveBoundary(0, 10).events)
-        assertEquals(listOf(note(0, 1), note(1, 7)), s.moveBoundary(0, -10).events)
+        assertEquals(listOf(note(0, 7), note(7, 1)), s.moveBoundary(0, cells(10)).events)
+        assertEquals(listOf(note(0, 1), note(1, 7)), s.moveBoundary(0, cells(-10)).events)
     }
 
     @Test
     fun `a border can cross a bar line`() {
         val s = score(note(0, 6), note(6, 10), config = cfg(bars = 2))
-        val edited = s.moveBoundary(0, 4)
+        val edited = s.moveBoundary(0, cells(4))
         assertEquals(listOf(note(0, 10), note(10, 6)), edited.events)
         // The first note now runs over the bar line, so it is tied.
         assertEquals("c1 ~ |\nc4 c2. |", edited.lilypond)
@@ -153,8 +159,8 @@ class ScoreTest {
     @Test
     fun `moving a border that is not there is rejected`() {
         val s = score(note(0, 8))
-        assertFailsWith<IllegalArgumentException> { s.moveBoundary(0, 1) }
-        assertFailsWith<IllegalArgumentException> { s.moveBoundary(1, 1) }
+        assertFailsWith<IllegalArgumentException> { s.moveBoundary(0, cells(1)) }
+        assertFailsWith<IllegalArgumentException> { s.moveBoundary(1, cells(1)) }
     }
 
     // -------------------------------------------------------------------------------------------

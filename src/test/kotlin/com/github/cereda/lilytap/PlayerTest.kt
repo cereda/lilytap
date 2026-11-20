@@ -11,12 +11,15 @@ import kotlin.test.assertTrue
 class PlayerTest {
     private fun cfg() = Config(600.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
 
+    /** The internal units in a grid cell of this configuration. */
+    private val cellUnits = 8
+
     private fun score() =
         Score(
             listOf(
-                Event(TapKind.NOTE, 0, 2),
-                Event(TapKind.REST, 2, 2),
-                Event(TapKind.NOTE, 4, 4),
+                Event(TapKind.NOTE, 0, 2 * cellUnits),
+                Event(TapKind.REST, 2 * cellUnits, 2 * cellUnits),
+                Event(TapKind.NOTE, 4 * cellUnits, 4 * cellUnits),
             ),
             cfg(),
         )
@@ -144,16 +147,32 @@ class PlayerTest {
     }
 
     @Test
-    fun `event timing rounds fractional cell durations`() {
+    fun `event timing rounds fractional unit durations`() {
         val cellMs = 60_000.0 / 63.0 / 2.0
+        val unitMs = cellMs / 8.0 // 8 units to a cell
         val start = 1_000_000_000L
-        val expected = start + (512 * cellMs * 1_000_000.0).roundToLong()
-        assertEquals(expected, eventStartNanos(start, 512, cellMs))
-        val truncated = start + 512L * cellMs.toLong() * 1_000_000L
+        val startUnits = 512 * 8
+        val expected = start + (startUnits * unitMs * 1_000_000.0).roundToLong()
+        assertEquals(expected, eventStartNanos(start, startUnits, unitMs))
+        val truncated = start + startUnits.toLong() * unitMs.toLong() * 1_000_000L
         assertTrue(
             expected - truncated > 90_000_000L,
-            "rounding should avoid the ~97 ms drift of truncating cellMs",
+            "rounding should avoid the ~97 ms drift of truncating the unit time",
         )
+    }
+
+    @Test
+    fun `an event on the grid keeps exactly the time it had in cells`() {
+        val config = cfg()
+        val start = 1_000_000_000L
+        for (cell in listOf(0, 1, 3, 7)) {
+            val units = cell * config.cellUnits
+            assertEquals(
+                start + (cell * config.cellMs * 1_000_000.0).roundToLong(),
+                eventStartNanos(start, units, config.unitMs),
+                "the event on cell $cell must keep the time it had before the score was measured in units",
+            )
+        }
     }
 
     @Test

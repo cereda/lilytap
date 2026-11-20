@@ -143,7 +143,10 @@ internal class NotationPanel(
     private fun borderAt(x: Double): Int {
         val s = score ?: return -1
         for (i in 0 until s.events.size - 1) {
-            val bx = grid.xOfCell(s.events[i].endCell.toDouble())
+            // Only a border that sits on a cell can be dragged: the mouse cannot tell a
+            // sixty-fourth of a cell from its neighbour.
+            if (s.events[i].endUnits % s.config.cellUnits != 0) continue
+            val bx = grid.xOfCell(s.events[i].endUnits.toDouble() / s.config.cellUnits)
             if (abs(x - bx) <= GRAB_PX) return i
         }
         return -1
@@ -152,9 +155,9 @@ internal class NotationPanel(
     /** The block under the x pixel, or -1. */
     private fun blockAt(x: Double): Int {
         val s = score ?: return -1
-        val cell = grid.cellOfX(x)
+        val units = grid.cellOfX(x) * s.config.cellUnits
         for ((i, event) in s.events.withIndex()) {
-            if (cell >= event.startCell && cell < event.endCell) return i
+            if (units >= event.startUnits && units < event.endUnits) return i
         }
         return -1
     }
@@ -163,7 +166,7 @@ internal class NotationPanel(
         val s = score ?: return
         dragIndex = index
         dragOrigin = s
-        dragCell = s.events[index].endCell
+        dragCell = s.events[index].endUnits / s.config.cellUnits
     }
 
     /**
@@ -175,7 +178,7 @@ internal class NotationPanel(
         val index = dragIndex
         if (index < 0) return
         val target = origin.snapBorder(grid.cellOfX(x))
-        val edited = origin.moveBoundary(index, target - dragCell)
+        val edited = origin.moveBoundary(index, (target - dragCell) * origin.config.cellUnits)
         if (edited == score) return
         score = edited
         onEdit?.invoke(edited)
@@ -210,8 +213,8 @@ internal class NotationPanel(
             val blockH = h - 26.0
             drawBarLines(g2, h)
             for (event in s.events) {
-                val x1 = grid.xOfCell(event.startCell.toDouble()) + 1.0
-                val x2 = grid.xOfCell(event.endCell.toDouble()) - 1.0
+                val x1 = grid.xOfCell(event.startUnits.toDouble() / s.config.cellUnits) + 1.0
+                val x2 = grid.xOfCell(event.endUnits.toDouble() / s.config.cellUnits) - 1.0
                 drawBlock(g2, event, s.config, BlockBox(x1, x2, top, top + blockH))
             }
             drawHoveredBorder(g2, s, top, blockH)
@@ -288,7 +291,7 @@ internal class NotationPanel(
         box: BlockBox,
         color: Color,
     ) {
-        val units = event.lengthCells * config.cellUnits
+        val units = event.lengthUnits
         val name = if (event.kind == TapKind.NOTE) config.pitch else "r"
         val sep = if (event.kind == TapKind.NOTE) " ~ " else " "
         val token = decompose(units).joinToString(sep) { name + lilyDuration(it) }
@@ -309,7 +312,7 @@ internal class NotationPanel(
     ) {
         val index = hoverBorder
         if (index < 0 || index >= s.events.size - 1) return
-        val x = grid.xOfCell(s.events[index].endCell.toDouble())
+        val x = grid.xOfCell(s.events[index].endUnits.toDouble() / s.config.cellUnits)
         g2.color = Theme.accent.alpha(200)
         g2.stroke = BasicStroke(2f)
         g2.drawLine(x.toInt(), (top - 4).toInt(), x.toInt(), (top + hh + 4).toInt())

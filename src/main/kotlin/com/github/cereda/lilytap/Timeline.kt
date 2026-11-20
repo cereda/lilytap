@@ -158,7 +158,7 @@ internal class TimelinePanel(
         if (s != null && !s.done) {
             // Recording: scroll once the playhead passes 70% of the view.
             val nowMs = (System.nanoTime() - s.originNanos) / 1e6
-            val totalMs = s.config.totalCells * s.config.cellMs
+            val totalMs = s.config.totalUnits * s.config.unitMs
             if (nowMs in 0.0..totalMs && grid.scrollable) {
                 val target = nowMs / totalMs * grid.totalPx - grid.span * 0.7
                 if (target > grid.scrollX) grid.scrollTo(target)
@@ -168,7 +168,7 @@ internal class TimelinePanel(
             // snaps back to the start when Play is pressed and pins to the end when the score
             // runs out, instead of letting the playhead march off-screen.
             val sc = score ?: return
-            val totalMs = sc.config.totalCells * sc.config.cellMs
+            val totalMs = sc.config.totalUnits * sc.config.unitMs
             if (totalMs > 0) {
                 val target = playbackPositionMs / totalMs * grid.totalPx - grid.span * 0.7
                 grid.scrollTo(target)
@@ -185,7 +185,7 @@ internal class TimelinePanel(
     /** The horizontal position of a time in ms on the timeline. */
     private fun x(ms: Double): Double {
         val cfg = session?.config ?: score?.config ?: grid.config ?: return 0.0
-        val totalMs = cfg.totalCells * cfg.cellMs
+        val totalMs = cfg.totalUnits * cfg.unitMs
         return grid.xOfCell(ms.coerceIn(0.0, totalMs) / cfg.cellMs)
     }
 
@@ -252,7 +252,7 @@ internal class TimelinePanel(
             }
             g2.clip = rr(1.0, 1.0, w - 2, h - 2, 13.0)
 
-            val totalMs = cfg.totalCells * cfg.cellMs
+            val totalMs = cfg.totalUnits * cfg.unitMs
             val rulerTop = 10.0
             val laneTop = 34.0
             val laneBottom = h - if (s != null && grid.scrollable) 26.0 else 14.0
@@ -484,14 +484,14 @@ internal class TimelinePanel(
         val noteY = laneTop + laneH * 0.22
         val noteH = laneH * 0.56
         for (event in score.events) {
-            val sx1 = grid.xOfCell(event.startCell.toDouble())
-            val sx2 = max(grid.xOfCell(event.endCell.toDouble()), sx1 + 4)
+            val sx1 = grid.xOfCell(event.startUnits.toDouble() / cfg.cellUnits)
+            val sx2 = max(grid.xOfCell(event.endUnits.toDouble() / cfg.cellUnits), sx1 + 4)
             if (event.kind == TapKind.NOTE) {
                 val r = minOf(7.0, (sx2 - sx1) / 2, noteH / 2)
                 g2.color =
                     Theme.accent.alpha(
-                        if (playbackPositionMs >= event.startCell * cfg.cellMs &&
-                            playbackPositionMs <= event.endCell * cfg.cellMs
+                        if (playbackPositionMs >= event.startUnits * cfg.unitMs &&
+                            playbackPositionMs <= event.endUnits * cfg.unitMs
                         ) {
                             120
                         } else {

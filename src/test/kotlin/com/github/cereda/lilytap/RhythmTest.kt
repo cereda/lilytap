@@ -23,6 +23,16 @@ class RhythmTest {
     ) = transcribe(taps, config).lilypond
 
     @Test
+    fun `a cell is a whole number of units and keeps its time`() {
+        val config = cfg(bpm = 63.0)
+        assertEquals(8, config.cellUnits)
+        assertEquals(64, config.totalUnits)
+        // Splitting a cell into units does not move it: the cell still ends at the same time.
+        assertEquals(config.cellMs, config.cellUnits * config.unitMs)
+        assertEquals(config.totalCells * config.cellMs, config.totalUnits * config.unitMs)
+    }
+
+    @Test
     fun `four taps on the beat give four quarter notes`() {
         assertEquals("c4 c4 c4 c4 |", lily(notes(0, 1000, 2000, 3000), cfg()))
     }
