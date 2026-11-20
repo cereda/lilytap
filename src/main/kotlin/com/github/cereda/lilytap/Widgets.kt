@@ -402,6 +402,7 @@ internal class Stepper(
     private val minValue: Double,
     private val maxValue: Double,
     private val stepSize: Double,
+    private val width: Int = 150,
     private val format: (Double) -> String,
 ) : JComponent() {
     var value: Double = initial.coerceIn(minValue, maxValue)
@@ -484,7 +485,7 @@ internal class Stepper(
         value = value + dir * stepSize
     }
 
-    override fun getPreferredSize(): Dimension = Dimension(150, 38)
+    override fun getPreferredSize(): Dimension = Dimension(width, 38)
 
     override fun paintComponent(g: Graphics) {
         g.paint2d { g2 ->

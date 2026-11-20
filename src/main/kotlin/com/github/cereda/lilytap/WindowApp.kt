@@ -189,7 +189,7 @@ private fun applyDialogTheme() {
 
 internal class WindowApp {
     private val frame = JFrame("lilytap")
-    private val bpm = Stepper(60.0, 20.0, 300.0, 1.0) { it.roundToLong().toString() }
+    private val bpm = Stepper(60.0, 20.0, 300.0, 1.0, width = 138) { it.roundToLong().toString() }
     private val time = StyledField("4/4", 4)
 
     /** The time signatures the app offers; the field next to it takes any other one. */
@@ -198,7 +198,7 @@ internal class WindowApp {
             time.text = meter
             time.invalid = false
         }
-    private val bars = Stepper(4.0, 1.0, 64.0, 1.0) { it.roundToLong().toString() }
+    private val bars = Stepper(4.0, 1.0, 64.0, 1.0, width = 138) { it.roundToLong().toString() }
     private val subdivisions = SegmentedControl(listOf("1", "2", "4"), 1)
     private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat"), 0)
     private val noRests = CheckBox()
