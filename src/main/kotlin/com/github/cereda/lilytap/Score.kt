@@ -319,6 +319,20 @@ fun decompose(units: Int): List<Int> {
 fun lilyDuration(units: Int): String = DURATIONS.first { it.first == units }.second
 
 /**
+ * The LilyPond text of an event: the note or the rest with its duration, e.g. "c4" or "r2".
+ *
+ * @param event the event to write.
+ * @param config the session configuration: it says which pitch the notes carry.
+ */
+fun eventText(
+    event: Event,
+    config: Config,
+): String {
+    val name = if (event.kind == TapKind.NOTE) config.pitch else "r"
+    return decompose(event.lengthUnits).joinToString(" ") { name + lilyDuration(it) }
+}
+
+/**
  * Cuts events at barlines (adding ties for notes) and returns the atoms of each bar.
  *
  * An event is one sustained sound, so every piece of it is tied to the next one - across barlines

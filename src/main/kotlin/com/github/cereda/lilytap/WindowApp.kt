@@ -218,11 +218,39 @@ internal class WindowApp {
     private val stageRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
     private val stageBody = JPanel(GridBagLayout()).apply { isOpaque = false }
 
-    /** The header of the score strip: its name on the left, Revert on the right. */
+    /** The edits the score strip can do to the selected blocks. */
+    private val splitButton = PillButton("Split", null, ButtonKind.GHOST, heightPx = 28)
+    private val swapButton = PillButton("Swap", null, ButtonKind.GHOST, heightPx = 28)
+    private val mergeButton = PillButton("Merge", null, ButtonKind.GHOST, heightPx = 28)
+
+    /** What the strip has selected, or what it just did. */
+    private val scoreCaption =
+        JLabel(NotationPanel.NOTHING_SELECTED).apply {
+            font = Theme.font(12f)
+            foreground = Theme.dim
+        }
+
+    /** The header of the score strip: its name on the left, the edits and Revert on the right. */
     private val scoreHeader =
-        JPanel(BorderLayout()).apply {
+        JPanel(BorderLayout(12, 0)).apply {
             isOpaque = false
             add(GlyphLabel(Glyph.SCORE, "Score", 13f, { Theme.text }, Font.BOLD), BorderLayout.WEST)
+            add(
+                JPanel(BorderLayout(12, 0)).apply {
+                    isOpaque = false
+                    add(scoreCaption, BorderLayout.CENTER)
+                    add(
+                        JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+                            isOpaque = false
+                            add(splitButton)
+                            add(swapButton)
+                            add(mergeButton)
+                        },
+                        BorderLayout.EAST,
+                    )
+                },
+                BorderLayout.CENTER,
+            )
             add(revert, BorderLayout.EAST)
         }
     private var showRaw = false
@@ -262,6 +290,10 @@ internal class WindowApp {
             KeyEvent.VK_META,
             KeyEvent.VK_CAPS_LOCK,
         )
+
+    init {
+        wireScoreEditor()
+    }
 
     fun show() {
         status.text = "Set the tempo, press Start, then play with any key"
@@ -454,7 +486,6 @@ internal class WindowApp {
         latencyReset.onClick = { latency.value = 0.0 }
         audioLatencyReset.onClick = { audioLatency.value = 0.0 }
         revert.onClick = { revertScore() }
-        notation.onEdit = { edited -> scoreChanged(edited) }
         playButton.onClick = { togglePlayback() }
         soundButton.onClick = { togglePlaybackSound() }
         // "Smallest rest" only means something when rests are written at all.
@@ -467,6 +498,7 @@ internal class WindowApp {
         updateRawToggle()
         updateScoreToggle()
         updateSoundButton()
+        updateScoreHeader()
         applyTheme(Theme.isDark)
         frame.iconImage = logoImage(64)
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
@@ -477,10 +509,41 @@ internal class WindowApp {
 
         // Nothing should look selected on startup: park focus on the background, and let a click
         // on any empty area take focus away from a text field later on.
+        parkFocusOutsideScore(settings, stage, outputCard)
+    }
+
+    /**
+     * Wires the score strip and its header: the edits, the caption and the keys.
+     */
+    private fun wireScoreEditor() {
+        notation.onEdit = { edited -> scoreChanged(edited) }
+        notation.onSelectionChange = { updateScoreHeader() }
+        splitButton.onClick = { notation.splitSelected() }
+        swapButton.onClick = { notation.swapSelected() }
+        mergeButton.onClick = { notation.mergeSelected() }
+        splitButton.toolTipText = "Split the selected block in half (S)"
+        swapButton.toolTipText = "Swap the two selected blocks (X)"
+        mergeButton.toolTipText = "Merge the selected blocks into one (M)"
+    }
+
+    /**
+     * Parks the focus on the background, and lets a click on any empty area take the focus
+     * away from a text field later on.
+     *
+     * The score strip keeps the keyboard while it is being edited: its keys split, swap and
+     * merge the selected blocks.
+     */
+    private fun parkFocusOutsideScore(
+        settings: JComponent,
+        stage: JComponent,
+        outputCard: JComponent,
+    ) {
         val background = frame.contentPane as JComponent
+        val keepsFocus = setOf(notation, splitButton, swapButton, mergeButton)
         val release =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
+                    if (e.component in keepsFocus) return
                     background.requestFocusInWindow()
                 }
             }
@@ -507,6 +570,7 @@ internal class WindowApp {
         output.refreshTheme()
         time.refreshTheme()
         pitch.refreshTheme()
+        scoreCaption.foreground = Theme.dim
         updateRawToggle()
         updateScoreToggle()
         updateSoundButton()
@@ -814,6 +878,15 @@ internal class WindowApp {
         output.text = edited.lilypond
         output.caretPosition = 0
         revert.isEnabled = edited != takeScore
+        updateScoreHeader()
+    }
+
+    /** The header follows the selection: the buttons say what can be done with it. */
+    private fun updateScoreHeader() {
+        splitButton.isEnabled = notation.canSplit
+        swapButton.isEnabled = notation.canSwap
+        mergeButton.isEnabled = notation.canMerge
+        scoreCaption.text = notation.caption
     }
 
     /** Puts the score back the way it was when the take ended. */
@@ -825,6 +898,7 @@ internal class WindowApp {
         output.text = original.lilypond
         output.caretPosition = 0
         revert.isEnabled = false
+        updateScoreHeader()
     }
 
     /** Shows the score of a finished take in the strip. */
@@ -838,6 +912,7 @@ internal class WindowApp {
         playButton.isEnabled = true
         soundButton.isEnabled = true
         updatePlayButton()
+        updateScoreHeader()
     }
 
     /** Throws the score away: there is nothing to edit until the next take. */
@@ -849,6 +924,7 @@ internal class WindowApp {
         playButton.isEnabled = false
         soundButton.isEnabled = false
         updatePlayButton()
+        updateScoreHeader()
         stopPlayback()
     }
 

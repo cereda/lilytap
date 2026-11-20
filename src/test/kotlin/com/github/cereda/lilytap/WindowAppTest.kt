@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
 import javax.swing.JComponent
+import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -194,6 +197,57 @@ class WindowAppTest {
         timelineField.isAccessible = true
         val timeline = timelineField.get(app) as TimelinePanel
         assertEquals(edited, timeline.score)
+    }
+
+    @Test
+    fun `the score editor changes the output of the take`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val notationField =
+            WindowApp::class.java.declaredFields.find { it.name == "notation" }
+                ?: error("notation field not found")
+        notationField.isAccessible = true
+        val notation = notationField.get(app) as NotationPanel
+
+        val gridField =
+            WindowApp::class.java.declaredFields.find { it.name == "grid" }
+                ?: error("grid field not found")
+        gridField.isAccessible = true
+        val grid = gridField.get(app) as GridView
+
+        // Click the only block of the score: it is selected, and the split key splits it.
+        val x = grid.xOfCell(0.5).toInt()
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false))
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false))
+        assertEquals(1, notation.selectedBlocks)
+
+        notation.handleKey(KeyEvent.VK_S)
+
+        val outputField =
+            WindowApp::class.java.declaredFields.find { it.name == "output" }
+                ?: error("output field not found")
+        outputField.isAccessible = true
+        val output = outputField.get(app) as CodeArea
+        assertEquals("c2 c2 |", output.text)
+
+        // The header says what happened, and the split button is off for a range.
+        val captionField =
+            WindowApp::class.java.declaredFields.find { it.name == "scoreCaption" }
+                ?: error("scoreCaption field not found")
+        captionField.isAccessible = true
+        val caption = captionField.get(app) as JLabel
+        assertEquals("Split → c2 c2", caption.text)
+
+        val splitField =
+            WindowApp::class.java.declaredFields.find { it.name == "splitButton" }
+                ?: error("splitButton field not found")
+        splitField.isAccessible = true
+        val split = splitField.get(app) as PillButton
+        assertFalse(split.isEnabled, "a range of two blocks cannot be split again")
     }
 
     @Test

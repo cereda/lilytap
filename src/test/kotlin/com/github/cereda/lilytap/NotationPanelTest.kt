@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.awt.event.InputEvent
+import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import java.awt.image.BufferedImage
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The score strip: clicking a block toggles it, dragging a border resizes it. */
+/** The score strip: selecting blocks, editing them, and dragging a border to resize it. */
 class NotationPanelTest {
     private val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
     private val wide = Config(60.0, TimeSignature(4, 4), 2, 2, 0.0, "c")
@@ -48,10 +51,24 @@ class NotationPanelTest {
     private fun click(
         panel: NotationPanel,
         x: Int,
+        shift: Boolean = false,
     ) {
-        val press = MouseEvent(panel, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false)
+        val modifiers = if (shift) InputEvent.SHIFT_DOWN_MASK else 0
+        val press = MouseEvent(panel, MouseEvent.MOUSE_PRESSED, 0, modifiers, x, 28, 1, false)
         panel.dispatchEvent(press)
-        val release = MouseEvent(panel, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false)
+        val release = MouseEvent(panel, MouseEvent.MOUSE_RELEASED, 0, modifiers, x, 28, 1, false)
+        panel.dispatchEvent(release)
+    }
+
+    /** Two clicks in a row: the second one carries the click count. */
+    private fun doubleClick(
+        panel: NotationPanel,
+        x: Int,
+    ) {
+        click(panel, x)
+        val press = MouseEvent(panel, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 2, false)
+        panel.dispatchEvent(press)
+        val release = MouseEvent(panel, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 2, false)
         panel.dispatchEvent(release)
     }
 
@@ -65,13 +82,84 @@ class NotationPanelTest {
         panel.dispatchEvent(MouseEvent(panel, MouseEvent.MOUSE_RELEASED, 0, 0, to, 28, 1, false))
     }
 
+    private fun press(
+        panel: NotationPanel,
+        keyCode: Int,
+    ) {
+        // The strip reads the key code, so the tests can drive it without a window.
+        panel.handleKey(keyCode)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Selecting
+    // -------------------------------------------------------------------------------------------
+
     @Test
-    fun `clicking a note turns it into a rest`() {
+    fun `clicking a block selects it without changing the score`() {
         val (panel, grid) = panel()
         panel.score = score()
         var edited: Score? = null
         panel.onEdit = { edited = it }
         click(panel, grid.xOfCell(1.0).toInt())
+        assertEquals(1, panel.selectedBlocks)
+        assertEquals("c4 selected", panel.caption)
+        assertNull(edited, "a click only selects")
+        assertEquals("c4 c4 c2 |", panel.score?.lilypond)
+    }
+
+    @Test
+    fun `shift-clicking extends the selection`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(4.5).toInt(), shift = true)
+        assertEquals(3, panel.selectedBlocks)
+        assertEquals("3 blocks selected", panel.caption)
+    }
+
+    @Test
+    fun `the escape key clears the selection`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        press(panel, KeyEvent.VK_ESCAPE)
+        assertEquals(0, panel.selectedBlocks)
+        assertEquals(NotationPanel.NOTHING_SELECTED, panel.caption)
+    }
+
+    @Test
+    fun `the arrow keys move the selection`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(5.0).toInt())
+        assertEquals(4 * cellUnits, panel.selection?.start)
+        press(panel, KeyEvent.VK_LEFT)
+        assertEquals(2 * cellUnits, panel.selection?.start)
+        press(panel, KeyEvent.VK_LEFT)
+        assertEquals(0, panel.selection?.start)
+    }
+
+    @Test
+    fun `the arrow keys pick a block when nothing is selected`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        press(panel, KeyEvent.VK_RIGHT)
+        assertEquals(1, panel.selectedBlocks)
+        assertEquals("c4 selected", panel.caption)
+        press(panel, KeyEvent.VK_RIGHT)
+        press(panel, KeyEvent.VK_RIGHT)
+        assertEquals("c2 selected", panel.caption)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Editing
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `double-clicking a note turns it into a rest`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        doubleClick(panel, grid.xOfCell(1.0).toInt())
         assertEquals(
             listOf(
                 event(TapKind.REST, 0, 2),
@@ -80,20 +168,89 @@ class NotationPanelTest {
             ),
             panel.score?.events,
         )
-        assertEquals(panel.score, edited)
         assertEquals("r4 c4 c2 |", panel.score?.lilypond)
     }
 
     @Test
-    fun `clicking a rest turns it back into a note`() {
+    fun `double-clicking a rest turns it back into a note`() {
         val (panel, grid) = panel()
         panel.score = Score(listOf(event(TapKind.REST, 0, 2), event(TapKind.NOTE, 2, 6)), config)
-        click(panel, grid.xOfCell(1.0).toInt())
+        doubleClick(panel, grid.xOfCell(1.0).toInt())
         assertEquals(
             listOf(event(TapKind.NOTE, 0, 2), event(TapKind.NOTE, 2, 6)),
             panel.score?.events,
         )
     }
+
+    @Test
+    fun `the split key splits the selected block`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        assertEquals(
+            listOf(
+                event(TapKind.NOTE, 0, 1),
+                event(TapKind.NOTE, 1, 1),
+                event(TapKind.NOTE, 2, 2),
+                event(TapKind.NOTE, 4, 4),
+            ),
+            panel.score?.events,
+        )
+        assertEquals("Split → c8 c8", panel.caption)
+    }
+
+    @Test
+    fun `the swap key swaps the two selected blocks`() {
+        val (panel, grid) = panel()
+        panel.score = Score(listOf(event(TapKind.NOTE, 0, 2), event(TapKind.REST, 2, 6)), config)
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(3.0).toInt(), shift = true)
+        press(panel, KeyEvent.VK_X)
+        assertEquals(
+            listOf(event(TapKind.REST, 0, 6), event(TapKind.NOTE, 6, 2)),
+            panel.score?.events,
+        )
+        assertEquals("Swapped", panel.caption)
+    }
+
+    @Test
+    fun `the merge key merges the selected blocks`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(2.5).toInt(), shift = true)
+        press(panel, KeyEvent.VK_M)
+        assertEquals(
+            listOf(event(TapKind.NOTE, 0, 4), event(TapKind.NOTE, 4, 4)),
+            panel.score?.events,
+        )
+        assertEquals("Merged into c2", panel.caption)
+    }
+
+    @Test
+    fun `the split key does nothing without a single block`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(2.5).toInt(), shift = true)
+        press(panel, KeyEvent.VK_S)
+        assertEquals(3, panel.score?.events?.size)
+    }
+
+    @Test
+    fun `an edit keeps the selection on the same music`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        press(panel, KeyEvent.VK_S)
+        assertEquals(2, panel.selectedBlocks)
+        assertTrue(panel.canMerge)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Dragging a border
+    // -------------------------------------------------------------------------------------------
 
     @Test
     fun `dragging a border resizes the two notes`() {
@@ -140,10 +297,26 @@ class NotationPanelTest {
         )
     }
 
+    // -------------------------------------------------------------------------------------------
+    // Painting
+    // -------------------------------------------------------------------------------------------
+
     @Test
     fun `the strip paints the score without complaining`() {
         val (panel, _) = panel()
         panel.score = score()
+        val image = BufferedImage(400, 56, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        panel.paint(graphics)
+        graphics.dispose()
+        assertNotNull(image.colorModel)
+    }
+
+    @Test
+    fun `the strip paints a selection without complaining`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
         val image = BufferedImage(400, 56, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
         panel.paint(graphics)
