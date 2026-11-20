@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-20
+
 ### Added
 - Playback has a **Note / Beat** toggle (a note/metronome icon next to **Play**). **Beat**
   replaces each note onset with a short percussive click (accented on bar downbeats), with a
