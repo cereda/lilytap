@@ -62,7 +62,10 @@ Below the timeline sits the score of the take: one block for every note and rest
 same grid as the timeline, so a block sits exactly under the beat it belongs to. The block shows
 its LilyPond text (`c4`, `r2`) when there is room for it.
 
-- **Click a block** to turn it into a rest, and click it again to turn it back into a note.
+- **Click a block** to select it. The selected block gets a ring around it.
+- **Shift-click** a second block to select a range of blocks.
+- **Double-click a block** to turn it into a rest, and double-click it again to turn it back
+  into a note.
 - **Drag the border between two blocks** to change their lengths: the note before the border
   grows and the one after it shrinks, or the other way round. The border snaps to the nearest
   grid cell, and bar lines pull it harder, so a note can be lined up exactly with the bar. Every
@@ -74,6 +77,26 @@ its LilyPond text (`c4`, `r2`) when there is room for it.
 The LilyPond text in the output box follows every edit. The edits are literal: a rest you leave
 in stays a rest, whatever the "No rests" setting says - that setting applies to the take, not
 to what you make of it afterwards.
+
+### Editing the selected blocks
+
+The strip has the keyboard while it is selected (a thin line along its bottom edge says so), and
+the header above it carries three buttons - **Split**, **Swap** and **Merge** - that do the same
+thing as the keys. A button is greyed out when the current selection does not allow it, and the
+text next to the "Score" label says what is selected (`c2 selected`, `3 blocks selected`) or what
+just happened (`Split → c4 c4`).
+
+| | |
+|---|---|
+| **S** - split | Cuts the selected block in half. The first half keeps the kind of the block and the second half becomes a note, so a silence that is split becomes a silence followed by a note (`r2` becomes `r4 c4`) and a note that is split is re-articulated (`c2` becomes `c4 c4`). |
+| **X** - swap | Trades the two selected blocks. Each keeps its own length and moves in time, so a note that is swapped with the silence next to it keeps sounding for as long as it did - it just starts later. Two silences that end up touching are merged into one. |
+| **M** - merge | Folds the selected blocks into one. A note wins over a silence: the silences inside the range are absorbed by the note, so a note followed by a silence becomes one longer note (`c2 r2` becomes `c1`). |
+| **←** **→** | Move the selection one block to the left or to the right. |
+| **Esc** | Clear the selection. |
+
+A silence is always one block: the strip never shows two rests in a row, and the LilyPond text
+follows the same rule. That is why swapping two blocks can merge two silences into one, and why
+splitting a silence turns its second half into a note.
 
 ## Playback
 

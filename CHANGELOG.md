@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The score strip is now an editor: click a block to select it, shift-click to select a range,
+  and double-click to turn it into a rest (and back again).
+- The score strip takes the keyboard while it is selected: **S** splits the selected block in
+  half, **X** swaps the two selected blocks, **M** merges the selected blocks into one, the arrow
+  keys move the selection and **Esc** clears it.
+- The header of the score strip carries **Split**, **Swap** and **Merge** buttons that do the
+  same as the keys. A button is greyed out when the current selection does not allow it, and the
+  header says what is selected or what just happened.
+- Splitting cuts a block at its middle: the first half keeps the kind of the block and the second
+  half becomes a note, so a silence that is split becomes a silence followed by a note.
+- Swapping trades two neighbouring blocks, each keeping its own length and moving in time.
+- Merging folds a range of blocks into one; a note wins over a silence, so the silences inside
+  the range are absorbed by the note.
+
+### Changed
+- Clicking a block no longer turns it into a rest: a click selects it and a double-click turns it
+  into a rest.
+- The score is measured in musical units (a sixty-fourth of a whole note) instead of grid cells,
+  so a block can be shorter than a cell and a border can sit inside one. The recording is
+  unchanged, and an event on the grid keeps exactly the time it had before.
+
 ## [0.5.0] - 2026-11-20
 
 ### Added
