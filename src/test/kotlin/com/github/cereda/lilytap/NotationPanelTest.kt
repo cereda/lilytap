@@ -86,8 +86,11 @@ class NotationPanelTest {
         panel: NotationPanel,
         keyCode: Int,
     ) {
-        // The strip reads the key code, so the tests can drive it without a window.
-        panel.handleKey(keyCode)
+        // The window sends the key to the focused component; here the panel gets it directly.
+        val event = KeyEvent(panel, KeyEvent.KEY_PRESSED, 0, 0, keyCode, KeyEvent.CHAR_UNDEFINED)
+        for (listener in panel.keyListeners) {
+            listener.keyPressed(event)
+        }
     }
 
     // -------------------------------------------------------------------------------------------
