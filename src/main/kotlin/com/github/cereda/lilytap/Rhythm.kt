@@ -115,6 +115,9 @@ data class TimeSignature(
  * @property noRests when true, every silence is absorbed into the note before it, so the
  * transcription never contains a rest. A silence before the very first note has no note to join
  * and stays a rest.
+ * @property threeFeel when true, the metronome clicks every note value of a compound meter
+ * (the eighth in 6/8) instead of the musical beat, so the subdivision is audible. The beat,
+ * the tempo and the score stay what they are.
  */
 data class Config(
     val bpm: Double,
@@ -124,6 +127,7 @@ data class Config(
     val latencyMs: Double = 0.0,
     val pitch: String = "c",
     val noRests: Boolean = false,
+    val threeFeel: Boolean = false,
 ) {
     init {
         require(bpm.isFinite() && bpm > 0) { "BPM must be positive" }
@@ -158,6 +162,34 @@ data class Config(
     val pulseMs: Double get() = 60_000.0 / bpm
 
     /**
+     * Internal grid units in one click.
+     *
+     * The click is the musical beat - the dotted quarter in a compound meter - unless the
+     * 3-feel is on: then it is the note value (the eighth in 6/8), so the subdivision of the
+     * beat is audible. In a simple meter the note value is the beat, so the 3-feel changes
+     * nothing there.
+     */
+    val clickUnits: Int
+        get() =
+            if (threeFeel && timeSignature.isCompound) {
+                timeSignature.unitsPerNote
+            } else {
+                timeSignature.unitsPerPulse
+            }
+
+    /** The clicks in a musical beat: one, or three with the 3-feel in a compound meter. */
+    val clicksPerBeat: Int get() = timeSignature.unitsPerPulse / clickUnits
+
+    /** The clicks in a bar: four in 4/4, two in 6/8, six in a 3-feel 6/8. */
+    val clicksPerBar: Int get() = unitsPerBar / clickUnits
+
+    /** The clicks of the whole round: the count-in is one bar, and then the bars themselves. */
+    val totalClicks: Int get() = clicksPerBar * (bars + 1)
+
+    /** Milliseconds between two clicks: the beat, or its third with the 3-feel. */
+    val clickMs: Double get() = unitMs * clickUnits
+
+    /**
      * Milliseconds per grid cell.
      *
      * The cell is a part of the note value, so it is that much finer than the musical beat:
@@ -180,6 +212,25 @@ data class Onset(
     val cell: Int,
     val kind: TapKind,
 )
+
+/**
+ * Whether the click at [index] is the accented one.
+ *
+ * The accent marks the musical beat. When the click falls on the beat - one click per beat -
+ * only the first beat of the bar is accented, the way a metronome marks the downbeat. When the
+ * 3-feel makes the click fall on the note value, every beat of the bar is accented, so the
+ * grouping of the compound meter is audible.
+ *
+ * @param index the number of the click, counting from the first.
+ * @param clicksPerBeat how many clicks make a musical beat.
+ * @param clicksPerBar how many clicks make a bar.
+ * @return true when the click is accented.
+ */
+fun accentedClick(
+    index: Int,
+    clicksPerBeat: Int,
+    clicksPerBar: Int,
+): Boolean = if (clicksPerBeat > 1) index % clicksPerBeat == 0 else index % clicksPerBar == 0
 
 /**
  * The result of quantizing taps to the grid.

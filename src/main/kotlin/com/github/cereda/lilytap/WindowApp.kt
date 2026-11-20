@@ -73,6 +73,13 @@ private const val IDLE_STATUS = "Set the tempo, press Start, then play with any 
 private const val TAP_STATUS = "Keep tapping - the tempo follows the taps"
 
 /**
+ * The option of the smallest rest that says that no rest is ever written.
+ *
+ * It is the last one of the control, after the three lengths.
+ */
+private const val NO_RESTS = 3
+
+/**
  * The time signatures the app offers in the menu next to the field.
  *
  * The field takes any other one, so this is a shortcut and not a limit.
@@ -234,8 +241,14 @@ internal class WindowApp {
     private val gridCaption = GlyphLabel(Glyph.GRID, "Cells / beat")
     private val bars = Stepper(4.0, 1.0, 64.0, 1.0, width = 124) { it.roundToLong().toString() }
     private val subdivisions = SegmentedControl(listOf("1", "2", "4"), 1)
-    private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat"), 0)
-    private val noRests = CheckBox()
+
+    /**
+     * The smallest rest.
+     *
+     * The first three options say how short a silence may be before it becomes a rest; the
+     * last one says that no rest is ever written, which used to be a separate checkbox.
+     */
+    private val minRest = SegmentedControl(listOf("1 beat", "\u00BD beat", "\u00BC beat", "No rests"), 0)
     private val latency =
         Stepper(0.0, -500.0, 500.0, 5.0) { v ->
             val n = v.roundToLong()
@@ -253,6 +266,10 @@ internal class WindowApp {
 
     /** The button that sets the tempo by tapping. */
     private val tapButton = IconButton(Glyph.TAP, 38, 24)
+
+    /** The button that makes the click fall on every note value of a compound meter. */
+    private val threeFeelButton = IconButton(Glyph.BEATS, 38, 24)
+
     private val pitch = StyledField("c", 4)
     private val start = PillButton("Start", Glyph.PLAY, ButtonKind.PRIMARY, minW = 168, heightPx = 48)
     private val status = StatusBadge()
@@ -356,6 +373,15 @@ internal class WindowApp {
     /** Whether the score strip is shown. */
     private var scoreVisible = true
 
+    /** Whether the 3-feel is on: it only means something in a compound meter. */
+    private var threeFeel = false
+
+    /** Whether the meter in the time field is a compound one. */
+    private var compoundMeter = false
+
+    /** Whether the settings can be changed right now (a take or a playback owns the window). */
+    private var settingsLive = true
+
     /** Current playback position in ms relative to the start of the score (-1 when not playing). */
     private var playbackPositionMs = -1.0
     private var playbackStartNanos = 0L
@@ -378,6 +404,9 @@ internal class WindowApp {
     init {
         wireScoreEditor()
         wireTimeSignature()
+        wireThreeFeel()
+        minRest.onChange = { minRest.toolTipText = restToolTip() }
+        updateThreeFeel()
     }
 
     /**
@@ -426,15 +455,25 @@ internal class WindowApp {
         audioLatency.toolTipText = "Audio output latency: shifts the metronome click earlier so it sounds on time."
         audioLatencyReset.toolTipText = "Reset the audio latency to 0 ms."
         calibrateButton.toolTipText = "Tap along with the metronome clicks to measure your audio output latency automatically."
-        minRest.toolTipText = "Silences shorter than this are absorbed into the previous note."
-        noRests.toolTipText = "Never write rests: every silence is absorbed into the previous note."
+        minRest.toolTipText = restToolTip()
         subdivisions.toolTipText =
             "How many grid cells the note value is cut into: 1 = the note value itself " +
             "(eighths in 6/8), 2 = half of it, 4 = a quarter of it. The click falls on the " +
-            "beat, not on the cells."
+            "beat, not on the cells (unless the 3-feel is on)."
         time.toolTipText = "Time signature, e.g. 4/4 or 6/8."
         pitch.toolTipText = "Placeholder pitch printed in the LilyPond output."
     }
+
+    /**
+     * The tooltip of the smallest rest: it follows the option that is selected, because the
+     * last one is not a length at all.
+     */
+    private fun restToolTip(): String =
+        if (minRest.selectedIndex == NO_RESTS) {
+            "Never write rests: every silence is absorbed into the previous note."
+        } else {
+            "Silences shorter than this are absorbed into the previous note."
+        }
 
     fun show() {
         status.text = IDLE_STATUS
@@ -498,7 +537,6 @@ internal class WindowApp {
                 add(
                     row(
                         labeled(Glyph.PAUSE, "Smallest rest", minRest),
-                        labeled(Glyph.CHECK, "No rests", noRests),
                         labeled(Glyph.BOLT, "Latency", withReset(latency, latencyReset)),
                     ),
                 )
@@ -613,8 +651,6 @@ internal class WindowApp {
         }
         playButton.onClick = { togglePlayback() }
         soundButton.onClick = { togglePlaybackSound() }
-        // "Smallest rest" only means something when rests are written at all.
-        noRests.onChange = { checked -> minRest.isEnabled = !checked }
         KeyboardFocusManager
             .getCurrentKeyboardFocusManager()
             .addKeyEventDispatcher(KeyEventDispatcher { e -> handleKey(e) })
@@ -638,13 +674,20 @@ internal class WindowApp {
     }
 
     /**
-     * The time signature field with the menu of common meters beside it.
+     * The time signature field with the menu of common meters and the 3-feel button beside it.
      */
     private fun timeCell(): JComponent =
         JPanel(BorderLayout(6, 0)).apply {
             isOpaque = false
             add(time, BorderLayout.CENTER)
-            add(timeMenu, BorderLayout.EAST)
+            add(
+                JPanel(BorderLayout(8, 0)).apply {
+                    isOpaque = false
+                    add(timeMenu, BorderLayout.CENTER)
+                    add(threeFeelButton, BorderLayout.EAST)
+                },
+                BorderLayout.EAST,
+            )
         }
 
     /**
@@ -684,6 +727,37 @@ internal class WindowApp {
     }
 
     /**
+     * Wires the 3-feel button: it turns the finer click on and off.
+     */
+    private fun wireThreeFeel() {
+        threeFeelButton.onClick = {
+            threeFeel = !threeFeel
+            updateThreeFeel()
+        }
+    }
+
+    /**
+     * The 3-feel button: it works only in a compound meter, and it shows whether it is on.
+     *
+     * The button stays in place in every meter, so the row never moves; it is greyed out when
+     * the meter is simple, and the setting is remembered when the meter changes back.
+     */
+    private fun updateThreeFeel() {
+        threeFeelButton.isEnabled = compoundMeter && settingsLive
+        threeFeelButton.accentOverride = if (threeFeel && compoundMeter) Theme.accent else null
+        threeFeelButton.toolTipText =
+            if (!compoundMeter) {
+                "3 feel: click every note value of a compound meter (the eighth in 6/8). " +
+                    "It needs a compound meter."
+            } else if (threeFeel) {
+                "3 feel is on: the click falls on every note value of the bar. Click to turn it off."
+            } else {
+                "3 feel: click every note value of a compound meter (the eighth in 6/8). " +
+                    "Click to turn it on."
+            }
+    }
+
+    /**
      * Says whether the text in the time signature field can be used, and names the grid cells.
      *
      * In a compound meter the cells cut the note value (the eighth in 6/8) and not the beat,
@@ -693,12 +767,14 @@ internal class WindowApp {
     private fun markTimeSignature() {
         val parsed = runCatching { TimeSignature.parse(time.text) }.getOrNull()
         time.invalid = parsed == null
+        compoundMeter = parsed != null && parsed.isCompound
         gridCaption.text =
             if (parsed != null && parsed.isCompound) {
                 "Cells / ${NOTE_NAMES[parsed.beatUnit] ?: "note"}"
             } else {
                 "Cells / beat"
             }
+        updateThreeFeel()
     }
 
     /**
@@ -871,10 +947,10 @@ internal class WindowApp {
             tapButton,
             time,
             timeMenu,
+            threeFeelButton,
             bars,
             subdivisions,
             minRest,
-            noRests,
             latency,
             latencyReset,
             audioLatency,
@@ -883,11 +959,13 @@ internal class WindowApp {
         )
 
     private fun setControlsEnabled(on: Boolean) {
+        settingsLive = on
         settingControls.forEach { it.isEnabled = on }
         copy.isEnabled = on
         calibrateButton.isEnabled = on
         playButton.isEnabled = on && currentScore() != null
         soundButton.isEnabled = on && currentScore() != null
+        updateThreeFeel()
     }
 
     /**
@@ -898,11 +976,13 @@ internal class WindowApp {
      * playback. The header button stays live — it is the **Stop** button then.
      */
     private fun setPlaybackControlsEnabled(playing: Boolean) {
+        settingsLive = !playing
         settingControls.forEach { it.isEnabled = !playing }
         calibrateButton.isEnabled = !playing
         start.isEnabled = !playing
         soundButton.isEnabled = !playing && currentScore() != null
         playButton.isEnabled = playing || currentScore() != null
+        updateThreeFeel()
     }
 
     /**
@@ -1123,7 +1203,8 @@ internal class WindowApp {
                     bars = bars.value.roundToInt(),
                     latencyMs = latency.value,
                     pitch = pitch.text.trim().ifEmpty { "c" },
-                    noRests = noRests.selected,
+                    noRests = minRest.selectedIndex == NO_RESTS,
+                    threeFeel = threeFeel,
                 )
             } catch (e: IllegalArgumentException) {
                 showMessage(
@@ -1135,6 +1216,8 @@ internal class WindowApp {
                 )
                 return
             }
+        // The last option of the smallest rest is not a length: it says that no silence is
+        // ever written, so the length does not matter there.
         val fraction =
             when (minRest.selectedIndex) {
                 0 -> 1
@@ -1146,6 +1229,7 @@ internal class WindowApp {
         // The musical beat: the note value in a simple meter, the dotted quarter in a compound one.
         val pulses = config.timeSignature.pulsesPerBar
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
+        val clickNanos = (config.clickMs * 1_000_000.0).roundToLong()
         val startNanos = System.nanoTime() + 800_000_000L
         val origin = startNanos + pulses * beatNanos
         val end = origin + config.bars.toLong() * pulses * beatNanos
@@ -1174,7 +1258,14 @@ internal class WindowApp {
 
         s.ticker =
             thread(isDaemon = true, name = "metronome") {
-                metronome.run(startNanos, beatNanos, pulses + config.bars * pulses, pulses, audioLatency.value)
+                metronome.run(
+                    startNanos,
+                    clickNanos,
+                    config.totalClicks,
+                    config.clicksPerBeat,
+                    config.clicksPerBar,
+                    audioLatency.value,
+                )
             }
         frameTimer.start()
     }
@@ -1200,6 +1291,7 @@ internal class WindowApp {
 
         val pulses = config.timeSignature.pulsesPerBar
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
+        val clickNanos = (config.clickMs * 1_000_000.0).roundToLong()
         val startNanos = System.nanoTime() + 800_000_000L
         val origin = startNanos + pulses * beatNanos
         val end = origin + config.bars.toLong() * pulses * beatNanos
@@ -1232,7 +1324,14 @@ internal class WindowApp {
 
         s.ticker =
             thread(isDaemon = true, name = "metronome") {
-                metronome.run(startNanos, beatNanos, pulses + config.bars * pulses, pulses, audioLatency.value)
+                metronome.run(
+                    startNanos,
+                    clickNanos,
+                    config.totalClicks,
+                    config.clicksPerBeat,
+                    config.clicksPerBar,
+                    audioLatency.value,
+                )
             }
         frameTimer.start()
     }

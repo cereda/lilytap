@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The **3-feel**: the round button beside the time signature makes the metronome click every note
+  value of a compound meter (the eighth in 6/8) instead of the musical beat, so the subdivision
+  of the beat is audible. The beat itself does not move: the tempo, the count-in, the beat dots
+  and the score stay what they were, and the accent still falls on the beat, so the click and the
+  beat dots agree. The button is greyed out in a simple meter and keeps its setting when the
+  meter changes.
+
+### Changed
+- **No rests** is the last option of the **Smallest rest** control now, instead of a checkbox of
+  its own, so the two settings that decide what happens to a silence sit in one place.
+- The window is 21 pixels wider (875 instead of 854), because the 3-feel button has a place of
+  its own beside the time signature.
+
 ## [0.9.0] - 2026-11-20
 
 ### Added

@@ -537,8 +537,12 @@ internal class SegmentedControl(
                 field = v
                 anim.start()
                 repaint()
+                onChange?.invoke(v)
             }
         }
+
+    /** Called whenever the selection changes. */
+    var onChange: ((Int) -> Unit)? = null
 
     val selectedText: String get() = options[selectedIndex]
 
@@ -603,67 +607,6 @@ internal class SegmentedControl(
                 g2.color = if (i == selectedIndex) Theme.onAccent else Theme.dim
                 val tx = 3 + i * sw + (sw - fm.stringWidth(label)) / 2
                 g2.drawString(label, tx.toFloat(), ((h - fm.height) / 2 + fm.ascent).toFloat())
-            }
-        }
-    }
-}
-
-/**
- * A toggle box: a rounded square that fills with the accent and shows a check when selected.
- */
-internal class CheckBox : JComponent() {
-    var selected: Boolean = false
-        set(v) {
-            if (v != field) {
-                field = v
-                onChange?.invoke(v)
-                repaint()
-            }
-        }
-
-    /** Called whenever the selection changes. */
-    var onChange: ((Boolean) -> Unit)? = null
-
-    init {
-        isOpaque = false
-        isFocusable = false
-        cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-        addMouseListener(
-            object : MouseAdapter() {
-                override fun mousePressed(e: MouseEvent) {
-                    if (isEnabled) selected = !selected
-                }
-            },
-        )
-    }
-
-    override fun getPreferredSize(): Dimension = Dimension(38, 38)
-
-    override fun paintComponent(g: Graphics) {
-        g.paint2d { g2 ->
-            if (!isEnabled) g2.composite = AlphaComposite.SrcOver.derive(0.4f)
-            val side = 18.0
-            val x = (width - side) / 2.0
-            val y = (height - side) / 2.0
-            val box = rr(x, y, side, side, 5.0)
-            if (selected) {
-                g2.paint =
-                    GradientPaint(
-                        x.toFloat(),
-                        y.toFloat(),
-                        Theme.accent,
-                        (x + side).toFloat(),
-                        y.toFloat(),
-                        Theme.accent2,
-                    )
-                g2.fill(box)
-                drawGlyph(g2, Glyph.CHECK, x + 3, y + 3, side - 6, Theme.onAccent)
-            } else {
-                g2.color = Theme.field
-                g2.fill(box)
-                g2.color = Theme.line
-                g2.stroke = BasicStroke(1.2f)
-                g2.draw(box)
             }
         }
     }

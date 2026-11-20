@@ -42,12 +42,15 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
   tapping — see [Tap tempo](#tap-tempo).
 - **Time** — the time signature, e.g. `4/4` or `6/8`. A menu beside the field offers the common
   meters; the field takes any other one, and its border turns red when the text is not a meter.
+  The round button with the three dots beside the menu is the 3-feel — see
+  [The 3-feel](#the-3-feel).
 - **Bars** — how many bars to record after the one-bar count-in.
 - **Cells / beat** — the grid resolution: 1, 2 or 4 cells per beat. In a compound meter the
   caption names the note the cells cut instead (e.g. `Cells / eighth` in 6/8), because there the
   beat is the dotted quarter.
-- **Smallest rest** — silences shorter than this are absorbed into the previous note.
-- **No rests** — never write a rest: every silence extends the note before it.
+- **Smallest rest** — silences shorter than this are absorbed into the previous note. The last
+  option of the control, **No rests**, says that no rest is ever written — see
+  [No rests](#no-rests).
 - **Latency** — the delay of *your taps* (reaction time), subtracted from every tap.
 - **Audio latency** — the delay of the *sound*, which shifts the metronome click earlier.
 - **Pitch** — the placeholder pitch printed in the LilyPond output and used by Note playback.
@@ -71,10 +74,10 @@ number. The button is greyed out while a take runs or a score plays, like the ot
 
 ## No rests
 
-The **No rests** checkbox turns every silence into extra time for the note before it, so the
-transcription never contains a rest: `c4 r4 c4 c4` becomes `c2 c4 c4`. A silence before the very
-first note has no note to join, so it stays a rest. While the box is ticked, "Smallest rest" is
-greyed out — it has nothing left to do.
+The last option of the **Smallest rest** control — **No rests** — turns every silence into extra
+time for the note before it, so the transcription never contains a rest: `c4 r4 c4 c4` becomes
+`c2 c4 c4`. A silence before the very first note has no note to join, so it stays a rest. The
+other three options say how short a silence may be before it becomes a rest of its own.
 
 ## The score strip
 
@@ -168,6 +171,21 @@ A simple meter (4/4, 3/4, 2/4) is written the way it always was, and an irregula
 is left alone: those meters can be grouped in more than one way, and the app does not guess. The
 blocks of the strip keep their own durations either way - a block of four eighths still says `c2`,
 while the text spells it the way the meter wants it.
+
+### The 3-feel
+
+The round button with the three dots beside the time signature makes the click fall on every note
+value of a compound meter instead of on the beat: in 6/8 the click is on every eighth, not on the
+dotted quarter, so the subdivision of the beat is audible.
+
+The beat itself does not move. The tempo still counts dotted quarters, the count-in is still one
+bar, the beat dots still show the two beats of the bar, and the score is written the same way.
+Only the click is finer — and the accent still falls on the beat, so the click and the beat dots
+agree: in 6/8 the click is *click click click* with the accent on the first and the fourth.
+
+The button is greyed out in a simple meter (4/4, 3/4, 2/4): there the click is already on the
+note value, so there is nothing to change. It keeps its setting when the meter changes, so a
+compound meter that comes back is still in 3-feel.
 
 ## Playback
 

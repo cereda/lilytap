@@ -58,26 +58,28 @@ class Metronome : AutoCloseable {
     }
 
     /**
-     * Blocks the calling thread, clicking at [startNanos] + [i] * [beatNanos]
-     * minus [audioLatencyMs] for each beat. Returns early if the thread is interrupted.
+     * Blocks the calling thread, clicking at [startNanos] + [i] * [clickNanos]
+     * minus [audioLatencyMs] for each click. Returns early if the thread is interrupted.
      *
      * Clicks are shifted earlier by [audioLatencyMs] so that the sound reaches
-     * the listener's ears at the nominal beat time, aligning the audible click
+     * the listener's ears at the nominal click time, aligning the audible click
      * with the visual playhead.
      *
      * [audioLatencyMs] is the measured audio output latency in milliseconds —
      * there is no reliable way to auto-measure this in the Java Sound API, so
      * the caller provides it (the window's **Audio latency** setting).
      *
-     * @param totalPulses how many clicks to play: the count-in plus the take.
-     * @param pulsesPerBar how many clicks make a bar; the first one of each bar is accented.
+     * @param totalClicks how many clicks to play: the count-in plus the take.
+     * @param clicksPerBeat how many clicks make a musical beat.
+     * @param clicksPerBar how many clicks make a bar.
      */
     @Suppress("LongParameterList")
     fun run(
         startNanos: Long,
-        beatNanos: Long,
-        totalPulses: Int,
-        pulsesPerBar: Int,
+        clickNanos: Long,
+        totalClicks: Int,
+        clicksPerBeat: Int,
+        clicksPerBar: Int,
         audioLatencyMs: Double,
     ) {
         if (closed.get()) return
@@ -85,12 +87,12 @@ class Metronome : AutoCloseable {
         currentThread.set(me)
         try {
             val latencyNanos = (audioLatencyMs * 1_000_000).toLong()
-            for (i in 0 until totalPulses) {
+            for (i in 0 until totalClicks) {
                 // shift click earlier so sound arrives at the nominal beat time
-                val clickTime = startNanos + i * beatNanos - latencyNanos
+                val clickTime = startNanos + i * clickNanos - latencyNanos
                 sleepUntil(clickTime)
                 if (me.isInterrupted) return // recording was aborted or finished
-                click(accented = i % pulsesPerBar == 0)
+                click(accented = accentedClick(i, clicksPerBeat, clicksPerBar))
             }
         } finally {
             currentThread.compareAndSet(me, null)

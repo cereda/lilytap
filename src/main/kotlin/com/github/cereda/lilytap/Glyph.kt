@@ -47,6 +47,7 @@ internal enum class Glyph {
     UNDO,
     REDO,
     TAP,
+    BEATS,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -281,10 +282,48 @@ internal fun drawGlyph(
             g.draw(Ellipse2D.Double(cx - 0.24 * s, cy - 0.24 * s, 0.48 * s, 0.48 * s))
             g.fill(Ellipse2D.Double(cx - 0.08 * s, cy - 0.08 * s, 0.16 * s, 0.16 * s))
         }
+
+        Glyph.BEATS -> {
+            drawBeats(g, x, y, s)
+        }
     }
 
     g.stroke = oldStroke
     g.color = oldColor
+}
+
+/**
+ * Draws three beats: three dots at the corners of an open triangle.
+ *
+ * The dots are the beats of the group and the two lines that join them to the top one are the
+ * group itself. The bottom is left open, so the shape is an upside-down V and not a closed
+ * triangle - the group of three is not a bar of its own.
+ *
+ * @param g where to draw.
+ * @param x the left edge of the square.
+ * @param y the top edge of the square.
+ * @param s the side of the square.
+ */
+private fun drawBeats(
+    g: Graphics2D,
+    x: Double,
+    y: Double,
+    s: Double,
+) {
+    val r = 0.12 * s
+    val halfBase = 0.31 * s
+    val height = halfBase * Math.sqrt(3.0) // an equilateral triangle
+    val middleX = x + 0.5 * s
+    val topY = y + 0.5 * s - height / 2
+    val bottomY = y + 0.5 * s + height / 2
+    val leftX = middleX - halfBase
+    val rightX = middleX + halfBase
+    g.stroke = BasicStroke((s * 0.07).toFloat(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+    g.draw(Line2D.Double(middleX, topY, leftX, bottomY))
+    g.draw(Line2D.Double(middleX, topY, rightX, bottomY))
+    for (p in listOf(middleX to topY, leftX to bottomY, rightX to bottomY)) {
+        g.fill(Ellipse2D.Double(p.first - r, p.second - r, 2 * r, 2 * r))
+    }
 }
 
 /**

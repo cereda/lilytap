@@ -10,6 +10,7 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -515,6 +516,63 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the 3-feel button waits for a compound meter`() {
+        val app = WindowApp()
+        val button = iconButton(app, "threeFeelButton")
+        val time = styledField(app, "time")
+
+        assertFalse(button.isEnabled, "a simple meter has no 3-feel")
+
+        time.text = "6/8"
+        assertTrue(button.isEnabled, "6/8 is a compound meter")
+
+        time.text = "7/8"
+        assertFalse(button.isEnabled, "an irregular meter is not a compound one")
+
+        time.text = "6/4"
+        assertTrue(button.isEnabled, "6/4 is a compound meter too")
+    }
+
+    @Test
+    fun `the 3-feel button keeps its setting when the meter changes`() {
+        val app = WindowApp()
+        val button = iconButton(app, "threeFeelButton")
+        val time = styledField(app, "time")
+
+        time.text = "6/8"
+        button.onClick?.invoke()
+        assertNotNull(button.accentOverride, "the button shows that the 3-feel is on")
+
+        time.text = "4/4"
+        assertFalse(button.isEnabled, "a simple meter has no 3-feel")
+        assertNull(button.accentOverride, "the button is greyed out in a simple meter")
+
+        time.text = "6/8"
+        assertTrue(button.isEnabled)
+        assertNotNull(button.accentOverride, "the setting is remembered when the meter comes back")
+    }
+
+    @Test
+    fun `the smallest rest control holds the no-rest option`() {
+        val app = WindowApp()
+        val control = segmentedControl(app, "minRest")
+
+        control.selectedIndex = 3
+        assertEquals("No rests", control.selectedText)
+        assertTrue(
+            control.toolTipText!!.contains("Never write rests"),
+            "the tooltip follows the option that is selected",
+        )
+
+        control.selectedIndex = 0
+        assertEquals("1 beat", control.selectedText)
+        assertTrue(
+            control.toolTipText!!.contains("Silences shorter than this"),
+            "the tooltip follows the option that is selected",
+        )
+    }
+
+    @Test
     fun `the helper message is never cropped`() {
         val app = WindowApp()
 
@@ -650,6 +708,30 @@ class WindowAppTest {
                 ?: error("$name field not found")
         field.isAccessible = true
         return field.get(app) as IconButton
+    }
+
+    /** A text field of the window, by the name of the field that holds it. */
+    private fun styledField(
+        app: WindowApp,
+        name: String,
+    ): StyledField {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == name }
+                ?: error("$name field not found")
+        field.isAccessible = true
+        return field.get(app) as StyledField
+    }
+
+    /** An option picker of the window, by the name of the field that holds it. */
+    private fun segmentedControl(
+        app: WindowApp,
+        name: String,
+    ): SegmentedControl {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == name }
+                ?: error("$name field not found")
+        field.isAccessible = true
+        return field.get(app) as SegmentedControl
     }
 
     /** A tap on the tap button. */
