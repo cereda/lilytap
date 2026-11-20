@@ -164,6 +164,122 @@ class ScoreTest {
     }
 
     // -------------------------------------------------------------------------------------------
+    // Splitting a block
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `splitting a note gives two halves of the same kind`() {
+        val edited = score(note(0, 4), note(4, 4)).split(0)
+        assertEquals(listOf(note(0, 2), note(2, 2), note(4, 4)), edited.events)
+        assertEquals("c4 c4 c2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `splitting a silence makes the second half a note`() {
+        val edited = score(rest(0, 4), note(4, 4)).split(0)
+        assertEquals(listOf(rest(0, 2), note(2, 2), note(4, 4)), edited.events)
+        assertEquals("r4 c4 c2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `an odd block splits into a shorter first half`() {
+        val s = Score(listOf(Event(TapKind.NOTE, 0, 3), Event(TapKind.NOTE, 3, 61)), cfg())
+        val edited = s.split(0)
+        assertEquals(listOf(Event(TapKind.NOTE, 0, 1), Event(TapKind.NOTE, 1, 2), Event(TapKind.NOTE, 3, 61)), edited.events)
+    }
+
+    @Test
+    fun `a block of one unit cannot be split`() {
+        val s = Score(listOf(Event(TapKind.NOTE, 0, 1), Event(TapKind.NOTE, 1, 63)), cfg())
+        assertFailsWith<IllegalArgumentException> { s.split(0) }
+    }
+
+    @Test
+    fun `splitting a block that is not there is rejected`() {
+        val s = score(note(0, 8))
+        assertFailsWith<IllegalArgumentException> { s.split(1) }
+        assertFailsWith<IllegalArgumentException> { s.split(-1) }
+    }
+
+    @Test
+    fun `splitting a block leaves the original alone`() {
+        val s = score(note(0, 4), note(4, 4))
+        s.split(0)
+        assertEquals(listOf(note(0, 4), note(4, 4)), s.events)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Swapping two blocks
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `swapping two blocks moves them across each other`() {
+        val edited = score(note(0, 2), rest(2, 2), note(4, 4)).swap(0)
+        assertEquals(listOf(rest(0, 2), note(2, 2), note(4, 4)), edited.events)
+        assertEquals("r4 c4 c2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `swapping keeps the length of each block`() {
+        val edited = score(note(0, 4), rest(4, 2), note(6, 2)).swap(0)
+        assertEquals(listOf(rest(0, 2), note(2, 4), note(6, 2)), edited.events)
+    }
+
+    @Test
+    fun `swapping two blocks that leave two silences together merges them`() {
+        val edited = score(rest(0, 2), note(2, 2), rest(4, 4)).swap(1)
+        assertEquals(listOf(rest(0, 6), note(6, 2)), edited.events)
+        assertEquals("r2. c4 |", edited.lilypond)
+    }
+
+    @Test
+    fun `swapping two notes changes nothing but their order`() {
+        val edited = score(note(0, 2), note(2, 2), note(4, 4)).swap(0)
+        assertEquals(listOf(note(0, 2), note(2, 2), note(4, 4)), edited.events)
+    }
+
+    @Test
+    fun `swapping a pair that is not there is rejected`() {
+        val s = score(note(0, 8))
+        assertFailsWith<IllegalArgumentException> { s.swap(0) }
+        assertFailsWith<IllegalArgumentException> { s.swap(-1) }
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Merging blocks
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `merging two notes makes one longer note`() {
+        val edited = score(note(0, 2), note(2, 2), note(4, 4)).merge(0, 1)
+        assertEquals(listOf(note(0, 4), note(4, 4)), edited.events)
+        assertEquals("c2 c2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `merging a note and a silence lets the note win`() {
+        val edited = score(note(0, 2), rest(2, 2), note(4, 4)).merge(0, 1)
+        assertEquals(listOf(note(0, 4), note(4, 4)), edited.events)
+        assertEquals("c2 c2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `merging a range keeps the bar full`() {
+        val edited = score(note(0, 2), note(2, 2), note(4, 4)).merge(0, 2)
+        assertEquals(64, edited.totalUnits)
+        assertEquals(64, edited.events.sumOf { it.lengthUnits })
+        assertEquals(listOf(note(0, 8)), edited.events)
+    }
+
+    @Test
+    fun `merging a range that is not there is rejected`() {
+        val s = score(note(0, 8))
+        assertFailsWith<IllegalArgumentException> { s.merge(0, 1) }
+        assertFailsWith<IllegalArgumentException> { s.merge(1, 0) }
+        assertFailsWith<IllegalArgumentException> { s.merge(-1, 0) }
+    }
+
+    // -------------------------------------------------------------------------------------------
     // Snapping
     // -------------------------------------------------------------------------------------------
 

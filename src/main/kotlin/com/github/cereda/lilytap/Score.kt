@@ -95,6 +95,82 @@ data class Score(
     }
 
     /**
+     * Splits the event at [index] in two halves.
+     *
+     * The cut is at the middle of the event: the first half is the shorter one when the
+     * event has an odd length. The first half keeps the kind of the event, and the second
+     * half becomes a note - so a silence that is split in two becomes a silence followed by
+     * a note, which is how a note is put inside a gap.
+     *
+     * @param index the index of the event in [events].
+     * @return the edited score.
+     */
+    fun split(index: Int): Score {
+        require(index in events.indices) { "There is no event $index" }
+        val event = events[index]
+        require(event.lengthUnits >= 2) { "An event of one unit cannot be split" }
+        val leftLength = event.lengthUnits / 2
+        val rightLength = event.lengthUnits - leftLength
+        val split =
+            events.toMutableList().apply {
+                removeAt(index)
+                add(index, event.copy(lengthUnits = leftLength))
+                add(index + 1, Event(TapKind.NOTE, event.startUnits + leftLength, rightLength))
+            }
+        return copy(events = layOut(split))
+    }
+
+    /**
+     * Swaps the events at [index] and [index + 1].
+     *
+     * Each block keeps its own length and moves in time: a note that is swapped with the
+     * silence next to it keeps sounding for as long as it did, it just starts later.
+     *
+     * Two silences in a row are one silence, so a swap that leaves two silences touching
+     * merges them into one.
+     *
+     * @param index the index of the first of the two events.
+     * @return the edited score.
+     */
+    fun swap(index: Int): Score {
+        require(index in 0 until events.size - 1) { "There is no pair of events at $index" }
+        val first = events[index]
+        val second = events[index + 1]
+        val swapped =
+            events.toMutableList().apply {
+                this[index] = second.copy(startUnits = first.startUnits)
+                this[index + 1] = first.copy(startUnits = first.startUnits + second.lengthUnits)
+            }
+        return copy(events = layOut(mergeRests(swapped)))
+    }
+
+    /**
+     * Merges the events from [from] to [to] into a single one.
+     *
+     * The merged event lasts as long as the whole range. A note wins over a silence: the
+     * silences inside the range are absorbed by the note, so a note followed by a silence
+     * becomes one longer note.
+     *
+     * @param from the index of the first event of the range.
+     * @param to the index of the last event of the range.
+     * @return the edited score.
+     */
+    fun merge(
+        from: Int,
+        to: Int,
+    ): Score {
+        require(from in events.indices && to in events.indices) { "There is no event $from" }
+        require(from <= to) { "A range runs from its first event to its last one" }
+        val range = events.subList(from, to + 1)
+        val length = range.sumOf { it.lengthUnits }
+        val kind = if (range.any { it.kind == TapKind.NOTE }) TapKind.NOTE else TapKind.REST
+        val merged = events.toMutableList()
+        for (i in to downTo from) merged.removeAt(i)
+        merged.add(from, Event(kind, events[from].startUnits, length))
+        return copy(events = layOut(merged))
+    }
+
+    /**
      * Moves the border between event [index] and the next one by [deltaUnits] units.
      *
      * The event on the left grows by [deltaUnits] units and the one on the right shrinks by
@@ -188,6 +264,20 @@ private fun mergeRests(events: List<Event>): List<Event> {
         }
     }
     return merged
+}
+
+/**
+ * Numbers the events so that they follow each other: the first one starts at 0, and every
+ * one starts where the previous one ended. An edit that moves a block around leaves the
+ * starts behind, so they are numbered again here.
+ */
+private fun layOut(events: List<Event>): List<Event> {
+    var units = 0
+    return events.map { event ->
+        val placed = event.copy(startUnits = units)
+        units += event.lengthUnits
+        placed
+    }
 }
 
 // ---------------------------------------------------------------------------
