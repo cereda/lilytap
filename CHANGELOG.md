@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [0.11.0] - 2026-11-20
+
+### Added
 - The 3-feel marks the downbeat with a sound of its own: a low, long click, so that the bar is
   audible and not only the grouping of three. Every other meter keeps the accent it has always
   had.
@@ -317,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/cereda/lilytap/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cereda/lilytap/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cereda/lilytap/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cereda/lilytap/compare/v0.7.0...v0.8.0
