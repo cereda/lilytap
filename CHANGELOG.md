@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`java -jar build/libs/lilytap.jar`) and the `run`/`gui` subcommands are gone.
 - Calibration adds the measured residual to the configured audio latency instead of replacing
   it, and includes the first recorded bar.
+- Calibration now runs on a grid of its own: 60 BPM, one bar of count-in and two bars to tap
+  along with, whatever the tempo, time signature and length of the take are. The slow grid leaves
+  room around every beat for the whole output delay.
+- Calibration takes the median of the tap offsets instead of their average, so a single stray tap
+  or one missed beat cannot move the result.
+- The calibration status shows the number of taps instead of a beat number, and the count-in is
+  announced as "Get ready…": a beat number is a claim about when the beat is, and while the audio
+  is late that claim is wrong.
+- The value a calibration produces includes your own reaction time, so it reads a little higher
+  than the raw output delay.
 
 ### Removed
 - The terminal CLI (`run` subcommand), its options and the terminal recorder.
@@ -38,8 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written to the sound card, so the guide lines up with the playhead.
 - Calibration is no longer biased by the beat dots: they are hidden while calibrating, so the
   taps can only follow the beeps.
-- Calibration no longer reads a late tap as an early one when the output latency is larger than
-  half a beat (250 ms at 120 BPM), which used to drive the audio latency the wrong way.
+- Calibration no longer reads a late tap as an early one: the round runs on its own slow grid,
+  where a tap that answers a beep which reached the ears late stays on the beat it followed, and
+  the result is the median of the offsets rather than their average.
+- A calibration result that falls outside the range of the setting is discarded, so a stray tap
+  cannot move the audio latency by a whole beat.
 - While a score is playing, the settings and the **Calibrate** button are disabled: they describe
   the next take, and a calibration used to beep over the playback.
 - The timeline header no longer clips long status messages: the sound toggle is icon-only, the

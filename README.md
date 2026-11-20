@@ -106,6 +106,14 @@ stays empty and the beat dots are hidden, on purpose: a guide that is out of syn
 is exactly what you are trying to measure. The round arrow next to a latency setting resets it to
 zero.
 
+The calibration always runs on a grid of its own: 60 BPM, one bar of count-in and two bars to tap
+along with, whatever the tempo and the length of the take are. The slow grid leaves room around
+every beat for the whole output delay, so a tap that answers a beep which reached your ears late
+still belongs to the beat it followed. The result is the median of your tap offsets, so a single
+stray tap or one missed beat cannot move it, and the status shows how many taps you have given.
+The measurement includes your own reaction time, so it reads a little higher than the raw output
+delay: lower it a few steps if the click sounds early.
+
 Outside calibration, the beat dots and the status text follow the beat itself, so they line up
 with the playhead rather than with the moment the click is written to the sound card.
 

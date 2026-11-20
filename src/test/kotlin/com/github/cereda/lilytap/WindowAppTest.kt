@@ -206,13 +206,42 @@ class WindowAppTest {
     }
 
     @Test
-    fun `calibration reads a late tap as a tap on the beat it followed`() {
-        // A tap 200 ms before the next beat is really 300 ms after the beat it followed.
-        assertEquals(300.0, calibratedLatency(0.0, -200.0, 500.0))
-        // A small offset is taken as it is.
-        assertEquals(300.0, calibratedLatency(200.0, 100.0, 500.0))
-        // An early tap lowers the latency, as long as it stays positive.
-        assertEquals(100.0, calibratedLatency(300.0, -200.0, 500.0))
+    fun `calibration adds the median tap offset to the latency`() {
+        // A tap 50 ms after the beat it followed: the latency was 50 ms too low.
+        assertEquals(250.0, calibratedLatency(200.0, listOf(50.0)))
+        // An odd number of taps: the middle one decides.
+        assertEquals(260.0, calibratedLatency(0.0, listOf(250.0, 260.0, 300.0)))
+        // An even number of taps: the middle of the two.
+        assertEquals(275.0, calibratedLatency(0.0, listOf(250.0, 300.0)))
+        // One stray tap does not move the result.
+        assertEquals(265.0, calibratedLatency(0.0, listOf(250.0, 260.0, 270.0, 900.0)))
+    }
+
+    @Test
+    fun `a measurement outside the range keeps the old latency`() {
+        // A tap before the beat it followed would take the latency below zero.
+        assertEquals(200.0, calibratedLatency(200.0, listOf(-450.0)))
+        // A tap exactly one latency early brings it to zero, which is still a valid value.
+        assertEquals(0.0, calibratedLatency(200.0, listOf(-200.0)))
+        // A tap that would push it past the maximum is dropped as well.
+        assertEquals(400.0, calibratedLatency(400.0, listOf(400.0)))
+    }
+
+    @Test
+    fun `the calibration runs on a fixed slow grid`() {
+        // One beat per second: a tap that is late by up to half a beat still belongs to the
+        // beat it followed, whatever the tempo of the take is.
+        assertEquals(60.0, CALIBRATION_BPM)
+        assertEquals(1000.0, 60_000.0 / CALIBRATION_BPM)
+        // Eight beats to tap along with: enough for a median, short enough to stay a round.
+        assertEquals(8, CALIBRATION_BARS * CALIBRATION_SIGNATURE.beats)
+    }
+
+    @Test
+    fun `the calibration grid leaves room for a late tap`() {
+        // A tap half a beat late still belongs to the beat it followed.
+        assertEquals(450.0, calibrationOffsetMs(450.0, 1000.0, 8))
+        assertEquals(450.0, calibrationOffsetMs(1450.0, 1000.0, 8))
     }
 
     @Test

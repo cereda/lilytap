@@ -37,6 +37,24 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /**
+ * The tempo of a calibration round: one beat per second.
+ *
+ * The measurement does not depend on the tempo, and a slow beat leaves room around every beat
+ * for the whole output latency: at the user's tempo (120 BPM is half a beat) a tap that is late
+ * by more than half a beat lands closer to the next one and is read as early.
+ */
+internal const val CALIBRATION_BPM = 60.0
+
+/** The time signature of a calibration round: four beats to the bar. */
+internal val CALIBRATION_SIGNATURE = TimeSignature(4, 4)
+
+/** The number of bars to tap along with in a calibration round. */
+internal const val CALIBRATION_BARS = 2
+
+/** The largest audio latency the setting can hold; an output delay is never negative. */
+private const val MAX_AUDIO_LATENCY_MS = 500.0
+
+/**
  * Launches the Swing (window) version of lilytap.
  *
  * Sets text anti-aliasing system properties before AWT starts, applies the OS-preferred theme,
@@ -102,18 +120,29 @@ internal fun calibrationOffsetMs(
 /**
  * The audio latency after a calibration round.
  *
- * [offsetMs] is the average distance from a tap to the beat it followed. When it would push the
- * latency below zero, the taps cannot have been early: they landed after the *next* beat, which
- * is how a large output latency looks at a fast tempo (half a beat at 120 BPM is 250 ms). Such an
- * offset is read as a late tap on the beat it followed, one beat further on.
+ * [offsetsMs] are the signed distances from the taps to the nearest beat. The median is used
+ * instead of the average, so a single stray tap or one missed beat cannot move the result.
+ *
+ * A tap that answers a beep which reached the ears late lands after the beat, so the distance is
+ * positive and the latency grows by it. A result outside the range of the setting is a sign that
+ * the taps did not follow the beeps; such a measurement is dropped and the old value is kept,
+ * which keeps a stray tap from moving the setting by a whole beat.
  */
 internal fun calibratedLatency(
     currentMs: Double,
-    offsetMs: Double,
-    beatMs: Double,
+    offsetsMs: List<Double>,
 ): Double {
-    val offset = if (currentMs + offsetMs < 0) offsetMs + beatMs else offsetMs
-    return currentMs + offset
+    if (offsetsMs.isEmpty()) return currentMs
+    val sorted = offsetsMs.sorted()
+    val middle = sorted.size / 2
+    val median =
+        if (sorted.size % 2 == 1) {
+            sorted[middle]
+        } else {
+            (sorted[middle - 1] + sorted[middle]) / 2.0
+        }
+    val corrected = currentMs + median
+    return if (corrected in 0.0..MAX_AUDIO_LATENCY_MS) corrected else currentMs
 }
 
 /** Best-effort OS dark-mode check, used only on the very first launch. Falls back to dark. */
@@ -898,26 +927,17 @@ internal class WindowApp {
         // A calibration beeps over a take or a playback, so it only runs on an idle window.
         if (session != null || isPlaying) return
 
+        // The calibration runs on a fixed grid: its own tempo, its own length and its own
+        // count-in. The measurement does not depend on the take's settings, and the grid is
+        // slow enough to leave room around every beat for the whole output latency.
         val config =
-            try {
-                Config(
-                    bpm = bpm.value,
-                    timeSignature = TimeSignature.parse(time.text),
-                    subdivisions = subdivisions.selectedText.toInt(),
-                    bars = bars.value.roundToInt(),
-                    latencyMs = 0.0,
-                    pitch = pitch.text.trim().ifEmpty { "c" },
-                )
-            } catch (e: IllegalArgumentException) {
-                showMessage(
-                    "Invalid settings",
-                    e.message ?: "The settings are not valid.",
-                    "Fix the setting and try again.",
-                    Glyph.BOLT,
-                    Theme.rec,
-                )
-                return
-            }
+            Config(
+                bpm = CALIBRATION_BPM,
+                timeSignature = CALIBRATION_SIGNATURE,
+                subdivisions = 1,
+                bars = CALIBRATION_BARS,
+                latencyMs = 0.0,
+            )
 
         val beats = config.timeSignature.beats
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
@@ -963,18 +983,17 @@ internal class WindowApp {
         stop(s)
 
         if (calibrationOffsets.isNotEmpty()) {
-            val avgOffset = calibrationOffsets.average()
             // The clicks were already shifted by the configured latency, so the measured offset
             // is the remaining error: add it to the current value.
-            val beatMs = 60_000.0 / s.config.bpm
-            audioLatency.value = calibratedLatency(audioLatency.value, avgOffset, beatMs)
+            audioLatency.value = calibratedLatency(audioLatency.value, calibrationOffsets)
             val corrected = audioLatency.value
             status.mood = Mood.DONE
             status.text = "Calibrated: ${corrected.roundToLong()} ms audio latency."
             showMessage(
                 "Calibration complete",
                 "${corrected.roundToLong()} ms",
-                "The metronome click will now be shifted earlier by this amount.",
+                "The click is now shifted earlier by this much. The measurement includes your own " +
+                    "reaction time, so lower it a few steps if the click sounds early.",
                 Glyph.CHECK,
             )
         } else {
@@ -1018,7 +1037,9 @@ internal class WindowApp {
             status.mood = Mood.COUNT_IN
             beatDots.mood = Mood.COUNT_IN
             beatDots.active = index
-            status.text = "Count-in: ${beats - index}"
+            // While calibrating there is no beat count: a beat number is a claim about when the
+            // beat is, and while the audio is late that claim is wrong.
+            status.text = if (calibrating) "Get ready..." else "Count-in: ${beats - index}"
         } else {
             val r = index - beats
             status.mood = Mood.REC
@@ -1026,10 +1047,20 @@ internal class WindowApp {
             beatDots.active = r % beats
             status.text =
                 if (calibrating) {
-                    "Calibrating \u00B7 beat ${r + 1} of ${s.config.bars * beats}"
+                    calibrationStatus()
                 } else {
                     "Recording \u00B7 bar ${r / beats + 1}/${s.config.bars}, beat ${r % beats + 1}"
                 }
+        }
+    }
+
+    /** The calibration status: a count of the taps, never a beat number. */
+    private fun calibrationStatus(): String {
+        val taps = calibrationOffsets.size
+        return if (taps == 0) {
+            "Calibrating \u00B7 tap with the beeps"
+        } else {
+            "Calibrating \u00B7 $taps taps"
         }
     }
 
@@ -1086,12 +1117,15 @@ internal class WindowApp {
         if (calibrating) {
             if (e.keyCode == KeyEvent.VK_ESCAPE && e.id == KeyEvent.KEY_PRESSED) {
                 abort()
-            } else if (e.id == KeyEvent.KEY_PRESSED && !isAutoRepeat(e)) {
+            } else if (e.id == KeyEvent.KEY_PRESSED && !isAutoRepeat(e) && e.keyCode !in ignoredKeys) {
                 lastPress = e
                 val ms = (now - s.originNanos) / 1e6
                 val beatMs = 60_000.0 / s.config.bpm
                 val totalBeats = s.config.bars * s.config.timeSignature.beats
-                calibrationOffsetMs(ms, beatMs, totalBeats)?.let { calibrationOffsets += it }
+                calibrationOffsetMs(ms, beatMs, totalBeats)?.let {
+                    calibrationOffsets += it
+                    status.text = calibrationStatus()
+                }
             }
             return true
         }
