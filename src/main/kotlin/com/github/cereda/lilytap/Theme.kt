@@ -36,6 +36,13 @@ internal class Palette(
     val warn: Color,
     /** Text/icon colour used on top of the accent gradient. */
     val onAccent: Color,
+    /**
+     * The colours of the duration band of a block, from the shortest value to the longest.
+     *
+     * The four colours are far apart in hue, so the length of a note reads at a glance: a ramp
+     * of brightness would not, and it would look like a shadow under the block.
+     */
+    val duration: List<Color>,
 )
 
 internal object Theme {
@@ -57,6 +64,13 @@ internal object Theme {
             ok = Color(0x46E08F),
             warn = Color(0xFFB84D),
             onAccent = Color(0x0F111A),
+            duration =
+                listOf(
+                    Color(0x6FA8FF), // blue: the shortest values
+                    Color(0x57E39A), // green
+                    Color(0xFFD166), // gold
+                    Color(0xFF9A6B), // orange: the longest values
+                ),
         )
     private val LIGHT =
         Palette(
@@ -76,6 +90,13 @@ internal object Theme {
             ok = Color(0x14A562),
             warn = Color(0xD98710),
             onAccent = Color(0xFFFFFF),
+            duration =
+                listOf(
+                    Color(0x2F6BEA), // blue: the shortest values
+                    Color(0x0E9F63), // green
+                    Color(0xB57B00), // gold
+                    Color(0xC4550F), // orange: the longest values
+                ),
         )
 
     private var p = DARK
@@ -104,6 +125,9 @@ internal object Theme {
     val ok: Color get() = p.ok
     val warn: Color get() = p.warn
     val onAccent: Color get() = p.onAccent
+
+    /** The colour of the duration band of a block, from the shortest value to the longest. */
+    val duration: List<Color> get() = p.duration
 
     fun font(
         size: Float,

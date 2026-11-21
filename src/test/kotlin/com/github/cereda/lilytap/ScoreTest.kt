@@ -448,36 +448,63 @@ class ScoreTest {
     }
 
     // -------------------------------------------------------------------------------------------
-    // The depth of the duration stripe
+    // The bucket of the duration band
     // -------------------------------------------------------------------------------------------
 
     @Test
-    fun `the shortest value has the shallowest stripe`() {
-        assertEquals(0.0, durationDepth(1))
+    fun `the shortest values are in the first bucket`() {
+        assertEquals(0, durationLevel(1))
+        assertEquals(0, durationLevel(2))
+        assertEquals(0, durationLevel(3))
+        assertEquals(0, durationLevel(4))
     }
 
     @Test
-    fun `the longest value has the deepest stripe`() {
-        assertEquals(1.0, durationDepth(96))
-        assertEquals(1.0, durationDepth(200), "a block longer than a dotted whole is as deep as one")
+    fun `the eighths are in the second bucket`() {
+        assertEquals(1, durationLevel(5))
+        assertEquals(1, durationLevel(6))
+        assertEquals(1, durationLevel(8))
+        assertEquals(1, durationLevel(12))
     }
 
     @Test
-    fun `the stripe grows with the duration`() {
-        assertTrue(durationDepth(1) < durationDepth(4))
-        assertTrue(durationDepth(4) < durationDepth(16))
-        assertTrue(durationDepth(16) < durationDepth(64))
+    fun `the quarters are in the third bucket`() {
+        assertEquals(2, durationLevel(16))
+        assertEquals(2, durationLevel(24))
     }
 
     @Test
-    fun `the stripe follows the value that is written`() {
-        assertEquals(durationDepth(4), durationDepth(5), "a length that is not written takes the value below it")
-        assertEquals(durationDepth(16), durationDepth(24) - 1.0 / 12.0, 0.0001)
+    fun `the halves and the longer values are in the last bucket`() {
+        assertEquals(3, durationLevel(32))
+        assertEquals(3, durationLevel(64))
+        assertEquals(3, durationLevel(96))
+        assertEquals(3, durationLevel(200), "a block longer than a dotted whole is as long as one")
+    }
+
+    @Test
+    fun `the bucket grows with the duration`() {
+        assertTrue(durationLevel(1) < durationLevel(8))
+        assertTrue(durationLevel(8) < durationLevel(16))
+        assertTrue(durationLevel(16) < durationLevel(32))
     }
 
     @Test
     fun `a duration of no units is rejected`() {
-        assertFailsWith<IllegalArgumentException> { durationDepth(0) }
+        assertFailsWith<IllegalArgumentException> { durationLevel(0) }
+        assertFailsWith<IllegalArgumentException> { durationName(0) }
+    }
+
+    @Test
+    fun `the name of a duration says it in words`() {
+        assertEquals("quarter", durationName(16))
+        assertEquals("dotted quarter", durationName(24))
+        assertEquals("eighth", durationName(8))
+        assertEquals("whole", durationName(64))
+    }
+
+    @Test
+    fun `the name of a duration that is not written names its pieces`() {
+        assertEquals("sixteenth + sixty-fourth", durationName(5))
     }
 
     // -------------------------------------------------------------------------------------------

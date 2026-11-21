@@ -377,6 +377,24 @@ private val DURATIONS =
         1 to "64",
     )
 
+/** The name of every duration LilyPond can write as a single token. */
+private val DURATION_NAMES =
+    mapOf(
+        96 to "dotted whole",
+        64 to "whole",
+        48 to "dotted half",
+        32 to "half",
+        24 to "dotted quarter",
+        16 to "quarter",
+        12 to "dotted eighth",
+        8 to "eighth",
+        6 to "dotted sixteenth",
+        4 to "sixteenth",
+        3 to "dotted thirty-second",
+        2 to "thirty-second",
+        1 to "sixty-fourth",
+    )
+
 /** Splits a length into the fewest greedy single-token durations, e.g. 5 -> [4, 1]. */
 fun decompose(units: Int): List<Int> {
     require(units > 0)
@@ -394,20 +412,44 @@ fun decompose(units: Int): List<Int> {
 fun lilyDuration(units: Int): String = DURATIONS.first { it.first == units }.second
 
 /**
- * How strong the duration stripe of a block is, from 0 (the shortest value) to 1 (the longest).
+ * The bucket of the duration band of a block, from 0 (the shortest value) to 3 (the longest).
  *
- * The scale follows the written durations: every value LilyPond can write is one step, so the
- * stripe says "longer" or "shorter" and not "exactly how long". A block that is longer than a
- * dotted whole note is as deep as a dotted whole.
+ * The buckets follow the written durations: the sixteenths and the shorter values are one
+ * bucket, the eighths another, the quarters another, and the halves and the longer values the
+ * last one. Four buckets with four colours of their own are read at a glance; a ramp of
+ * brightness over the thirteen values LilyPond can write is not, and it looks like a shadow
+ * under the block.
  *
  * @param units the length of the block, in internal units.
- * @return the depth of the stripe, between 0 and 1.
+ * @return the bucket of the band, between 0 and 3.
  */
-fun durationDepth(units: Int): Double {
+fun durationLevel(units: Int): Int {
     require(units >= 1) { "A duration must be at least one unit" }
-    val index = DURATIONS.indexOfFirst { it.first <= units }
-    val last = DURATIONS.size - 1
-    return (last - index).toDouble() / last
+    return when {
+        units <= 4 -> 0
+
+        // 16th, 32nd, 64th
+        units <= 12 -> 1
+
+        // 8th
+        units <= 24 -> 2
+
+        // quarter
+        else -> 3 // half and longer
+    }
+}
+
+/**
+ * The name of a duration, in words: "quarter", "dotted eighth".
+ *
+ * A length that LilyPond cannot write as a single token is named after its pieces.
+ *
+ * @param units the length, in internal units.
+ * @return the name of the duration.
+ */
+fun durationName(units: Int): String {
+    require(units >= 1) { "A duration must be at least one unit" }
+    return decompose(units).joinToString(" + ") { DURATION_NAMES[it] ?: "?" }
 }
 
 /**

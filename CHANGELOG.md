@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The band at the foot of a block says the length of the note in a colour of its own: four
+  buckets — the sixteenths and the shorter values, the eighths, the quarters, and the halves and
+  the longer values — with a blue, a green, a gold and an orange band. The band was a four-pixel
+  stripe of a ramp of brightness, which looked like a shadow under the block and was hard to tell
+  apart. It is now three times taller, and the pitch label sits above it.
+- Hovering a block says the pitch and the exact duration of the note, so the colour of the band
+  only has to carry the rough idea.
+
 ## [0.12.0] - 2026-11-21
 
 ### Added

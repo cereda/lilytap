@@ -67,6 +67,20 @@ internal const val RING_GROW = 1.25
 /** How wide the stroke of the ring of a selected block is, in pixels. */
 internal const val RING_WIDTH = 3.0
 
+/** How tall the duration band at the foot of a block is, in pixels. */
+internal const val BAND_H = 12.0
+
+/**
+ * How tall the duration band of a block of the given height is.
+ *
+ * The band cannot take more than two fifths of the block: the label of the pitch sits in what
+ * is left, and the two must not touch.
+ *
+ * @param blockHeight the height of the block, in pixels.
+ * @return the height of the band, in pixels.
+ */
+internal fun bandHeight(blockHeight: Double): Double = minOf(BAND_H, blockHeight * 0.4)
+
 /**
  * The corner radius of a block.
  *
@@ -303,6 +317,24 @@ internal class NotationPanel(
                 grid.scrollTo(grid.scrollX + e.preciseWheelRotation * 60)
             }
         }
+    }
+
+    /**
+     * The tooltip of the strip: what a block says, or the hint when the mouse is not on one.
+     *
+     * The band of the block says how long the note is, in four steps; the tooltip says it
+     * exactly, so the colour only has to carry the rough idea.
+     *
+     * @param event the mouse event that asks for the tooltip.
+     * @return the text of the tooltip.
+     */
+    override fun getToolTipText(event: MouseEvent): String? {
+        val s = score ?: return super.getToolTipText(event)
+        val index = blockAt(event.x.toDouble())
+        if (index < 0) return super.getToolTipText(event)
+        val block = s.events[index]
+        val what = block.pitch?.scientific ?: "Rest"
+        return "$what · ${durationName(block.lengthUnits)}"
     }
 
     // -------------------------------------------------------------------------------------------
@@ -832,38 +864,49 @@ internal class NotationPanel(
             g2.color = Theme.warn.alpha(35)
             shape = rr(box.x1, box.top, box.width, box.height, 4.0)
             g2.fill(shape)
+        }
+        val band = bandHeight(box.height)
+        drawDurationBand(g2, event, shape, band)
+        if (!note) {
+            // The outline of a rest goes over the band, so the shape of the rest stays whole.
             g2.color = Theme.warn.alpha(150)
             g2.stroke = BasicStroke(1.2f)
             g2.draw(rr(box.x1 + 0.5, box.top + 0.5, box.width - 1, box.height - 1, 4.0))
         }
-        drawDurationStripe(g2, event, shape)
-        drawLabel(g2, event, box, if (note) Theme.onAccent else Theme.warn)
+        drawLabel(g2, event, box, band, if (note) Theme.onAccent else Theme.warn)
     }
 
     /**
-     * The duration stripe at the foot of a block.
+     * The duration band at the foot of a block.
      *
-     * The block says what the note is (its pitch) and how long it is (its width); the stripe
-     * says how long it is again, in a second channel: the deeper the stripe, the longer the
-     * note. It is drawn inside the block, so it follows its shape.
+     * The block says what the note is (its pitch) and how long it is (its width); the band says
+     * how long it is again, in a second channel: the four buckets have a colour of their own,
+     * so the length of a note reads at a glance. The band is drawn inside the block, so it
+     * follows its shape, and a line of the strip's own colour separates it from the gradient of
+     * the block - without it, a band of the same hue as the block would disappear into it.
      *
      * @param g2 the graphics context.
      * @param event the event the block shows.
      * @param shape the shape of the block.
+     * @param height how tall the band is.
      */
-    private fun drawDurationStripe(
+    private fun drawDurationBand(
         g2: Graphics2D,
         event: Event,
         shape: Shape,
+        height: Double,
     ) {
-        val depth = durationDepth(event.lengthUnits)
-        g2.color = Theme.faint.mix(Theme.text, depth)
+        val level = durationLevel(event.lengthUnits)
         val bounds = shape.bounds2D
         val clip = g2.clip
         val area = Area(shape)
         if (clip != null) area.intersect(Area(clip))
         g2.clip = area
-        g2.fill(Rectangle2D.Double(bounds.x, bounds.maxY - STRIPE_H, bounds.width, STRIPE_H))
+        // The separator: the strip's own colour, so the band never merges with the gradient.
+        g2.color = Theme.code
+        g2.fill(Rectangle2D.Double(bounds.x, bounds.maxY - height, bounds.width, 1.0))
+        g2.color = Theme.duration[level]
+        g2.fill(Rectangle2D.Double(bounds.x, bounds.maxY - height + 1, bounds.width, height - 1))
         g2.clip = clip
     }
 
@@ -872,6 +915,7 @@ internal class NotationPanel(
         g2: Graphics2D,
         event: Event,
         box: BlockBox,
+        band: Double,
         color: Color,
     ) {
         val label = event.pitch?.scientific ?: REST_LABEL
@@ -880,7 +924,9 @@ internal class NotationPanel(
         if (fm.stringWidth(label) > box.width - 10) return
         g2.color = color
         val tx = (box.centerX - fm.stringWidth(label) / 2.0).toFloat()
-        g2.drawString(label, tx, (box.centerY + fm.ascent / 2.0 - 1).toFloat())
+        // The label sits in the block above the band, so the two never touch.
+        val center = box.top + (box.height - band) / 2
+        g2.drawString(label, tx, (center + fm.ascent / 2.0 - 1).toFloat())
     }
 
     /** A soft band behind a range of blocks, so it reads as one thing. */
@@ -1003,9 +1049,6 @@ internal class NotationPanel(
 
         /** How long the "before" part of a caption may be before it is shortened. */
         private const val MAX_CAPTION_PART = 24
-
-        /** How tall the duration stripe at the foot of a block is, in pixels. */
-        private const val STRIPE_H = 4.0
 
         /** What a rest says in its block: it has no pitch. */
         private const val REST_LABEL = "R"

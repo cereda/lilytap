@@ -2,6 +2,8 @@
 package com.github.cereda.lilytap
 
 import java.awt.Color
+import java.awt.Font
+import java.awt.FontMetrics
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
@@ -788,7 +790,7 @@ class NotationPanelTest {
     }
 
     @Test
-    fun `the duration stripe is drawn at the foot of a block`() {
+    fun `the duration band is drawn at the foot of a block`() {
         val (panel, grid) = panel()
         panel.score =
             Score(
@@ -800,17 +802,17 @@ class NotationPanelTest {
             )
         val image = paint(panel)
 
-        val x = grid.xOfCell(0.0).toInt() + STRIPE_X
-        val stripe = Color(image.getRGB(x, STRIPE_Y))
-        val fill = Color(image.getRGB(x, STRIPE_Y - 6))
-        assertNotEquals(fill, stripe, "the stripe is drawn over the fill of the block")
-        assertEquals(Theme.faint.mix(Theme.text, durationDepth(4 * cellUnits)), stripe)
+        val x = grid.xOfCell(0.0).toInt() + BAND_X
+        val band = Color(image.getRGB(x, BAND_Y))
+        val fill = Color(image.getRGB(x, BAND_Y - 11))
+        assertNotEquals(fill, band, "the band is drawn over the fill of the block")
+        assertEquals(Theme.duration[durationLevel(4 * cellUnits)], band)
     }
 
     @Test
-    fun `the stripe of a long note is deeper than the stripe of a short one`() {
+    fun `the band of a long note has a different colour than the band of a short one`() {
         val (panel, grid) = panel()
-        val x = grid.xOfCell(0.0).toInt() + STRIPE_X
+        val x = grid.xOfCell(0.0).toInt() + BAND_X
 
         panel.score =
             Score(
@@ -820,7 +822,7 @@ class NotationPanelTest {
                 ),
                 config,
             )
-        val short = Color(paint(panel).getRGB(x, STRIPE_Y))
+        val short = Color(paint(panel).getRGB(x, BAND_Y))
 
         panel.score =
             Score(
@@ -830,11 +832,88 @@ class NotationPanelTest {
                 ),
                 config,
             )
-        val long = Color(paint(panel).getRGB(x, STRIPE_Y))
+        val long = Color(paint(panel).getRGB(x, BAND_Y))
 
+        assertNotEquals(short, long, "the two bands should be told apart by their colour")
+        assertEquals(Theme.duration[durationLevel(cellUnits)], short)
+        assertEquals(Theme.duration[durationLevel(7 * cellUnits)], long)
+    }
+
+    @Test
+    fun `the band is tall enough to be read`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        val image = paint(panel)
+        val x = grid.xOfCell(0.0).toInt() + BAND_X
+        val colour = Theme.duration[durationLevel(2 * cellUnits)].rgb
+
+        // How many rows of the block are the band?
+        var rows = 0
+        for (y in 0 until image.height) {
+            if (image.getRGB(x, y) == colour) rows++
+        }
+        assertTrue(rows >= 8, "the band should be at least eight pixels tall, not $rows")
+    }
+
+    @Test
+    fun `the band does not touch the pitch label`() {
+        // The label is drawn in the block above the band: the two must not meet.
+        val blockTop = 13.0
+        val blockHeight = 30.0
+        val band = bandHeight(blockHeight)
+        val fm = labelMetrics()
+        val center = blockTop + (blockHeight - band) / 2
+        val baseline = center + fm.ascent / 2.0 - 1
+        val bottom = baseline + fm.descent
         assertTrue(
-            distance(long, Theme.text) < distance(short, Theme.text),
-            "the stripe of the long note should be closer to the text colour",
+            bottom <= blockTop + blockHeight - band,
+            "the label ends at $bottom and the band starts at ${blockTop + blockHeight - band}",
+        )
+    }
+
+    /** The metrics of the font the pitch label is drawn with. */
+    private fun labelMetrics(): FontMetrics {
+        val image = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        graphics.font = Theme.font(11f, Font.BOLD)
+        val metrics = graphics.fontMetrics
+        graphics.dispose()
+        return metrics
+    }
+
+    @Test
+    fun `the tooltip of a block names the pitch and the duration`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        val x = grid.xOfCell(0.5).toInt()
+        val event = MouseEvent(panel, MouseEvent.MOUSE_MOVED, 0, 0, x, 28, 0, false)
+        assertEquals("C4 · quarter", panel.getToolTipText(event))
+    }
+
+    @Test
+    fun `the tooltip of a rest says so`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 2),
+                    event(TapKind.NOTE, 2, 6),
+                ),
+                config,
+            )
+        val x = grid.xOfCell(0.5).toInt()
+        val event = MouseEvent(panel, MouseEvent.MOUSE_MOVED, 0, 0, x, 28, 0, false)
+        assertEquals("Rest · quarter", panel.getToolTipText(event))
+    }
+
+    @Test
+    fun `the tooltip away from a block is the hint of the strip`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        val event = MouseEvent(panel, MouseEvent.MOUSE_MOVED, 0, 0, 399, 28, 0, false)
+        assertTrue(
+            panel.getToolTipText(event)?.startsWith("Click a block") == true,
+            "away from a block the strip shows its hint",
         )
     }
 
@@ -863,22 +942,11 @@ class NotationPanelTest {
         return ink
     }
 
-    /** How far two colours are from each other. */
-    private fun distance(
-        a: Color,
-        b: Color,
-    ): Double =
-        sqrt(
-            (a.red - b.red).toDouble() * (a.red - b.red) +
-                (a.green - b.green).toDouble() * (a.green - b.green) +
-                (a.blue - b.blue).toDouble() * (a.blue - b.blue),
-        )
-
     companion object {
-        /** The row of the duration stripe in a strip that is 56 pixels high. */
-        private const val STRIPE_Y = 41
+        /** The row of the duration band in a strip that is 56 pixels high. */
+        private const val BAND_Y = 41
 
-        /** How far from the left edge of a block the stripe is read. */
-        private const val STRIPE_X = 13
+        /** How far from the left edge of a block the band is read. */
+        private const val BAND_X = 13
     }
 }

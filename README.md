@@ -85,9 +85,11 @@ other three options say how short a silence may be before it becomes a rest of i
 
 Below the timeline sits the score of the take: one block for every note and rest, drawn on the
 same grid as the timeline, so a block sits exactly under the beat it belongs to. The block shows
-the pitch of the note (`C4`, `C♯5`) when there is room for it, and a stripe at its foot says how
-long the note is: the deeper the stripe, the longer the note. The exact duration is in the width
-of the block and in the LilyPond text.
+the pitch of the note (`C4`, `C♯5`) when there is room for it, and a band at its foot says how
+long the note is: the band has a colour of its own for each of the four lengths — the sixteenths
+and the shorter values, the eighths, the quarters, and the halves and the longer values — so the
+length of a note reads at a glance. Hovering a block says the pitch and the exact duration. The
+exact duration is also in the width of the block and in the LilyPond text.
 
 - **Click a block** to select it. The selected block gets a ring around it, in the colour of the
   text, with a faint glow around the ring, so it stands out from the block it surrounds and from
