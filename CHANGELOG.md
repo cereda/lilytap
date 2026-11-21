@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-21
+
 ### Changed
 - The band at the foot of a block says the length of the note in a colour of its own: four
   buckets — the sixteenths and the shorter values, the eighths, the quarters, and the halves and
@@ -368,7 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/cereda/lilytap/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/cereda/lilytap/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cereda/lilytap/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cereda/lilytap/compare/v0.9.0...v0.10.0
