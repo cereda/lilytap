@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-21
+
 ### Added
 - A **Pitches** panel below the score: a piano that writes the pitch of the selected note. Click a
   key, or play it on the keyboard — the number row carries the white keys (`1` is middle C and `0`
@@ -394,7 +396,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/cereda/lilytap/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/cereda/lilytap/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/cereda/lilytap/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cereda/lilytap/compare/v0.10.0...v0.11.0
