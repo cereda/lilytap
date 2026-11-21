@@ -62,7 +62,7 @@ class CompoundBeatTest {
     fun `the two beats of a six eight bar are dotted quarters`() {
         val config = Config(60.0, TimeSignature(6, 8), 1, 1)
         val taps = listOf(Tap(0.0, TapKind.NOTE), Tap(1000.0, TapKind.NOTE))
-        assertEquals("c4. c4. |", transcribe(taps, config).lilypond)
+        assertEquals("c'4. c'4. |", transcribe(taps, config).lilypond)
     }
 
     @Test
@@ -70,7 +70,7 @@ class CompoundBeatTest {
         val config = Config(60.0, TimeSignature(6, 8), 1, 1)
         val eighth = 1000.0 / 3
         val taps = (0 until 6).map { Tap(it * eighth, TapKind.NOTE) }
-        assertEquals("c8 c8 c8 c8 c8 c8 |", transcribe(taps, config).lilypond)
+        assertEquals("c'8 c'8 c'8 c'8 c'8 c'8 |", transcribe(taps, config).lilypond)
     }
 
     @Test
@@ -79,12 +79,12 @@ class CompoundBeatTest {
         // note that fills the rest of the group is a quarter, and it does not cross the border.
         val config = Config(60.0, TimeSignature(6, 8), 1, 1)
         val taps = listOf(Tap(1000.0 / 3, TapKind.NOTE), Tap(1000.0, TapKind.NOTE))
-        assertEquals("r8 c4 c4. |", transcribe(taps, config).lilypond)
+        assertEquals("r8 c'4 c'4. |", transcribe(taps, config).lilypond)
     }
 
     @Test
     fun `a whole bar of a compound meter is written inside its groups`() {
         val config = Config(60.0, TimeSignature(6, 8), 1, 1)
-        assertEquals("c4. ~ c4. |", transcribe(listOf(Tap(0.0, TapKind.NOTE)), config).lilypond)
+        assertEquals("c'4. ~ c'4. |", transcribe(listOf(Tap(0.0, TapKind.NOTE)), config).lilypond)
     }
 }

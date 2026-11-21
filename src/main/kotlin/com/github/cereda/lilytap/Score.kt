@@ -7,7 +7,7 @@ package com.github.cereda.lilytap
  * A score is pure data - a list of events that covers every unit of the recording
  * window - so it can be edited, rendered and played without touching the recorder.
  *
- * Pipeline:  taps (ms) -> quantize to grid cells -> events (note/rest + length)
+ * Pipeline:  taps (ms) -> quantize to grid cells -> events (note/rest + length + pitch)
  *            -> score -> LilyPond text
  *
  * A unit is a sixty-fourth of a whole note ([UNITS_PER_WHOLE]): the recording grid says
@@ -24,22 +24,50 @@ import kotlin.math.abs
  * A unit is a sixty-fourth of a whole note ([UNITS_PER_WHOLE]), so an event can be shorter
  * than a grid cell: the recording grid says where the taps fell, but the score can hold
  * any duration LilyPond can write.
+ *
+ * A note carries the pitch it sounds; a rest carries none.
+ *
+ * @property kind whether the event is a note or a rest.
+ * @property startUnits where the event starts, counted from the start of the score.
+ * @property lengthUnits how long the event lasts.
+ * @property pitch the pitch of the note, or null for a rest.
  */
 data class Event(
     val kind: TapKind,
     val startUnits: Int,
     val lengthUnits: Int,
+    val pitch: Pitch? = null,
 ) {
+    init {
+        require((kind == TapKind.NOTE) == (pitch != null)) {
+            "A note carries a pitch and a rest carries none"
+        }
+    }
+
     /** The first unit after this event. */
     val endUnits: Int get() = startUnits + lengthUnits
 }
 
-/** One written note or rest in LilyPond output. [tieToNext] means "tie this note into the following one". */
+/**
+ * One written note or rest in LilyPond output.
+ *
+ * @property kind whether the atom is a note or a rest.
+ * @property units how long the atom lasts.
+ * @property tieToNext whether the note is tied into the following one.
+ * @property pitch the pitch of the note, or null for a rest.
+ */
 data class Atom(
     val kind: TapKind,
     val units: Int,
     val tieToNext: Boolean,
-)
+    val pitch: Pitch? = null,
+) {
+    init {
+        require((kind == TapKind.NOTE) == (pitch != null)) {
+            "A note carries a pitch and a rest carries none"
+        }
+    }
+}
 
 /**
  * A score: the notes and rests of a take, ready to be edited or played.
@@ -74,13 +102,16 @@ data class Score(
     val totalUnits: Int get() = config.totalUnits
 
     /** The score as LilyPond text, one bar per line. */
-    val lilypond: String get() = format(layout(events, config), config.pitch)
+    val lilypond: String get() = format(layout(events, config))
 
     /**
      * Turns the event at [index] into a rest, or a rest back into a note.
      *
      * Two rests in a row are one silence, so a note that becomes a rest is merged with
      * the rests next to it.
+     *
+     * A rest that becomes a note takes the pitch of the note before it, so a melody that is
+     * typed in does not change when a silence in the middle of it is filled in.
      *
      * @param index the index of the event in [events].
      * @return the edited score.
@@ -90,8 +121,46 @@ data class Score(
         val flipped = events.toMutableList()
         val event = flipped[index]
         flipped[index] =
-            event.copy(kind = if (event.kind == TapKind.NOTE) TapKind.REST else TapKind.NOTE)
+            if (event.kind == TapKind.NOTE) {
+                event.copy(kind = TapKind.REST, pitch = null)
+            } else {
+                event.copy(kind = TapKind.NOTE, pitch = previousPitch(index))
+            }
         return copy(events = mergeRests(flipped))
+    }
+
+    /**
+     * The pitch a new note takes: the pitch of the note before it, or middle C.
+     *
+     * @param index where the new note goes.
+     * @return the pitch of the closest note before [index].
+     */
+    private fun previousPitch(index: Int): Pitch {
+        for (i in index - 1 downTo 0) {
+            val pitch = events[i].pitch
+            if (pitch != null) return pitch
+        }
+        return Pitch.DEFAULT
+    }
+
+    /**
+     * Sets the pitch of the note at [index].
+     *
+     * @param index the index of the note in [events].
+     * @param pitch the pitch the note sounds.
+     * @return the edited score.
+     */
+    fun setPitch(
+        index: Int,
+        pitch: Pitch,
+    ): Score {
+        require(index in events.indices) { "There is no event $index" }
+        val event = events[index]
+        require(event.kind == TapKind.NOTE) { "A rest has no pitch" }
+        if (event.pitch == pitch) return this
+        val changed = events.toMutableList()
+        changed[index] = event.copy(pitch = pitch)
+        return copy(events = changed)
     }
 
     /**
@@ -102,6 +171,9 @@ data class Score(
      * half becomes a note - so a silence that is split in two becomes a silence followed by
      * a note, which is how a note is put inside a gap.
      *
+     * The two halves of a note keep its pitch: it is one sound, cut in two. The note that
+     * comes out of a split silence takes the pitch of the note before it.
+     *
      * @param index the index of the event in [events].
      * @return the edited score.
      */
@@ -111,11 +183,12 @@ data class Score(
         require(event.lengthUnits >= 2) { "An event of one unit cannot be split" }
         val leftLength = event.lengthUnits / 2
         val rightLength = event.lengthUnits - leftLength
+        val rightPitch = event.pitch ?: previousPitch(index)
         val split =
             events.toMutableList().apply {
                 removeAt(index)
                 add(index, event.copy(lengthUnits = leftLength))
-                add(index + 1, Event(TapKind.NOTE, event.startUnits + leftLength, rightLength))
+                add(index + 1, Event(TapKind.NOTE, event.startUnits + leftLength, rightLength, rightPitch))
             }
         return copy(events = layOut(split))
     }
@@ -149,7 +222,8 @@ data class Score(
      *
      * The merged event lasts as long as the whole range. A note wins over a silence: the
      * silences inside the range are absorbed by the note, so a note followed by a silence
-     * becomes one longer note.
+     * becomes one longer note. The merged note keeps the pitch of the first note of the
+     * range.
      *
      * @param from the index of the first event of the range.
      * @param to the index of the last event of the range.
@@ -163,10 +237,11 @@ data class Score(
         require(from <= to) { "A range runs from its first event to its last one" }
         val range = events.subList(from, to + 1)
         val length = range.sumOf { it.lengthUnits }
-        val kind = if (range.any { it.kind == TapKind.NOTE }) TapKind.NOTE else TapKind.REST
+        val firstNote = range.firstOrNull { it.kind == TapKind.NOTE }
+        val kind = if (firstNote != null) TapKind.NOTE else TapKind.REST
         val merged = events.toMutableList()
         for (i in to downTo from) merged.removeAt(i)
-        merged.add(from, Event(kind, events[from].startUnits, length))
+        merged.add(from, Event(kind, events[from].startUnits, length, firstNote?.pitch))
         return copy(events = layOut(merged))
     }
 
@@ -319,16 +394,29 @@ fun decompose(units: Int): List<Int> {
 fun lilyDuration(units: Int): String = DURATIONS.first { it.first == units }.second
 
 /**
- * The LilyPond text of an event: the note or the rest with its duration, e.g. "c4" or "r2".
+ * How strong the duration stripe of a block is, from 0 (the shortest value) to 1 (the longest).
+ *
+ * The scale follows the written durations: every value LilyPond can write is one step, so the
+ * stripe says "longer" or "shorter" and not "exactly how long". A block that is longer than a
+ * dotted whole note is as deep as a dotted whole.
+ *
+ * @param units the length of the block, in internal units.
+ * @return the depth of the stripe, between 0 and 1.
+ */
+fun durationDepth(units: Int): Double {
+    require(units >= 1) { "A duration must be at least one unit" }
+    val index = DURATIONS.indexOfFirst { it.first <= units }
+    val last = DURATIONS.size - 1
+    return (last - index).toDouble() / last
+}
+
+/**
+ * The LilyPond text of an event: the note or the rest with its duration, e.g. "c'4" or "r2".
  *
  * @param event the event to write.
- * @param config the session configuration: it says which pitch the notes carry.
  */
-fun eventText(
-    event: Event,
-    config: Config,
-): String {
-    val name = if (event.kind == TapKind.NOTE) config.pitch else "r"
+fun eventText(event: Event): String {
+    val name = event.pitch?.lilypond ?: "r"
     return decompose(event.lengthUnits).joinToString(" ") { name + lilyDuration(it) }
 }
 
@@ -340,7 +428,7 @@ fun eventText(
  * (a full bar of 4/2, for instance, is a dotted whole tied to a half).
  *
  * In a compound meter the pieces are also cut at the groups of three: a duration is written
- * inside a group, so a note that crosses a group becomes two tied notes (c4. ~ c8) and a
+ * inside a group, so a note that crosses a group becomes two tied notes (c'4. ~ c'8) and a
  * silence that crosses one becomes two rests (r4. r8).
  *
  * @param events the events to lay out.
@@ -369,7 +457,13 @@ fun layout(
             remaining -= chunk
         }
         pieces.forEachIndexed { i, (bar, units) ->
-            bars[bar] += Atom(event.kind, units, tieToNext = event.kind == TapKind.NOTE && i < pieces.lastIndex)
+            bars[bar] +=
+                Atom(
+                    event.kind,
+                    units,
+                    tieToNext = event.kind == TapKind.NOTE && i < pieces.lastIndex,
+                    pitch = event.pitch,
+                )
         }
     }
     return bars
@@ -409,16 +503,14 @@ private fun splitAtGroups(
 /**
  * Formats bars as LilyPond text, one bar per line, each terminated by a bar check `|`.
  *
+ * Every note is written with its own pitch; rests use "r".
+ *
  * @param bars the atoms of each bar.
- * @param pitch the placeholder pitch for notes (rests use "r").
  */
-fun format(
-    bars: List<List<Atom>>,
-    pitch: String,
-): String =
+fun format(bars: List<List<Atom>>): String =
     bars.joinToString("\n") { bar ->
         bar.joinToString(" ") { atom ->
-            val name = if (atom.kind == TapKind.NOTE) pitch else "r"
+            val name = atom.pitch?.lilypond ?: "r"
             name + lilyDuration(atom.units) + if (atom.tieToNext) " ~" else ""
         } + " |"
     }

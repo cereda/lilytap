@@ -39,7 +39,6 @@ internal enum class Glyph {
     MOON,
     LAYERS,
     RESET,
-    SCORE,
     EYE,
     SPLIT,
     SWAP,
@@ -211,13 +210,6 @@ internal fun drawGlyph(
 
         Glyph.RESET -> {
             drawResetArrow(g, x, y, s)
-        }
-
-        Glyph.SCORE -> {
-            // Three blocks of different widths: a miniature of the score strip.
-            g.fill(rr(px(0.08), py(0.30), 0.32 * s, 0.40 * s, 0.06 * s))
-            g.fill(rr(px(0.46), py(0.30), 0.12 * s, 0.40 * s, 0.05 * s))
-            g.fill(rr(px(0.64), py(0.30), 0.28 * s, 0.40 * s, 0.06 * s))
         }
 
         Glyph.EYE -> {

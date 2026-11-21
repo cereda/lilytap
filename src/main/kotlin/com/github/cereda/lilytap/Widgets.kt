@@ -102,11 +102,85 @@ internal class GlyphLabel(
     }
 }
 
+/**
+ * The message in the header of the score strip.
+ *
+ * The message is short by convention, but a long one must not make the window wider: the
+ * label never asks for more than [maxWidth], and a message that does not fit is shortened
+ * with an ellipsis. The tooltip carries the whole message.
+ *
+ * @param initial the message the label starts with.
+ * @param maxWidth how wide the label may ask to be.
+ * @param tintOf the colour of the text.
+ */
+internal class CaptionLabel(
+    initial: String,
+    private val maxWidth: Int = CAPTION_WIDTH,
+    private val tintOf: () -> Color = { Theme.dim },
+) : JComponent() {
+    /** The message. */
+    var text: String = initial
+        set(value) {
+            field = value
+            revalidate()
+            repaint()
+        }
+
+    init {
+        font = Theme.font(12f)
+        isOpaque = false
+    }
+
+    override fun getPreferredSize(): Dimension {
+        val fm = getFontMetrics(font)
+        return Dimension(minOf(fm.stringWidth(text) + 2, maxWidth), maxOf(fm.height, 16))
+    }
+
+    /**
+     * The message as it fits in [width] pixels.
+     *
+     * A message that is too wide is cut short and marked with an ellipsis. The cut is made
+     * at a space, so a word is not broken in half. The message never grows past the width
+     * the label may have, even when there is more room than that.
+     *
+     * @param width the room there is, in pixels.
+     * @return the message, shortened when it does not fit.
+     */
+    fun fitted(width: Int): String {
+        val fm = getFontMetrics(font)
+        val room = minOf(width, maxWidth)
+        if (fm.stringWidth(text) <= room) return text
+        val ellipsis = "…"
+        val letters = room - fm.stringWidth(ellipsis)
+        if (letters <= 0) return ""
+        var end = text.length
+        while (end > 0 && fm.stringWidth(text.substring(0, end)) > letters) end--
+        val space = text.substring(0, end).lastIndexOf(' ')
+        if (space > 0) end = space
+        return text.substring(0, end).trimEnd() + ellipsis
+    }
+
+    override fun paintComponent(g: Graphics) {
+        g.paint2d { g2 ->
+            g2.font = font
+            val fm = g2.fontMetrics
+            g2.color = tintOf()
+            g2.drawString(fitted(width), 0, (height - fm.height) / 2 + fm.ascent)
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Buttons and inputs
 // ---------------------------------------------------------------------------------------------
 
-internal enum class ButtonKind { PRIMARY, DANGER, GHOST }
+/**
+ * The looks of a button.
+ *
+ * [PRIMARY] is the one action the window wants, [DANGER] stops a running take, [SEVERE] is
+ * an action that throws work away, and [GHOST] is everything else.
+ */
+internal enum class ButtonKind { PRIMARY, DANGER, SEVERE, GHOST }
 
 internal class PillButton(
     text: String,
@@ -198,7 +272,7 @@ internal class PillButton(
             val tintOverride = accentOverride
             val fg: Color
 
-            if (tintOverride == null && kind != ButtonKind.GHOST) {
+            if (tintOverride == null && kind != ButtonKind.GHOST && kind != ButtonKind.SEVERE) {
                 val lift =
                     if (pressed) {
                         -0.10
@@ -214,11 +288,19 @@ internal class PillButton(
                 g2.fill(shape)
                 fg = Theme.onAccent
             } else {
-                g2.color = if (hover && isEnabled) Theme.fieldHover else Theme.field
+                // A severe button is a quiet button in red: it says what it does and that
+                // it costs something, without shouting over the button that stops a take.
+                val severe = kind == ButtonKind.SEVERE && tintOverride == null
+                g2.color =
+                    when {
+                        severe && hover && isEnabled -> Theme.rec.alpha(28)
+                        hover && isEnabled -> Theme.fieldHover
+                        else -> Theme.field
+                    }
                 g2.fill(shape)
-                g2.color = tintOverride?.alpha(150) ?: Theme.line
+                g2.color = tintOverride?.alpha(150) ?: if (severe) Theme.rec else Theme.line
                 g2.draw(shape)
-                fg = tintOverride ?: Theme.text
+                fg = tintOverride ?: if (severe) Theme.rec else Theme.text
             }
 
             g2.font = font
@@ -612,9 +694,19 @@ internal class SegmentedControl(
     }
 }
 
+/**
+ * A text field with the app's own shape.
+ *
+ * @param initial the text the field starts with.
+ * @param columns how many characters wide the field is.
+ * @param heightPx how tall the field is.
+ * @param hint the ghost text shown while the field is empty.
+ */
 internal class StyledField(
     initial: String,
     columns: Int,
+    private val heightPx: Int = 38,
+    private val hint: String = "",
 ) : JTextField(initial, columns) {
     private var focusedNow = false
 
@@ -658,7 +750,7 @@ internal class StyledField(
         repaint()
     }
 
-    override fun getPreferredSize(): Dimension = Dimension(super.getPreferredSize().width, 38)
+    override fun getPreferredSize(): Dimension = Dimension(super.getPreferredSize().width, heightPx)
 
     override fun paintComponent(g: Graphics) {
         g.paint2d { g2 ->
@@ -676,6 +768,22 @@ internal class StyledField(
             g2.draw(shape)
         }
         super.paintComponent(g)
+        if (text.isEmpty() && hint.isNotEmpty()) {
+            g.paint2d { g2 ->
+                g2.font = Theme.font(12f)
+                g2.color = Theme.faint
+                val fm = g2.fontMetrics
+                // The ghost text sits where the text itself would sit, so the field does
+                // not jump when a value is typed into it.
+                val x =
+                    when (horizontalAlignment) {
+                        JTextField.CENTER -> (width - fm.stringWidth(hint)) / 2
+                        JTextField.RIGHT, JTextField.TRAILING -> width - margin.right - fm.stringWidth(hint)
+                        else -> margin.left
+                    }
+                g2.drawString(hint, x, (height + fm.ascent) / 2 - 1)
+            }
+        }
     }
 }
 
@@ -977,11 +1085,12 @@ internal class ThinScrollBar : BasicScrollBarUI() {
     }
 }
 
-/** Text area with a ghost hint while empty. */
+/** Text area with a ghost hint while empty. The text is generated, so it cannot be edited. */
 internal class CodeArea : JTextArea(4, 40) {
     init {
         font = Theme.mono(14f)
         margin = Insets(10, 12, 10, 12)
+        isEditable = false
         refreshTheme()
     }
 

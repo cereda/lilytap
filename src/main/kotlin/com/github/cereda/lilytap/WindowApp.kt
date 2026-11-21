@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.awt.AWTEvent
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Component
 import java.awt.Dialog
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -16,9 +18,12 @@ import java.awt.KeyboardFocusManager
 import java.awt.Point
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
+import java.awt.event.AWTEventListener
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.lang.ref.WeakReference
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import javax.swing.BorderFactory
 import javax.swing.Box
@@ -68,6 +73,17 @@ private const val REPEAT_GUARD_NANOS = 100_000_000L
 
 /** What the status line says when the window waits for a take. */
 private const val IDLE_STATUS = "Set the tempo, press Start, then play with any key"
+
+/**
+ * What the pitch field says about itself.
+ *
+ * The field takes the name of the note the way LilyPond writes it: a letter, an optional
+ * accidental and the octave marks. LilyPond puts `c` in the octave below middle C, so
+ * middle C is `c'` there.
+ */
+private const val PITCH_TOOLTIP =
+    "The pitch of the selected note, written the way LilyPond writes it: " +
+        "c' (middle C), cis' (sharp), ces' (flat), c (lower), c'' (higher). Press Enter to apply it."
 
 /** What the status line says while a tap round is listening. */
 private const val TAP_STATUS = "Keep tapping - the tempo follows the taps"
@@ -220,6 +236,28 @@ private fun applyDialogTheme() {
 }
 
 internal class WindowApp {
+    companion object {
+        /**
+         * The windows that are watching the clicks.
+         *
+         * The listener belongs to the toolkit and not to a window: the mouse events of AWT
+         * do not bubble up to the panels of a window, so watching the panels is not enough
+         * to see every click. The windows are held weakly, so a closed one can go.
+         */
+        private val watchers = CopyOnWriteArrayList<WeakReference<WindowApp>>()
+
+        init {
+            Toolkit.getDefaultToolkit().addAWTEventListener(
+                AWTEventListener { event ->
+                    if (event.id != MouseEvent.MOUSE_PRESSED) return@AWTEventListener
+                    val press = event as MouseEvent
+                    for (watcher in watchers) watcher.get()?.clickOutsideScore(press.component)
+                },
+                AWTEvent.MOUSE_EVENT_MASK,
+            )
+        }
+    }
+
     private val frame = JFrame("lilytap")
     private val bpm = Stepper(60.0, 20.0, 300.0, 1.0, width = 104) { it.roundToLong().toString() }
     private val time = StyledField("4/4", 4)
@@ -270,14 +308,25 @@ internal class WindowApp {
     /** The button that makes the click fall on every note value of a compound meter. */
     private val threeFeelButton = IconButton(Glyph.BEATS, 38, 24)
 
-    private val pitch = StyledField("c", 4)
+    /** The pitch of the selected note: a LilyPond name, typed in. */
+    private val pitchField = StyledField("", 3, heightPx = 28, hint = "Pitch")
+
+    /** The icon of the pitch field: it stands for the note it names. */
+    private val pitchCaption = GlyphLabel(Glyph.NOTE, "")
+
     private val start = PillButton("Start", Glyph.PLAY, ButtonKind.PRIMARY, minW = 168, heightPx = 48)
     private val status = StatusBadge()
     private val beatDots = BeatDots()
     private val grid = GridView()
     private val timeline = TimelinePanel(grid)
     private val notation = NotationPanel(grid)
-    private val revert = PillButton("Revert", Glyph.RESET, heightPx = 32)
+
+    /**
+     * The way back to the score the take ended with.
+     *
+     * The button is a word in red: it throws the edits away, so it says so.
+     */
+    private val revert = PillButton("Revert", null, ButtonKind.SEVERE, heightPx = 32)
     private val output = CodeArea()
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
@@ -299,21 +348,24 @@ internal class WindowApp {
     private val redoButton = PillButton("", Glyph.REDO, ButtonKind.GHOST, heightPx = 28)
 
     /** What the strip has selected, or what it just did. */
-    private val scoreCaption =
-        JLabel(NotationPanel.NOTHING_SELECTED).apply {
-            font = Theme.font(12f)
-            foreground = Theme.dim
-        }
+    private val scoreCaption = CaptionLabel(NotationPanel.NOTHING_SELECTED)
 
-    /** The header of the score strip: its name on the left, the edits and Revert on the right. */
+    /**
+     * The header of the score strip: the pitch of the selected note, the message, and the
+     * edits on the right.
+     *
+     * The strip says what it is, so the header does not need a title of its own. The gap
+     * between the edits and Revert is 4: an empty centre asks for two gaps, so the two
+     * halves of it make the 8 px the other parts of the header have.
+     */
     private val scoreHeader =
-        JPanel(BorderLayout(12, 0)).apply {
+        JPanel(BorderLayout(8, 0)).apply {
             isOpaque = false
-            add(GlyphLabel(Glyph.SCORE, "Score", 13f, { Theme.text }, Font.BOLD), BorderLayout.WEST)
+            add(pitchCell(), BorderLayout.WEST)
+            add(scoreCaption, BorderLayout.CENTER)
             add(
-                JPanel(BorderLayout(12, 0)).apply {
+                JPanel(BorderLayout(4, 0)).apply {
                     isOpaque = false
-                    add(scoreCaption, BorderLayout.CENTER)
                     add(
                         JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
                             isOpaque = false
@@ -324,12 +376,12 @@ internal class WindowApp {
                             add(swapButton)
                             add(mergeButton)
                         },
-                        BorderLayout.EAST,
+                        BorderLayout.WEST,
                     )
+                    add(revert, BorderLayout.EAST)
                 },
-                BorderLayout.CENTER,
+                BorderLayout.EAST,
             )
-            add(revert, BorderLayout.EAST)
         }
     private var showRaw = false
     private var enterGuard = false
@@ -402,9 +454,11 @@ internal class WindowApp {
         )
 
     init {
+        watchClicks()
         wireScoreEditor()
         wireTimeSignature()
         wireThreeFeel()
+        wirePitchField()
         minRest.onChange = { minRest.toolTipText = restToolTip() }
         updateThreeFeel()
     }
@@ -461,7 +515,6 @@ internal class WindowApp {
             "(eighths in 6/8), 2 = half of it, 4 = a quarter of it. The click falls on the " +
             "beat, not on the cells (unless the 3-feel is on)."
         time.toolTipText = "Time signature, e.g. 4/4 or 6/8."
-        pitch.toolTipText = "Placeholder pitch printed in the LilyPond output."
     }
 
     /**
@@ -542,7 +595,6 @@ internal class WindowApp {
                 )
                 add(
                     row(
-                        labeled(Glyph.NOTE, "Pitch", pitch),
                         labeled(Glyph.BOLT, "Audio latency", withReset(audioLatency, audioLatencyReset)),
                         slot(calibrateButton),
                     ),
@@ -691,6 +743,65 @@ internal class WindowApp {
         }
 
     /**
+     * The pitch of the selected note: an icon and the field the name is typed in.
+     */
+    private fun pitchCell(): JComponent =
+        JPanel(BorderLayout(4, 0)).apply {
+            isOpaque = false
+            add(pitchCaption, BorderLayout.WEST)
+            add(pitchField, BorderLayout.CENTER)
+        }
+
+    /**
+     * Wires the pitch field: it takes a LilyPond name and puts it on the selected note.
+     */
+    private fun wirePitchField() {
+        pitchField.toolTipText = PITCH_TOOLTIP
+        pitchField.addActionListener { applyPitchInput() }
+    }
+
+    /**
+     * Puts the name in the pitch field on the selected note.
+     *
+     * The field takes a LilyPond name (`c'`, `cis'`, `ces'`); a name that cannot be read
+     * turns the border of the field red and says what a name looks like. A name that was read
+     * is written back in its own spelling, so the field always says the same thing as the
+     * LilyPond text.
+     */
+    private fun applyPitchInput() {
+        val text = pitchField.text.trim()
+        if (text.isEmpty()) return
+        val pitch = Pitch.parse(text)
+        if (pitch == null) {
+            pitchField.invalid = true
+            pitchField.toolTipText =
+                "Not a LilyPond note name. Write it the way LilyPond does: c' (middle C), " +
+                "cis' (sharp), ces' (flat), c (lower), c'' (higher)."
+            return
+        }
+        pitchField.invalid = false
+        pitchField.toolTipText = PITCH_TOOLTIP
+        pitchField.text = pitch.lilypond
+        notation.setSelectedPitch(pitch)
+    }
+
+    /**
+     * The pitch field follows the selection: it shows the pitch of the selected note, and waits
+     * for a new one.
+     *
+     * The text of the field is not touched while it has the focus, so a name that is being
+     * typed does not jump away under the fingers.
+     */
+    private fun updatePitchField() {
+        val selected = notation.selectedPitch
+        pitchField.isEnabled = selected != null
+        pitchField.invalid = false
+        if (!pitchField.isFocusOwner) {
+            pitchField.text = selected?.lilypond ?: ""
+        }
+    }
+
+    /**
      * Wires the score strip and its header: the edits, the caption and the keys.
      */
     private fun wireScoreEditor() {
@@ -706,6 +817,57 @@ internal class WindowApp {
         redoButton.onClick = { notation.redo() }
         undoButton.toolTipText = "Undo the last edit (Ctrl+Z)"
         redoButton.toolTipText = "Redo the last undone edit (Ctrl+Shift+Z)"
+    }
+
+    /**
+     * The parts of the window that work on the score.
+     *
+     * The strip, the pitch field and the edit buttons: they all act on the selected blocks,
+     * so the selection has to survive a click on any of them.
+     */
+    private val editorParts: Set<Component>
+        get() =
+            setOf(
+                notation,
+                pitchField,
+                splitButton,
+                swapButton,
+                mergeButton,
+                undoButton,
+                redoButton,
+            )
+
+    /**
+     * Watches the clicks of the window.
+     *
+     * The mouse events of AWT do not bubble up to the panels of a window, so watching the
+     * panels is not enough to see every click: the toolkit is watched instead.
+     */
+    private fun watchClicks() {
+        watchers += WeakReference(this)
+    }
+
+    /**
+     * The selection belongs to the editor: a click on anything else means the user has moved
+     * on to something else, and a ring around a block would only be in the way.
+     */
+    private fun clickOutsideScore(component: Component?) {
+        if (!belongsToTheApp(component)) return
+        if (component !in editorParts) notation.clearSelection()
+    }
+
+    /**
+     * Whether a component is a part of the app.
+     *
+     * A click in another window (a dialog) is not a click in the app: the dialog asks for
+     * something else, and the score editor waits for the user to come back to it.
+     *
+     * @param component the component that was clicked, or null when there was none.
+     * @return true when the component belongs to the app.
+     */
+    private fun belongsToTheApp(component: Component?): Boolean {
+        val window = component?.let { SwingUtilities.getWindowAncestor(it) }
+        return window == null || window === frame
     }
 
     /**
@@ -820,8 +982,7 @@ internal class WindowApp {
         scroll.viewport.background = Theme.code
         output.refreshTheme()
         time.refreshTheme()
-        pitch.refreshTheme()
-        scoreCaption.foreground = Theme.dim
+        pitchField.refreshTheme()
         updateRawToggle()
         updateScoreToggle()
         updateSoundButton()
@@ -865,6 +1026,8 @@ internal class WindowApp {
         val score = currentScore() ?: return
         // A playback has the window to itself, so a tap round cannot still be listening.
         endTapRound(restoreStatus = true)
+        // The playhead sweeps the strip, so a ring around a block would only be in the way.
+        notation.clearSelection()
         // Open the audio line before the playback clock starts: opening it can take tens of
         // milliseconds, and an origin sampled before that made the first note start late.
         val player = Player(audioLatency.value, playbackSound)
@@ -955,7 +1118,6 @@ internal class WindowApp {
             latencyReset,
             audioLatency,
             audioLatencyReset,
-            pitch,
         )
 
     private fun setControlsEnabled(on: Boolean) {
@@ -1150,6 +1312,7 @@ internal class WindowApp {
         scoreCaption.text = notation.caption
         // The tooltip carries the whole message, so a long one is still readable.
         scoreCaption.toolTipText = notation.caption
+        updatePitchField()
     }
 
     /** Puts the score back the way it was when the take ended. The revert can be undone. */
@@ -1202,7 +1365,6 @@ internal class WindowApp {
                     subdivisions = subdivisions.selectedText.toInt(),
                     bars = bars.value.roundToInt(),
                     latencyMs = latency.value,
-                    pitch = pitch.text.trim().ifEmpty { "c" },
                     noRests = minRest.selectedIndex == NO_RESTS,
                     threeFeel = threeFeel,
                 )

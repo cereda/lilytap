@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
  */
 class ScoreTest {
     // 4/4, 60 BPM, 2 cells per beat => 8 cells per bar, 500 ms per cell
-    private fun cfg(bars: Int = 1) = Config(60.0, TimeSignature(4, 4), 2, bars, 0.0, "c")
+    private fun cfg(bars: Int = 1) = Config(60.0, TimeSignature(4, 4), 2, bars, 0.0)
 
     private fun score(
         vararg events: Event,
@@ -28,7 +28,8 @@ class ScoreTest {
     private fun note(
         start: Int,
         length: Int,
-    ) = Event(TapKind.NOTE, cells(start), cells(length))
+        pitch: Pitch = Pitch.DEFAULT,
+    ) = Event(TapKind.NOTE, cells(start), cells(length), pitch)
 
     private fun rest(
         start: Int,
@@ -85,21 +86,21 @@ class ScoreTest {
     fun `toggling a note turns it into a rest`() {
         val edited = score(note(0, 4), note(4, 4)).toggleRest(0)
         assertEquals(listOf(rest(0, 4), note(4, 4)), edited.events)
-        assertEquals("r2 c2 |", edited.lilypond)
+        assertEquals("r2 c'2 |", edited.lilypond)
     }
 
     @Test
     fun `toggling a rest turns it back into a note`() {
         val edited = score(rest(0, 4), note(4, 4)).toggleRest(0)
         assertEquals(listOf(note(0, 4), note(4, 4)), edited.events)
-        assertEquals("c2 c2 |", edited.lilypond)
+        assertEquals("c'2 c'2 |", edited.lilypond)
     }
 
     @Test
     fun `a note that becomes a rest joins the rest next to it`() {
         val edited = score(note(0, 2), rest(2, 2), note(4, 4)).toggleRest(0)
         assertEquals(listOf(rest(0, 4), note(4, 4)), edited.events)
-        assertEquals("r2 c2 |", edited.lilypond)
+        assertEquals("r2 c'2 |", edited.lilypond)
     }
 
     @Test
@@ -125,7 +126,7 @@ class ScoreTest {
     fun `moving a border grows the left event and shrinks the right one`() {
         val edited = score(note(0, 4), note(4, 4)).moveBoundary(0, cells(2))
         assertEquals(listOf(note(0, 6), note(6, 2)), edited.events)
-        assertEquals("c2. c4 |", edited.lilypond)
+        assertEquals("c'2. c'4 |", edited.lilypond)
     }
 
     @Test
@@ -155,7 +156,7 @@ class ScoreTest {
         val edited = s.moveBoundary(0, cells(4))
         assertEquals(listOf(note(0, 10), note(10, 6)), edited.events)
         // The first note now runs over the bar line, so it is tied.
-        assertEquals("c1 ~ |\nc4 c2. |", edited.lilypond)
+        assertEquals("c'1 ~ |\nc'4 c'2. |", edited.lilypond)
     }
 
     @Test
@@ -173,26 +174,33 @@ class ScoreTest {
     fun `splitting a note gives two halves of the same kind`() {
         val edited = score(note(0, 4), note(4, 4)).split(0)
         assertEquals(listOf(note(0, 2), note(2, 2), note(4, 4)), edited.events)
-        assertEquals("c4 c4 c2 |", edited.lilypond)
+        assertEquals("c'4 c'4 c'2 |", edited.lilypond)
     }
 
     @Test
     fun `splitting a silence makes the second half a note`() {
         val edited = score(rest(0, 4), note(4, 4)).split(0)
         assertEquals(listOf(rest(0, 2), note(2, 2), note(4, 4)), edited.events)
-        assertEquals("r4 c4 c2 |", edited.lilypond)
+        assertEquals("r4 c'4 c'2 |", edited.lilypond)
     }
 
     @Test
     fun `an odd block splits into a shorter first half`() {
-        val s = Score(listOf(Event(TapKind.NOTE, 0, 3), Event(TapKind.NOTE, 3, 61)), cfg())
+        val s = Score(listOf(Event(TapKind.NOTE, 0, 3, Pitch.DEFAULT), Event(TapKind.NOTE, 3, 61, Pitch.DEFAULT)), cfg())
         val edited = s.split(0)
-        assertEquals(listOf(Event(TapKind.NOTE, 0, 1), Event(TapKind.NOTE, 1, 2), Event(TapKind.NOTE, 3, 61)), edited.events)
+        assertEquals(
+            listOf(
+                Event(TapKind.NOTE, 0, 1, Pitch.DEFAULT),
+                Event(TapKind.NOTE, 1, 2, Pitch.DEFAULT),
+                Event(TapKind.NOTE, 3, 61, Pitch.DEFAULT),
+            ),
+            edited.events,
+        )
     }
 
     @Test
     fun `a block of one unit cannot be split`() {
-        val s = Score(listOf(Event(TapKind.NOTE, 0, 1), Event(TapKind.NOTE, 1, 63)), cfg())
+        val s = Score(listOf(Event(TapKind.NOTE, 0, 1, Pitch.DEFAULT), Event(TapKind.NOTE, 1, 63, Pitch.DEFAULT)), cfg())
         assertFailsWith<IllegalArgumentException> { s.split(0) }
     }
 
@@ -218,7 +226,7 @@ class ScoreTest {
     fun `swapping two blocks moves them across each other`() {
         val edited = score(note(0, 2), rest(2, 2), note(4, 4)).swap(0)
         assertEquals(listOf(rest(0, 2), note(2, 2), note(4, 4)), edited.events)
-        assertEquals("r4 c4 c2 |", edited.lilypond)
+        assertEquals("r4 c'4 c'2 |", edited.lilypond)
     }
 
     @Test
@@ -231,7 +239,7 @@ class ScoreTest {
     fun `swapping two blocks that leave two silences together merges them`() {
         val edited = score(rest(0, 2), note(2, 2), rest(4, 4)).swap(1)
         assertEquals(listOf(rest(0, 6), note(6, 2)), edited.events)
-        assertEquals("r2. c4 |", edited.lilypond)
+        assertEquals("r2. c'4 |", edited.lilypond)
     }
 
     @Test
@@ -255,14 +263,14 @@ class ScoreTest {
     fun `merging two notes makes one longer note`() {
         val edited = score(note(0, 2), note(2, 2), note(4, 4)).merge(0, 1)
         assertEquals(listOf(note(0, 4), note(4, 4)), edited.events)
-        assertEquals("c2 c2 |", edited.lilypond)
+        assertEquals("c'2 c'2 |", edited.lilypond)
     }
 
     @Test
     fun `merging a note and a silence lets the note win`() {
         val edited = score(note(0, 2), rest(2, 2), note(4, 4)).merge(0, 1)
         assertEquals(listOf(note(0, 4), note(4, 4)), edited.events)
-        assertEquals("c2 c2 |", edited.lilypond)
+        assertEquals("c'2 c'2 |", edited.lilypond)
     }
 
     @Test
@@ -324,7 +332,7 @@ class ScoreTest {
         val config = cfg()
         val result = transcribe(listOf(Tap(0.0, TapKind.NOTE), Tap(1000.0, TapKind.NOTE)), config)
         assertEquals(listOf(note(0, 2), note(2, 6)), result.score.events)
-        assertEquals("c4 c2. |", result.lilypond)
+        assertEquals("c'4 c'2. |", result.lilypond)
         assertEquals(result.score.lilypond, result.lilypond)
     }
 
@@ -333,8 +341,143 @@ class ScoreTest {
         val config = cfg()
         val result = transcribe(listOf(Tap(0.0, TapKind.NOTE), Tap(1000.0, TapKind.NOTE)), config)
         val edited = result.score.toggleRest(1)
-        assertEquals("c4 r2. |", edited.lilypond)
-        assertEquals("c4 c2. |", result.lilypond)
+        assertEquals("c'4 r2. |", edited.lilypond)
+        assertEquals("c'4 c'2. |", result.lilypond)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The pitch of a note
+    // -------------------------------------------------------------------------------------------
+
+    /** A sharp C an octave up: C♯5. */
+    private val sharp = Pitch(PitchStep.C, 1, 5)
+
+    /** The E above middle C: E5. */
+    private val high = Pitch(PitchStep.E, 0, 5)
+
+    @Test
+    fun `a note carries a pitch and a rest carries none`() {
+        assertFailsWith<IllegalArgumentException> { Event(TapKind.NOTE, 0, 16, null) }
+        assertFailsWith<IllegalArgumentException> { Event(TapKind.REST, 0, 16, Pitch.DEFAULT) }
+    }
+
+    @Test
+    fun `setting the pitch of a note changes the text`() {
+        val edited = score(note(0, 4), note(4, 4)).setPitch(0, sharp)
+        assertEquals("cis''2 c'2 |", edited.lilypond)
+        assertEquals(sharp, edited.events[0].pitch)
+    }
+
+    @Test
+    fun `setting the pitch of a note that is not there is rejected`() {
+        val s = score(note(0, 8))
+        assertFailsWith<IllegalArgumentException> { s.setPitch(1, sharp) }
+        assertFailsWith<IllegalArgumentException> { s.setPitch(-1, sharp) }
+    }
+
+    @Test
+    fun `a rest has no pitch to set`() {
+        val s = score(rest(0, 4), note(4, 4))
+        assertFailsWith<IllegalArgumentException> { s.setPitch(0, sharp) }
+    }
+
+    @Test
+    fun `setting the pitch a note already has changes nothing`() {
+        val s = score(note(0, 8))
+        assertEquals(s, s.setPitch(0, Pitch.DEFAULT))
+    }
+
+    @Test
+    fun `setting the pitch leaves the original alone`() {
+        val s = score(note(0, 4), note(4, 4))
+        s.setPitch(0, sharp)
+        assertEquals(Pitch.DEFAULT, s.events[0].pitch)
+    }
+
+    @Test
+    fun `a rest that becomes a note takes the pitch of the note before it`() {
+        val edited = score(note(0, 4, sharp), rest(4, 4)).toggleRest(1)
+        assertEquals(sharp, edited.events[1].pitch)
+        assertEquals("cis''2 cis''2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `the first note of a score starts on middle C`() {
+        val edited = score(rest(0, 4), note(4, 4)).toggleRest(0)
+        assertEquals(Pitch.DEFAULT, edited.events[0].pitch)
+    }
+
+    @Test
+    fun `splitting a note keeps its pitch in both halves`() {
+        val edited = score(note(0, 4, sharp), note(4, 4)).split(0)
+        assertEquals(sharp, edited.events[0].pitch)
+        assertEquals(sharp, edited.events[1].pitch)
+    }
+
+    @Test
+    fun `splitting a silence gives the new note the pitch of the note before it`() {
+        val edited = score(note(0, 4, sharp), rest(4, 4)).split(1)
+        assertEquals(sharp, edited.events[2].pitch)
+        assertEquals("cis''2 r4 cis''4 |", edited.lilypond)
+    }
+
+    @Test
+    fun `merging keeps the pitch of the first note of the range`() {
+        val edited = score(note(0, 2, sharp), note(2, 2, high), rest(4, 4)).merge(0, 2)
+        assertEquals(sharp, edited.events[0].pitch)
+        assertEquals("cis''1 |", edited.lilypond)
+    }
+
+    @Test
+    fun `swapping moves the pitch with the note`() {
+        val edited = score(note(0, 4, sharp), note(4, 4, high)).swap(0)
+        assertEquals(high, edited.events[0].pitch)
+        assertEquals(sharp, edited.events[1].pitch)
+    }
+
+    @Test
+    fun `every note of a take starts on middle C`() {
+        val result = transcribe(listOf(Tap(0.0, TapKind.NOTE), Tap(1000.0, TapKind.NOTE)), cfg())
+        assertTrue(result.score.events.all { it.pitch == Pitch.DEFAULT })
+    }
+
+    @Test
+    fun `the notes of a score can carry different pitches`() {
+        val s = score(note(0, 2, sharp), note(2, 2, high), rest(4, 4))
+        assertEquals("cis''4 e''4 r2 |", s.lilypond)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The depth of the duration stripe
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the shortest value has the shallowest stripe`() {
+        assertEquals(0.0, durationDepth(1))
+    }
+
+    @Test
+    fun `the longest value has the deepest stripe`() {
+        assertEquals(1.0, durationDepth(96))
+        assertEquals(1.0, durationDepth(200), "a block longer than a dotted whole is as deep as one")
+    }
+
+    @Test
+    fun `the stripe grows with the duration`() {
+        assertTrue(durationDepth(1) < durationDepth(4))
+        assertTrue(durationDepth(4) < durationDepth(16))
+        assertTrue(durationDepth(16) < durationDepth(64))
+    }
+
+    @Test
+    fun `the stripe follows the value that is written`() {
+        assertEquals(durationDepth(4), durationDepth(5), "a length that is not written takes the value below it")
+        assertEquals(durationDepth(16), durationDepth(24) - 1.0 / 12.0, 0.0001)
+    }
+
+    @Test
+    fun `a duration of no units is rejected`() {
+        assertFailsWith<IllegalArgumentException> { durationDepth(0) }
     }
 
     // -------------------------------------------------------------------------------------------
@@ -346,14 +489,15 @@ class ScoreTest {
         beats: Int,
         unit: Int,
         bars: Int = 1,
-    ) = Config(60.0, TimeSignature(beats, unit), 2, bars, 0.0, "c")
+    ) = Config(60.0, TimeSignature(beats, unit), 2, bars, 0.0)
 
     /** A note in the units of the meter: a whole note is 64 units, an eighth is 8. */
     private fun at(
         kind: TapKind,
         start: Int,
         length: Int,
-    ) = Event(kind, start, length)
+        pitch: Pitch? = if (kind == TapKind.NOTE) Pitch.DEFAULT else null,
+    ) = Event(kind, start, length, pitch)
 
     @Test
     fun `a meter is compound when its beats come in groups of three`() {
@@ -384,7 +528,7 @@ class ScoreTest {
                 ),
                 compound(6, 8),
             )
-        assertEquals("c4. ~ c8 r4 |", s.lilypond)
+        assertEquals("c'4. ~ c'8 r4 |", s.lilypond)
     }
 
     @Test
@@ -397,7 +541,7 @@ class ScoreTest {
                 ),
                 compound(6, 8),
             )
-        assertEquals("r4. r8 c4 |", s.lilypond)
+        assertEquals("r4. r8 c'4 |", s.lilypond)
     }
 
     @Test
@@ -410,24 +554,24 @@ class ScoreTest {
                 ),
                 compound(6, 8),
             )
-        assertEquals("c4. r4. |", s.lilypond)
+        assertEquals("c'4. r4. |", s.lilypond)
     }
 
     @Test
     fun `a whole bar of a compound meter is tied inside the groups`() {
-        assertEquals("c4. ~ c4. |", Score(listOf(at(TapKind.NOTE, 0, 48)), compound(6, 8)).lilypond)
+        assertEquals("c'4. ~ c'4. |", Score(listOf(at(TapKind.NOTE, 0, 48)), compound(6, 8)).lilypond)
         assertEquals(
-            "c4. ~ c4. ~ c4. ~ c4. |",
+            "c'4. ~ c'4. ~ c'4. ~ c'4. |",
             Score(listOf(at(TapKind.NOTE, 0, 96)), compound(12, 8)).lilypond,
         )
-        assertEquals("c2. ~ c2. |", Score(listOf(at(TapKind.NOTE, 0, 96)), compound(6, 4)).lilypond)
+        assertEquals("c'2. ~ c'2. |", Score(listOf(at(TapKind.NOTE, 0, 96)), compound(6, 4)).lilypond)
     }
 
     @Test
     fun `a simple meter is written the way it always was`() {
-        assertEquals("c2 r2 |", score(note(0, 4), rest(4, 4)).lilypond)
+        assertEquals("c'2 r2 |", score(note(0, 4), rest(4, 4)).lilypond)
         assertEquals(
-            "c2 r4 |",
+            "c'2 r4 |",
             Score(
                 listOf(
                     at(TapKind.NOTE, 0, 32),
@@ -441,7 +585,7 @@ class ScoreTest {
     @Test
     fun `an irregular meter is left the way it was`() {
         assertEquals(
-            "c2 ~ c8 c4 |",
+            "c'2 ~ c'8 c'4 |",
             Score(
                 listOf(
                     at(TapKind.NOTE, 0, 40),
@@ -451,7 +595,7 @@ class ScoreTest {
             ).lilypond,
         )
         assertEquals(
-            "c4. r4 |",
+            "c'4. r4 |",
             Score(
                 listOf(
                     at(TapKind.NOTE, 0, 24),
@@ -473,7 +617,7 @@ class ScoreTest {
                 compound(6, 8),
             )
         // The block knows how long it is; the text is what the meter makes of it.
-        assertEquals("c2", eventText(s.events[0], s.config))
-        assertEquals("r4", eventText(s.events[1], s.config))
+        assertEquals("c'2", eventText(s.events[0]))
+        assertEquals("r4", eventText(s.events[1]))
     }
 }

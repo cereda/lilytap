@@ -9,7 +9,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PlayerTest {
-    private fun cfg() = Config(600.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
+    private fun cfg() = Config(600.0, TimeSignature(4, 4), 2, 1, 0.0)
 
     /** The internal units in a grid cell of this configuration. */
     private val cellUnits = 8
@@ -17,9 +17,9 @@ class PlayerTest {
     private fun score() =
         Score(
             listOf(
-                Event(TapKind.NOTE, 0, 2 * cellUnits),
+                Event(TapKind.NOTE, 0, 2 * cellUnits, Pitch.DEFAULT),
                 Event(TapKind.REST, 2 * cellUnits, 2 * cellUnits),
-                Event(TapKind.NOTE, 4 * cellUnits, 4 * cellUnits),
+                Event(TapKind.NOTE, 4 * cellUnits, 4 * cellUnits, Pitch.DEFAULT),
             ),
             cfg(),
         )
@@ -92,6 +92,26 @@ class PlayerTest {
         player.stop()
         Thread.sleep(100)
         assertTrue(positions.any { it > 0.0 }, "beat playback should advance past the first event")
+    }
+
+    @Test
+    fun `a score with different pitches plays`() {
+        val player = Player(0.0)
+        val positions = mutableListOf<Double>()
+        val melody =
+            Score(
+                listOf(
+                    Event(TapKind.NOTE, 0, 2 * cellUnits, Pitch(PitchStep.C, 0, 4)),
+                    Event(TapKind.NOTE, 2 * cellUnits, 2 * cellUnits, Pitch(PitchStep.E, 0, 5)),
+                    Event(TapKind.REST, 4 * cellUnits, 4 * cellUnits),
+                ),
+                cfg(),
+            )
+        player.play(melody, onPosition = { positions += it })
+        Thread.sleep(300)
+        player.stop()
+        Thread.sleep(100)
+        assertTrue(positions.any { it > 0.0 }, "the melody should play through its events")
     }
 
     @Test

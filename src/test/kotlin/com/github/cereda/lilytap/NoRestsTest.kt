@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
  */
 class NoRestsTest {
     // 4/4, 60 BPM, 2 cells per beat => 500 ms per cell, 8 cells per bar
-    private fun cfg(noRests: Boolean = true) = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c", noRests)
+    private fun cfg(noRests: Boolean = true) = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, noRests)
 
     private fun tap(
         ms: Int,
@@ -25,31 +25,31 @@ class NoRestsTest {
     @Test
     fun `a rest tap is absorbed into the note before it`() {
         val taps = listOf(tap(0), tap(1000, TapKind.REST), tap(2000), tap(3000))
-        assertEquals("c2 c4 c4 |", lily(taps))
+        assertEquals("c'2 c'4 c'4 |", lily(taps))
     }
 
     @Test
     fun `without the option the rest is written as before`() {
         val taps = listOf(tap(0), tap(1000, TapKind.REST), tap(2000), tap(3000))
-        assertEquals("c4 r4 c4 c4 |", lily(taps, noRests = false))
+        assertEquals("c'4 r4 c'4 c'4 |", lily(taps, noRests = false))
     }
 
     @Test
     fun `a rest before the first note stays a rest`() {
         val taps = listOf(tap(0, TapKind.REST), tap(2000), tap(3000))
-        assertEquals("r2 c4 c4 |", lily(taps))
+        assertEquals("r2 c'4 c'4 |", lily(taps))
     }
 
     @Test
     fun `a gap before the first note stays a rest`() {
         val taps = listOf(tap(1000), tap(2000))
-        assertEquals("r4 c4 c2 |", lily(taps))
+        assertEquals("r4 c'4 c'2 |", lily(taps))
     }
 
     @Test
     fun `several rests in a row are all absorbed`() {
         val taps = listOf(tap(0), tap(1000, TapKind.REST), tap(1500, TapKind.REST), tap(2000))
-        assertEquals("c2 c2 |", lily(taps))
+        assertEquals("c'2 c'2 |", lily(taps))
     }
 
     @Test
@@ -60,7 +60,7 @@ class NoRestsTest {
                 HeldNote(2000.0, 2000.0, TapKind.REST),
                 HeldNote(3000.0, 3900.0),
             )
-        assertEquals("c2. c4 |", transcribeHeld(notes, cfg(), 2).lilypond)
+        assertEquals("c'2. c'4 |", transcribeHeld(notes, cfg(), 2).lilypond)
     }
 
     @Test
@@ -71,7 +71,7 @@ class NoRestsTest {
                 HeldNote(2000.0, 2000.0, TapKind.REST),
                 HeldNote(3000.0, 3900.0),
             )
-        assertEquals("c4 r2 c4 |", transcribeHeld(notes, cfg(noRests = false), 2).lilypond)
+        assertEquals("c'4 r2 c'4 |", transcribeHeld(notes, cfg(noRests = false), 2).lilypond)
     }
 
     @Test
@@ -91,6 +91,6 @@ class NoRestsTest {
     fun `a rest press before the first note stays a rest`() {
         val notes = listOf(HeldNote(0.0, 0.0, TapKind.REST), HeldNote(1000.0, 1900.0))
         // The rest covers the first two cells, the note runs on to the end of the bar.
-        assertEquals("r4 c2. |", transcribeHeld(notes, cfg(), 2).lilypond)
+        assertEquals("r4 c'2. |", transcribeHeld(notes, cfg(), 2).lilypond)
     }
 }

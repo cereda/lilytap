@@ -13,7 +13,7 @@ class RhythmTest {
         sub: Int = 2,
         bpm: Double = 60.0,
         latency: Double = 0.0,
-    ) = Config(bpm, ts, sub, bars, latency, "c")
+    ) = Config(bpm, ts, sub, bars, latency)
 
     private fun notes(vararg ms: Int) = ms.map { Tap(it.toDouble(), TapKind.NOTE) }
 
@@ -34,29 +34,29 @@ class RhythmTest {
 
     @Test
     fun `four taps on the beat give four quarter notes`() {
-        assertEquals("c4 c4 c4 c4 |", lily(notes(0, 1000, 2000, 3000), cfg()))
+        assertEquals("c'4 c'4 c'4 c'4 |", lily(notes(0, 1000, 2000, 3000), cfg()))
     }
 
     @Test
     fun `skipping a beat extends the previous note`() {
         // tap, (hold), tap, tap  ->  half note, quarter, quarter
-        assertEquals("c2 c4 c4 |", lily(notes(0, 2000, 3000), cfg()))
+        assertEquals("c'2 c'4 c'4 |", lily(notes(0, 2000, 3000), cfg()))
     }
 
     @Test
     fun `sloppy timing within half a cell is snapped to the grid`() {
         // cell = 500 ms at 60 BPM with 2 subdivisions, so +-249 ms is tolerated
-        assertEquals("c4 c4 c4 c4 |", lily(notes(-80, 1120, 1990, 3200), cfg()))
+        assertEquals("c'4 c'4 c'4 c'4 |", lily(notes(-80, 1120, 1990, 3200), cfg()))
     }
 
     @Test
     fun `half-beat taps produce eighth notes`() {
-        assertEquals("c8 c8 c4 c2 |", lily(notes(0, 500, 1000, 2000), cfg()))
+        assertEquals("c'8 c'8 c'4 c'2 |", lily(notes(0, 500, 1000, 2000), cfg()))
     }
 
     @Test
     fun `sixteenths with 4 subdivisions`() {
-        assertEquals("c16 c16 c8 c4 c2 |", lily(notes(0, 250, 500, 1000, 2000), cfg(sub = 4)))
+        assertEquals("c'16 c'16 c'8 c'4 c'2 |", lily(notes(0, 250, 500, 1000, 2000), cfg(sub = 4)))
     }
 
     @Test
@@ -67,12 +67,12 @@ class RhythmTest {
                 Tap(1000.0, TapKind.REST),
                 Tap(2000.0, TapKind.NOTE),
             )
-        assertEquals("c4 r4 c2 |", lily(taps, cfg()))
+        assertEquals("c'4 r4 c'2 |", lily(taps, cfg()))
     }
 
     @Test
     fun `a late first tap becomes a leading rest`() {
-        assertEquals("r4 c2. |", lily(notes(1000), cfg()))
+        assertEquals("r4 c'2. |", lily(notes(1000), cfg()))
     }
 
     @Test
@@ -82,12 +82,12 @@ class RhythmTest {
 
     @Test
     fun `notes crossing a barline are split and tied`() {
-        assertEquals("r2. c4 ~ |\nc1 |", lily(notes(3000), cfg(bars = 2)))
+        assertEquals("r2. c'4 ~ |\nc'1 |", lily(notes(3000), cfg(bars = 2)))
     }
 
     @Test
     fun `dotted notes in three four`() {
-        assertEquals("c2. |", lily(notes(0), cfg(ts = TimeSignature(3, 4))))
+        assertEquals("c'2. |", lily(notes(0), cfg(ts = TimeSignature(3, 4))))
     }
 
     @Test
@@ -95,7 +95,7 @@ class RhythmTest {
         // The beat in 6/8 is the dotted quarter: at 60 BPM a bar lasts two seconds, and the
         // two beats of the bar are a second apart.
         assertEquals(
-            "c4. c4. |",
+            "c'4. c'4. |",
             lily(notes(0, 1000), cfg(ts = TimeSignature(6, 8), sub = 1)),
         )
     }
@@ -103,12 +103,12 @@ class RhythmTest {
     @Test
     fun `second tap in the same cell replaces the first, regardless of input order`() {
         val taps = listOf(Tap(1000.0, TapKind.NOTE), Tap(1100.0, TapKind.REST), Tap(0.0, TapKind.NOTE))
-        assertEquals("c4 r2. |", lily(taps, cfg()))
+        assertEquals("c'4 r2. |", lily(taps, cfg()))
     }
 
     @Test
     fun `taps during count-in or after the end are ignored`() {
-        assertEquals("c4 c4 c4 c4 |", lily(notes(-3000, -2000, 0, 1000, 2000, 3000, 4000, 9000), cfg()))
+        assertEquals("c'4 c'4 c'4 c'4 |", lily(notes(-3000, -2000, 0, 1000, 2000, 3000, 4000, 9000), cfg()))
     }
 
     @Test
@@ -116,7 +116,7 @@ class RhythmTest {
         // User consistently presses 400 ms after the click: without compensation the
         // taps land half a cell away, with latency=400 they snap to the right place.
         val late = notes(400, 1400, 2400, 3400)
-        assertEquals("c4 c4 c4 c4 |", lily(late, cfg(latency = 400.0)))
+        assertEquals("c'4 c'4 c'4 c'4 |", lily(late, cfg(latency = 400.0)))
     }
 
     @Test
@@ -143,8 +143,8 @@ class RhythmTest {
     @Test
     fun `a note that fills a 4 slash 2 bar is tied inside the bar`() {
         // One sustained sound: the two tokens of the bar are tied to each other.
-        val config = Config(60.0, TimeSignature(4, 2), 1, 1, 0.0, "c")
-        assertEquals("c1. ~ c2 |", transcribe(listOf(Tap(0.0, TapKind.NOTE)), config).lilypond)
+        val config = Config(60.0, TimeSignature(4, 2), 1, 1, 0.0)
+        assertEquals("c'1. ~ c'2 |", transcribe(listOf(Tap(0.0, TapKind.NOTE)), config).lilypond)
     }
 
     @Test

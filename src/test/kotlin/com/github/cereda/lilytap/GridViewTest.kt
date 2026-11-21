@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
  */
 class GridViewTest {
     // 4/4, 2 cells per beat => 8 cells per bar
-    private fun cfg(bars: Int = 1) = Config(60.0, TimeSignature(4, 4), 2, bars, 0.0, "c")
+    private fun cfg(bars: Int = 1) = Config(60.0, TimeSignature(4, 4), 2, bars, 0.0)
 
     private fun grid(
         bars: Int = 1,

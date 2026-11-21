@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 /** The recording timeline: it keeps the playhead on screen during playback. */
 class TimelinePanelTest {
     // 4/4, 2 cells per beat: 8 cells a bar, so 8 bars are much wider than a 400 px view.
-    private fun config(bars: Int = 8) = Config(60.0, TimeSignature(4, 4), 2, bars, 0.0, "c")
+    private fun config(bars: Int = 8) = Config(60.0, TimeSignature(4, 4), 2, bars, 0.0)
 
     private fun panel(config: Config = config()): Pair<TimelinePanel, GridView> {
         val grid =
@@ -23,7 +23,7 @@ class TimelinePanelTest {
         return panel to grid
     }
 
-    private fun score(config: Config) = Score(listOf(Event(TapKind.NOTE, 0, config.totalUnits)), config)
+    private fun score(config: Config) = Score(listOf(Event(TapKind.NOTE, 0, config.totalUnits, Pitch.DEFAULT)), config)
 
     private fun playheadX(
         grid: GridView,
@@ -106,7 +106,7 @@ class TimelinePanelTest {
         panel.score =
             Score(
                 listOf(
-                    Event(TapKind.NOTE, 0, 32),
+                    Event(TapKind.NOTE, 0, 32, Pitch.DEFAULT),
                     Event(TapKind.REST, 32, 32),
                 ),
                 cfg,

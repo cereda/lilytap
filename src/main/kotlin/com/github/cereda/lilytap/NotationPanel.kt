@@ -18,12 +18,14 @@ import java.awt.Font
 import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Shape
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.geom.Area
 import java.awt.geom.Line2D
 import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
@@ -58,6 +60,62 @@ private data class Snapshot(
     val selection: ScoreSelection?,
     val caption: String,
 )
+
+/** How far the ring of a selected block grows beyond the block, in pixels. */
+internal const val RING_GROW = 1.25
+
+/** How wide the stroke of the ring of a selected block is, in pixels. */
+internal const val RING_WIDTH = 3.0
+
+/**
+ * The corner radius of a block.
+ *
+ * A note is rounder than a rest, and a narrow block is a pill: its radius cannot be more than
+ * half of its width.
+ *
+ * @param event the event the block shows.
+ * @param width the width of the block.
+ * @param height the height of the block.
+ * @return the radius of the corners of the block.
+ */
+internal fun cornerRadius(
+    event: Event,
+    width: Double,
+    height: Double,
+): Double = if (event.kind == TapKind.NOTE) minOf(6.0, width / 2, height / 2) else 4.0
+
+/**
+ * The path of the ring drawn around a selected block.
+ *
+ * The ring sits outside the block and touches it: the path is the shape of the block grown
+ * by [RING_GROW] pixels on every side, and its corner grows by the same, so the two share
+ * the centre of their corner. The stroke is [RING_WIDTH] pixels wide, so the ring reaches a
+ * little into the block - no sliver of the strip can show between the two - and reaches over
+ * the little notch of the block's rounded corner.
+ *
+ * @param event the event the block shows.
+ * @param x1 the left edge of the block.
+ * @param x2 the right edge of the block.
+ * @param top the top edge of the block.
+ * @param height the height of the block.
+ * @return the path the ring is drawn along.
+ */
+internal fun ringShape(
+    event: Event,
+    x1: Double,
+    x2: Double,
+    top: Double,
+    height: Double,
+): Shape {
+    val r = cornerRadius(event, x2 - x1, height) + RING_GROW
+    return rr(
+        x1 - RING_GROW,
+        top - RING_GROW,
+        x2 - x1 + 2 * RING_GROW,
+        height + 2 * RING_GROW,
+        minOf(r, (x2 - x1 + 2 * RING_GROW) / 2, (height + 2 * RING_GROW) / 2),
+    )
+}
 
 /**
  * The score strip: the notes and rests of the take, editable in place.
@@ -120,6 +178,15 @@ internal class NotationPanel(
     private var hoverBorder = -1
     private var hoverBlock = -1
 
+    /**
+     * The glow around a selected block: the width of every stroke and how much of it shows.
+     *
+     * The strokes are drawn from the narrowest to the widest, and each one is fainter than
+     * the last, so the light falls off as it leaves the ring. They are wider than the ring
+     * itself, so the halo shows around it and not under it.
+     */
+    private val glows = listOf(6f to 26, 8f to 16, 10f to 10)
+
     /** Current playback position in ms (-1 when not playing). */
     var playbackPositionMs: Double = -1.0
         set(v) {
@@ -138,9 +205,12 @@ internal class NotationPanel(
     init {
         isOpaque = false
         isFocusable = true
+        // The strip keeps its height, whatever else happens in the stage: a layout that
+        // squeezes it would push the music out of the window.
+        minimumSize = Dimension(0, 68)
         // The arrow keys belong to the selection, not to the focus traversal.
         focusTraversalKeysEnabled = false
-        preferredSize = Dimension(760, 68)
+        preferredSize = Dimension(STAGE_WIDTH, 68)
         toolTipText =
             "Click a block to select it, double-click to turn it into a rest, " +
             "drag a border to change its length. Keys: S splits, X swaps, M merges, Ctrl+Z undoes."
@@ -262,6 +332,19 @@ internal class NotationPanel(
     /** Whether the selected blocks can be merged into one. */
     val canMerge: Boolean get() = selectedBlocks >= 2
 
+    /**
+     * The pitch of the selected block, when a single note is selected.
+     *
+     * A rest has no pitch, and a range of blocks has more than one, so both give null.
+     */
+    val selectedPitch: Pitch?
+        get() {
+            val s = score ?: return null
+            val range = selectedRange(s) ?: return null
+            if (range.first != range.last) return null
+            return s.events[range.first].pitch
+        }
+
     /** The indices of the blocks the selection covers. */
     private fun selectedRange(s: Score): IntRange? {
         val sel = selection ?: return null
@@ -325,14 +408,14 @@ internal class NotationPanel(
         onSelectionChange?.invoke()
     }
 
-    /** A short description of what is selected: "c2 selected", "3 blocks selected". */
+    /** A short description of what is selected: "c'2 selected", "3 blocks selected". */
     private fun describe(
         s: Score,
         range: ScoreSelection,
     ): String {
         val indices = s.events.indices.filter { i -> covers(s.events[i], range) }
         if (indices.isEmpty()) return NOTHING_SELECTED
-        if (indices.size == 1) return "${eventText(s.events[indices.first()], s.config)} selected"
+        if (indices.size == 1) return "${eventText(s.events[indices.first()])} selected"
         return "${indices.size} blocks selected"
     }
 
@@ -428,7 +511,7 @@ internal class NotationPanel(
         if (range.first != range.last) return
         val index = range.first
         if (s.events[index].lengthUnits < 2) return
-        val before = eventText(s.events[index], s.config)
+        val before = eventText(s.events[index])
         val edited = s.split(index)
         applyEdit(edited, before)
     }
@@ -439,7 +522,7 @@ internal class NotationPanel(
         val range = selectedRange(s) ?: return
         if (range.last - range.first + 1 != 2) return
         val before =
-            eventText(s.events[range.first], s.config) + " " + eventText(s.events[range.last], s.config)
+            eventText(s.events[range.first]) + " " + eventText(s.events[range.last])
         val edited = s.swap(range.first)
         applyEdit(edited, before)
     }
@@ -458,9 +541,30 @@ internal class NotationPanel(
     private fun flip(index: Int) {
         val s = score ?: return
         val event = s.events.getOrNull(index) ?: return
-        val before = eventText(event, s.config)
+        val before = eventText(event)
         val edited = s.toggleRest(index)
         applyEdit(edited, before)
+    }
+
+    /**
+     * Sets the pitch of the selected block.
+     *
+     * Only a single note can be given a pitch: a rest has none, and a range of blocks would
+     * have to guess which one the pitch belongs to.
+     *
+     * @param pitch the pitch the note sounds.
+     * @return true when the score changed.
+     */
+    fun setSelectedPitch(pitch: Pitch): Boolean {
+        val s = score ?: return false
+        val range = selectedRange(s) ?: return false
+        if (range.first != range.last) return false
+        val index = range.first
+        val old = s.events[index].pitch ?: return false
+        val edited = s.setPitch(index, pitch)
+        if (edited == s) return false
+        applyEdit(edited, old.scientific, pitch.scientific)
+        return true
     }
 
     /**
@@ -471,18 +575,20 @@ internal class NotationPanel(
      *
      * @param edited the edited score.
      * @param before what the selected blocks were before the edit.
+     * @param after what the selection is now, when the edit does not change the blocks.
      */
     private fun applyEdit(
         edited: Score,
         before: String,
+        after: String? = null,
     ) {
         val range = selection
         pushHistory()
         currentScore = edited
         // The edit moved the blocks around; the selection follows the music, not the indices.
         range?.let { restoreSelection(it) }
-        val after = range?.let { afterText(edited, it) } ?: before
-        caption = "$before → $after"
+        val now = after ?: range?.let { afterText(edited, it) } ?: before
+        caption = "$before → $now"
         repaint()
         onEdit?.invoke(edited)
         onSelectionChange?.invoke()
@@ -498,10 +604,10 @@ internal class NotationPanel(
     private fun afterText(
         s: Score,
         range: ScoreSelection,
-    ): String = s.events.filter { covers(it, range) }.joinToString(" ") { eventText(it, s.config) }
+    ): String = s.events.filter { covers(it, range) }.joinToString(" ") { eventText(it) }
 
     /**
-     * The blocks that are about to be merged, as "c2 + r2".
+     * The blocks that are about to be merged, as "c'2 + r2".
      *
      * A long range is shortened to "12 blocks", so the caption stays short enough to be read.
      *
@@ -513,7 +619,7 @@ internal class NotationPanel(
         s: Score,
         range: IntRange,
     ): String {
-        val parts = range.map { eventText(s.events[it], s.config) }
+        val parts = range.map { eventText(s.events[it]) }
         val joined = parts.joinToString(" + ")
         return if (joined.length <= MAX_CAPTION_PART) joined else "${parts.size} blocks"
     }
@@ -660,7 +766,7 @@ internal class NotationPanel(
             for (event in s.events) {
                 val x1 = grid.xOfCell(event.startUnits.toDouble() / s.config.cellUnits) + 1.0
                 val x2 = grid.xOfCell(event.endUnits.toDouble() / s.config.cellUnits) - 1.0
-                drawBlock(g2, event, s.config, BlockBox(x1, x2, top, top + blockH))
+                drawBlock(g2, event, BlockBox(x1, x2, top, top + blockH))
             }
             drawHoveredBlock(g2, s, top, blockH)
             drawSelection(g2, s, top, blockH)
@@ -704,13 +810,13 @@ internal class NotationPanel(
     private fun drawBlock(
         g2: Graphics2D,
         event: Event,
-        config: Config,
         box: BlockBox,
     ) {
         if (box.width <= 1.0) return
         val note = event.kind == TapKind.NOTE
+        val shape: Shape
         if (note) {
-            val r = minOf(6.0, box.width / 2, box.height / 2)
+            val r = cornerRadius(event, box.width, box.height)
             g2.paint =
                 GradientPaint(
                     box.x1.toFloat(),
@@ -720,35 +826,61 @@ internal class NotationPanel(
                     0f,
                     Theme.accent2,
                 )
-            g2.fill(rr(box.x1, box.top, box.width, box.height, r))
+            shape = rr(box.x1, box.top, box.width, box.height, r)
+            g2.fill(shape)
         } else {
             g2.color = Theme.warn.alpha(35)
-            g2.fill(rr(box.x1, box.top, box.width, box.height, 4.0))
+            shape = rr(box.x1, box.top, box.width, box.height, 4.0)
+            g2.fill(shape)
             g2.color = Theme.warn.alpha(150)
             g2.stroke = BasicStroke(1.2f)
             g2.draw(rr(box.x1 + 0.5, box.top + 0.5, box.width - 1, box.height - 1, 4.0))
         }
-        drawToken(g2, event, config, box, if (note) Theme.onAccent else Theme.warn)
+        drawDurationStripe(g2, event, shape)
+        drawLabel(g2, event, box, if (note) Theme.onAccent else Theme.warn)
     }
 
-    /** The LilyPond text of a block, drawn in it when there is room for it. */
-    private fun drawToken(
+    /**
+     * The duration stripe at the foot of a block.
+     *
+     * The block says what the note is (its pitch) and how long it is (its width); the stripe
+     * says how long it is again, in a second channel: the deeper the stripe, the longer the
+     * note. It is drawn inside the block, so it follows its shape.
+     *
+     * @param g2 the graphics context.
+     * @param event the event the block shows.
+     * @param shape the shape of the block.
+     */
+    private fun drawDurationStripe(
         g2: Graphics2D,
         event: Event,
-        config: Config,
+        shape: Shape,
+    ) {
+        val depth = durationDepth(event.lengthUnits)
+        g2.color = Theme.faint.mix(Theme.text, depth)
+        val bounds = shape.bounds2D
+        val clip = g2.clip
+        val area = Area(shape)
+        if (clip != null) area.intersect(Area(clip))
+        g2.clip = area
+        g2.fill(Rectangle2D.Double(bounds.x, bounds.maxY - STRIPE_H, bounds.width, STRIPE_H))
+        g2.clip = clip
+    }
+
+    /** The name of the note, drawn in the block when there is room for it. */
+    private fun drawLabel(
+        g2: Graphics2D,
+        event: Event,
         box: BlockBox,
         color: Color,
     ) {
-        val units = event.lengthUnits
-        val name = if (event.kind == TapKind.NOTE) config.pitch else "r"
-        val sep = if (event.kind == TapKind.NOTE) " ~ " else " "
-        val token = decompose(units).joinToString(sep) { name + lilyDuration(it) }
+        val label = event.pitch?.scientific ?: REST_LABEL
         g2.font = Theme.font(11f, Font.BOLD)
         val fm = g2.fontMetrics
-        if (fm.stringWidth(token) > box.width - 10) return
+        if (fm.stringWidth(label) > box.width - 10) return
         g2.color = color
-        val tx = (box.centerX - fm.stringWidth(token) / 2.0).toFloat()
-        g2.drawString(token, tx, (box.centerY + fm.ascent / 2.0 - 1).toFloat())
+        val tx = (box.centerX - fm.stringWidth(label) / 2.0).toFloat()
+        g2.drawString(label, tx, (box.centerY + fm.ascent / 2.0 - 1).toFloat())
     }
 
     /** A soft band behind a range of blocks, so it reads as one thing. */
@@ -768,7 +900,13 @@ internal class NotationPanel(
         g2.fill(Rectangle2D.Double(x1, top - 4, x2 - x1, hh + 8))
     }
 
-    /** An accent ring around every selected block. */
+    /**
+     * A ring around every selected block.
+     *
+     * The ring is the text colour, not the accent: the blocks are painted in the accent
+     * colours, and a ring in the accent would disappear into the block it surrounds. A glow
+     * is drawn under the ring, so the block also stands out from the strip around it.
+     */
     private fun drawSelection(
         g2: Graphics2D,
         s: Score,
@@ -776,13 +914,20 @@ internal class NotationPanel(
         hh: Double,
     ) {
         val range = selectedRange(s) ?: return
-        g2.color = Theme.accent
-        g2.stroke = BasicStroke(2f)
         for (index in range) {
             val event = s.events[index]
             val x1 = grid.xOfCell(event.startUnits.toDouble() / s.config.cellUnits) + 1.0
             val x2 = grid.xOfCell(event.endUnits.toDouble() / s.config.cellUnits) - 1.0
-            g2.draw(rr(x1 - 1, top - 1, x2 - x1 + 2, hh + 2, 6.0))
+            val ring = ringShape(event, x1, x2, top, hh)
+            // The glow: the same ring, wider and fainter, so the light falls off outwards.
+            for ((width, a) in glows) {
+                g2.color = Theme.text.alpha(a)
+                g2.stroke = BasicStroke(width)
+                g2.draw(ring)
+            }
+            g2.color = Theme.text
+            g2.stroke = BasicStroke(RING_WIDTH.toFloat())
+            g2.draw(ring)
         }
     }
 
@@ -858,6 +1003,12 @@ internal class NotationPanel(
 
         /** How long the "before" part of a caption may be before it is shortened. */
         private const val MAX_CAPTION_PART = 24
+
+        /** How tall the duration stripe at the foot of a block is, in pixels. */
+        private const val STRIPE_H = 4.0
+
+        /** What a rest says in its block: it has no pitch. */
+        private const val REST_LABEL = "R"
 
         /** What the header says when nothing is selected. */
         const val NOTHING_SELECTED = "Nothing selected"

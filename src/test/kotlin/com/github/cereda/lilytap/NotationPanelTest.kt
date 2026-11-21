@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.awt.Color
 import java.awt.event.InputEvent
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
+import java.awt.geom.Point2D
+import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
 import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** The score strip: selecting blocks, editing them, and dragging a border to resize it. */
 class NotationPanelTest {
-    private val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
-    private val wide = Config(60.0, TimeSignature(4, 4), 2, 2, 0.0, "c")
+    private val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0)
+    private val wide = Config(60.0, TimeSignature(4, 4), 2, 2, 0.0)
 
     /** The internal units in a grid cell of these configurations. */
     private val cellUnits = 8
@@ -26,7 +31,8 @@ class NotationPanelTest {
         kind: TapKind,
         start: Int,
         length: Int,
-    ) = Event(kind, start * cellUnits, length * cellUnits)
+        pitch: Pitch? = if (kind == TapKind.NOTE) Pitch.DEFAULT else null,
+    ) = Event(kind, start * cellUnits, length * cellUnits, pitch)
 
     private fun panel(config: Config = this.config): Pair<NotationPanel, GridView> {
         val grid =
@@ -108,9 +114,9 @@ class NotationPanelTest {
         panel.onEdit = { edited = it }
         click(panel, grid.xOfCell(1.0).toInt())
         assertEquals(1, panel.selectedBlocks)
-        assertEquals("c4 selected", panel.caption)
+        assertEquals("c'4 selected", panel.caption)
         assertNull(edited, "a click only selects")
-        assertEquals("c4 c4 c2 |", panel.score?.lilypond)
+        assertEquals("c'4 c'4 c'2 |", panel.score?.lilypond)
     }
 
     @Test
@@ -151,10 +157,10 @@ class NotationPanelTest {
         panel.score = score()
         press(panel, KeyEvent.VK_RIGHT)
         assertEquals(1, panel.selectedBlocks)
-        assertEquals("c4 selected", panel.caption)
+        assertEquals("c'4 selected", panel.caption)
         press(panel, KeyEvent.VK_RIGHT)
         press(panel, KeyEvent.VK_RIGHT)
-        assertEquals("c2 selected", panel.caption)
+        assertEquals("c'2 selected", panel.caption)
     }
 
     // -------------------------------------------------------------------------------------------
@@ -174,7 +180,7 @@ class NotationPanelTest {
             ),
             panel.score?.events,
         )
-        assertEquals("r4 c4 c2 |", panel.score?.lilypond)
+        assertEquals("r4 c'4 c'2 |", panel.score?.lilypond)
     }
 
     @Test
@@ -203,7 +209,7 @@ class NotationPanelTest {
             ),
             panel.score?.events,
         )
-        assertEquals("c4 → c8 c8", panel.caption)
+        assertEquals("c'4 → c'8 c'8", panel.caption)
     }
 
     @Test
@@ -217,7 +223,7 @@ class NotationPanelTest {
             listOf(event(TapKind.REST, 0, 6), event(TapKind.NOTE, 6, 2)),
             panel.score?.events,
         )
-        assertEquals("c4 r2. → r2. c4", panel.caption)
+        assertEquals("c'4 r2. → r2. c'4", panel.caption)
     }
 
     @Test
@@ -244,7 +250,7 @@ class NotationPanelTest {
             ),
             panel.score?.events,
         )
-        assertEquals("r4 c4 → c4 r2", panel.caption)
+        assertEquals("r4 c'4 → c'4 r2", panel.caption)
     }
 
     @Test
@@ -258,7 +264,7 @@ class NotationPanelTest {
             listOf(event(TapKind.NOTE, 0, 4), event(TapKind.NOTE, 4, 4)),
             panel.score?.events,
         )
-        assertEquals("c4 + c4 → c2", panel.caption)
+        assertEquals("c'4 + c'4 → c'2", panel.caption)
     }
 
     @Test
@@ -272,7 +278,7 @@ class NotationPanelTest {
         click(panel, grid.xOfCell(0.5).toInt())
         click(panel, grid.xOfCell(10.5).toInt(), shift = true)
         press(panel, KeyEvent.VK_M)
-        assertEquals("6 blocks → c1.", panel.caption)
+        assertEquals("6 blocks → c'1.", panel.caption)
     }
 
     @Test
@@ -280,7 +286,7 @@ class NotationPanelTest {
         val (panel, grid) = panel()
         panel.score = score()
         doubleClick(panel, grid.xOfCell(1.0).toInt())
-        assertEquals("c4 → r4", panel.caption)
+        assertEquals("c'4 → r4", panel.caption)
     }
 
     @Test
@@ -301,6 +307,133 @@ class NotationPanelTest {
         press(panel, KeyEvent.VK_S)
         assertEquals(2, panel.selectedBlocks)
         assertTrue(panel.canMerge)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The pitch of a block
+    // -------------------------------------------------------------------------------------------
+
+    /** A sharp C an octave up: C♯5. */
+    private val sharp = Pitch(PitchStep.C, 1, 5)
+
+    @Test
+    fun `the pitch of the selected block is reported`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertEquals(Pitch.DEFAULT, panel.selectedPitch)
+    }
+
+    @Test
+    fun `a block that is not selected has no pitch to report`() {
+        val (panel, _) = panel()
+        panel.score = score()
+        assertNull(panel.selectedPitch)
+    }
+
+    @Test
+    fun `a rest has no pitch`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 4),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertNull(panel.selectedPitch)
+    }
+
+    @Test
+    fun `a range of blocks has no single pitch`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        click(panel, grid.xOfCell(2.5).toInt(), shift = true)
+        assertNull(panel.selectedPitch)
+    }
+
+    @Test
+    fun `setting the pitch of the selected block changes the score`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        var edited: Score? = null
+        panel.onEdit = { edited = it }
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertTrue(panel.setSelectedPitch(sharp))
+        assertEquals(
+            sharp,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+        )
+        assertEquals(sharp, edited?.events?.get(0)?.pitch)
+    }
+
+    @Test
+    fun `the caption says what the pitch edit did`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        panel.setSelectedPitch(sharp)
+        assertEquals("C4 → C♯5", panel.caption)
+    }
+
+    @Test
+    fun `the pitch of a block can be undone`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        panel.setSelectedPitch(sharp)
+        panel.undo()
+        assertEquals(
+            Pitch.DEFAULT,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+        )
+    }
+
+    @Test
+    fun `setting the pitch of nothing does nothing`() {
+        val (panel, _) = panel()
+        panel.score = score()
+        assertFalse(panel.setSelectedPitch(sharp))
+        assertEquals(
+            Pitch.DEFAULT,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+        )
+    }
+
+    @Test
+    fun `setting the pitch of a rest does nothing`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 4),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertFalse(panel.setSelectedPitch(sharp))
+    }
+
+    @Test
+    fun `setting the pitch a block already has does nothing`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertFalse(panel.setSelectedPitch(Pitch.DEFAULT))
+        assertFalse(panel.canUndo, "nothing happened, so there is nothing to undo")
     }
 
     // -------------------------------------------------------------------------------------------
@@ -365,7 +498,7 @@ class NotationPanelTest {
         assertEquals(4, panel.score?.events?.size)
         press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
         assertEquals(3, panel.score?.events?.size)
-        assertEquals("c4 c4 c2 |", panel.score?.lilypond)
+        assertEquals("c'4 c'4 c'2 |", panel.score?.lilypond)
     }
 
     @Test
@@ -374,9 +507,9 @@ class NotationPanelTest {
         panel.score = score()
         click(panel, grid.xOfCell(0.5).toInt())
         press(panel, KeyEvent.VK_S)
-        assertEquals("c4 → c8 c8", panel.caption)
+        assertEquals("c'4 → c'8 c'8", panel.caption)
         press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
-        assertEquals("c4 selected", panel.caption)
+        assertEquals("c'4 selected", panel.caption)
         assertEquals(1, panel.selectedBlocks)
     }
 
@@ -389,7 +522,7 @@ class NotationPanelTest {
         press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
         press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK)
         assertEquals(4, panel.score?.events?.size)
-        assertEquals("c4 → c8 c8", panel.caption)
+        assertEquals("c'4 → c'8 c'8", panel.caption)
     }
 
     @Test
@@ -511,6 +644,119 @@ class NotationPanelTest {
     }
 
     @Test
+    fun `the ring around a selected block does not look like the block`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+
+        val without = paint(panel)
+        click(panel, grid.xOfCell(1.0).toInt())
+        val with = paint(panel)
+
+        val ink = differingPixels(without, with)
+        assertTrue(ink.isNotEmpty(), "the selection should draw something")
+        assertTrue(
+            ink.any { it == Theme.text.rgb },
+            "the ring should be drawn in the text colour, so it stands out from the block",
+        )
+        assertTrue(
+            ink.none { it == Theme.accent.rgb },
+            "the ring should not be the colour of the block it surrounds",
+        )
+    }
+
+    @Test
+    fun `the ring follows the shape of the block`() {
+        val x1 = 1.0
+        val x2 = 49.0
+        val top = 13.0
+        val height = 30.0
+        val note = event(TapKind.NOTE, 0, 2)
+        val block =
+            rr(x1, top, x2 - x1, height, cornerRadius(note, x2 - x1, height)) as RoundRectangle2D
+        val ring = ringShape(note, x1, x2, top, height) as RoundRectangle2D
+
+        // The ring and the block share the centre of their corner: the ring follows the shape
+        // of the block instead of floating over it.
+        assertEquals(block.x + block.arcWidth / 2, ring.x + ring.arcWidth / 2, 0.001)
+        assertEquals(block.y + block.arcHeight / 2, ring.y + ring.arcHeight / 2, 0.001)
+    }
+
+    @Test
+    fun `the ring leaves no sliver of strip between the block and itself`() {
+        val x1 = 1.0
+        val x2 = 49.0
+        val top = 13.0
+        val height = 30.0
+        val note = event(TapKind.NOTE, 0, 2)
+        val ring = ringShape(note, x1, x2, top, height) as RoundRectangle2D
+
+        // The inner edge of the ring is inside the block, so the strip cannot show between
+        // the two, not even in the corner.
+        val inner = ring.arcWidth / 2 - RING_WIDTH / 2
+        val edge = cornerRadius(note, x2 - x1, height)
+        assertTrue(
+            inner < edge,
+            "the ring should reach into the block: $inner against $edge",
+        )
+    }
+
+    @Test
+    fun `the ring covers the corner of the block`() {
+        // A block with rounded corners: the corners of its box are not part of the block, and
+        // the ring has to reach over that notch.
+        val x1 = 1.0
+        val x2 = 49.0
+        val top = 13.0
+        val height = 30.0
+        val note = event(TapKind.NOTE, 0, 2)
+        val ring = ringShape(note, x1, x2, top, height) as RoundRectangle2D
+
+        // The tip of the corner of the block: the point where its edges would meet.
+        val tip = Point2D.Double(x1, top)
+        // The centre of the corner of the ring: the arc sits in the corner of its box.
+        val centre =
+            Point2D.Double(
+                ring.x + ring.arcWidth / 2,
+                ring.y + ring.arcHeight / 2,
+            )
+        // The tip is as far from the centre as the radius of the corner times the square root
+        // of two: that is how far the notch of the corner reaches.
+        val notch = cornerRadius(note, x2 - x1, height) * sqrt(2.0)
+        val reach = ring.arcWidth / 2 + RING_WIDTH / 2
+        assertTrue(
+            tip.distance(centre) <= reach,
+            "the ring should reach the corner of the block",
+        )
+        assertTrue(
+            reach >= notch,
+            "the ring should reach over the notch of the corner: $reach against $notch",
+        )
+    }
+
+    @Test
+    fun `the ring around a selected block has a glow`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+
+        val without = paint(panel)
+        click(panel, grid.xOfCell(1.0).toInt())
+        val with = paint(panel)
+
+        // The block sits at y=13 and the ring runs along its top edge, so a few pixels above
+        // it are lit by the glow alone.
+        assertTrue(
+            with.getRGB(20, 9) != without.getRGB(20, 9),
+            "the glow should reach outside the ring",
+        )
+        // The glow does not spread over the whole strip.
+        assertEquals(
+            without.getRGB(20, 5),
+            with.getRGB(20, 5),
+            "the glow should not spread too far",
+        )
+    }
+
+    @Test
     fun `the empty hint is vertically centred in the strip`() {
         val (panel, _) = panel()
         panel.setSize(400, 68)
@@ -539,5 +785,100 @@ class NotationPanelTest {
             abs(centreY - (image.height / 2.0)) <= 4.0,
             "hint centre $centreY is far from panel centre ${image.height / 2}",
         )
+    }
+
+    @Test
+    fun `the duration stripe is drawn at the foot of a block`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.NOTE, 0, 4),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        val image = paint(panel)
+
+        val x = grid.xOfCell(0.0).toInt() + STRIPE_X
+        val stripe = Color(image.getRGB(x, STRIPE_Y))
+        val fill = Color(image.getRGB(x, STRIPE_Y - 6))
+        assertNotEquals(fill, stripe, "the stripe is drawn over the fill of the block")
+        assertEquals(Theme.faint.mix(Theme.text, durationDepth(4 * cellUnits)), stripe)
+    }
+
+    @Test
+    fun `the stripe of a long note is deeper than the stripe of a short one`() {
+        val (panel, grid) = panel()
+        val x = grid.xOfCell(0.0).toInt() + STRIPE_X
+
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.NOTE, 0, 1),
+                    event(TapKind.NOTE, 1, 7),
+                ),
+                config,
+            )
+        val short = Color(paint(panel).getRGB(x, STRIPE_Y))
+
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.NOTE, 0, 7),
+                    event(TapKind.NOTE, 7, 1),
+                ),
+                config,
+            )
+        val long = Color(paint(panel).getRGB(x, STRIPE_Y))
+
+        assertTrue(
+            distance(long, Theme.text) < distance(short, Theme.text),
+            "the stripe of the long note should be closer to the text colour",
+        )
+    }
+
+    /** Paints the strip and returns the image it drew on. */
+    private fun paint(panel: NotationPanel): BufferedImage {
+        val image = BufferedImage(400, 56, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        panel.paint(graphics)
+        graphics.dispose()
+        return image
+    }
+
+    /** The colours of the pixels where the two images are different, as the second one has them. */
+    private fun differingPixels(
+        a: BufferedImage,
+        b: BufferedImage,
+    ): List<Int> {
+        val ink = mutableListOf<Int>()
+        for (y in 0 until a.height) {
+            for (x in 0 until a.width) {
+                val first = a.getRGB(x, y)
+                val second = b.getRGB(x, y)
+                if (first != second) ink += second
+            }
+        }
+        return ink
+    }
+
+    /** How far two colours are from each other. */
+    private fun distance(
+        a: Color,
+        b: Color,
+    ): Double =
+        sqrt(
+            (a.red - b.red).toDouble() * (a.red - b.red) +
+                (a.green - b.green).toDouble() * (a.green - b.green) +
+                (a.blue - b.blue).toDouble() * (a.blue - b.blue),
+        )
+
+    companion object {
+        /** The row of the duration stripe in a strip that is 56 pixels high. */
+        private const val STRIPE_Y = 41
+
+        /** How far from the left edge of a block the stripe is read. */
+        private const val STRIPE_X = 13
     }
 }

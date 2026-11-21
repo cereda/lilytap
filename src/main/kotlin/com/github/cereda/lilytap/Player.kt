@@ -11,7 +11,7 @@ import kotlin.math.PI
 import kotlin.math.roundToLong
 import kotlin.math.sin
 
-/** How playback sounds: the score's pitch, or a percussive click on every note onset. */
+/** How playback sounds: the score's pitches, or a percussive click on every note onset. */
 enum class PlaybackSound { NOTE, BEAT }
 
 /** Breathing room between [Player.play] and the first event, so the thread is ready in time. */
@@ -21,9 +21,9 @@ private const val PLAYBACK_LEAD_NANOS = 40_000_000L
  * Plays a [Score] through the default audio output, advancing a playhead across its events.
  *
  * Each [Event] is played at its grid position: notes sound for [Event.lengthUnits] units, rests
- * are silence. [PlaybackSound.NOTE] plays the pitch letter as a tone; [PlaybackSound.BEAT] plays a
- * short click at the note onset instead, with an accent on bar downbeats. Playback runs on its
- * own thread and reports the current position in milliseconds via [onPosition].
+ * are silence. [PlaybackSound.NOTE] plays the pitch of the note as a tone; [PlaybackSound.BEAT]
+ * plays a short click at the note onset instead, with an accent on bar downbeats. Playback runs
+ * on its own thread and reports the current position in milliseconds via [onPosition].
  *
  * Audio output latency cannot be reliably auto-measured through the Java Sound API, so the caller
  * must supply [audioLatencyMs] (the window's **Audio latency** setting). Playback is shifted
@@ -59,21 +59,6 @@ class Player(
         } catch (_: Exception) {
             null
         }
-
-    /** Frequency in Hz for a pitch letter (c = middle C). Unknown letters fall back to middle C. */
-    private fun pitchFrequency(pitch: String): Double {
-        val name = pitch.trim().take(1).lowercase()
-        return when (name) {
-            "c" -> 261.63
-            "d" -> 293.66
-            "e" -> 329.63
-            "f" -> 349.23
-            "g" -> 392.00
-            "a" -> 440.00
-            "b" -> 493.88
-            else -> 261.63
-        }
-    }
 
     /** Sine-tone samples for [freq] Hz lasting [seconds], with ADSR envelope and a second harmonic. */
     private fun toneSamples(
@@ -165,11 +150,10 @@ class Player(
         val thread =
             thread(isDaemon = true, name = "playback") {
                 val config = score.config
-                val freq = pitchFrequency(config.pitch)
 
                 try {
                     for (event in score.events) {
-                        if (!advanceEvent(event, origin, config, freq, latencyNanos, onPosition)) break
+                        if (!advanceEvent(event, origin, config, latencyNanos, onPosition)) break
                     }
                 } finally {
                     playing.set(false)
@@ -196,7 +180,6 @@ class Player(
         event: Event,
         startNanos: Long,
         config: Config,
-        freq: Double,
         latencyNanos: Long,
         onPosition: (Double) -> Unit,
     ): Boolean {
@@ -209,6 +192,7 @@ class Player(
         if (event.kind == TapKind.NOTE) {
             when (sound) {
                 PlaybackSound.NOTE -> {
+                    val freq = event.pitch?.frequency ?: Pitch.DEFAULT.frequency
                     playSamples(toneSamples(freq, event.lengthUnits * config.unitMs / 1000.0))
                 }
 

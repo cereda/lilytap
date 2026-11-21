@@ -114,6 +114,6 @@ class ThreeFeelTest {
         // the grid of the note value.
         val taps = (0 until 6).map { Tap(it * 1000.0 / 3, TapKind.NOTE) }
         assertEquals(transcribe(taps, compound).lilypond, transcribe(taps, threeFeel).lilypond)
-        assertEquals("c8 c8 c8 c8 c8 c8 |", transcribe(taps, threeFeel).lilypond)
+        assertEquals("c'8 c'8 c'8 c'8 c'8 c'8 |", transcribe(taps, threeFeel).lilypond)
     }
 }

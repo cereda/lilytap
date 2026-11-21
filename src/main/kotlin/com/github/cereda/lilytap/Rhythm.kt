@@ -111,7 +111,6 @@ data class TimeSignature(
  * itself (eighths in 6/8), 2 = half of it (sixteenths), 4 = a quarter of it (thirty-seconds).
  * @property bars number of bars to record after the one-bar count-in.
  * @property latencyMs constant delay (audio output + reaction) subtracted from every tap.
- * @property pitch placeholder pitch printed in the LilyPond output.
  * @property noRests when true, every silence is absorbed into the note before it, so the
  * transcription never contains a rest. A silence before the very first note has no note to join
  * and stays a rest.
@@ -125,7 +124,6 @@ data class Config(
     val subdivisions: Int,
     val bars: Int,
     val latencyMs: Double = 0.0,
-    val pitch: String = "c",
     val noRests: Boolean = false,
     val threeFeel: Boolean = false,
 ) {
@@ -137,7 +135,6 @@ data class Config(
         }
         require(bars >= 1) { "Need at least one bar" }
         require(latencyMs.isFinite()) { "Latency must be finite" }
-        require(pitch.isNotBlank()) { "Pitch must not be blank" }
     }
 
     /** Internal grid units in a single cell. */
@@ -381,6 +378,9 @@ fun quantize(
  *
  * Two rests in a row are written as a single, longer rest.
  *
+ * Every note starts on middle C: a take says when the notes sound, not which ones they are,
+ * and the pitches are set afterwards, on the score itself.
+ *
  * @param onsets the snapped onsets, in grid order.
  * @param config the session configuration: it says how long the score is and how many
  * internal units a grid cell holds.
@@ -407,7 +407,8 @@ fun buildEvents(
     val cell = config.cellUnits
     return all.mapIndexed { i, onset ->
         val end = all.getOrNull(i + 1)?.cell ?: config.totalCells
-        Event(onset.kind, onset.cell * cell, (end - onset.cell) * cell)
+        val pitch = if (onset.kind == TapKind.NOTE) Pitch.DEFAULT else null
+        Event(onset.kind, onset.cell * cell, (end - onset.cell) * cell, pitch)
     }
 }
 

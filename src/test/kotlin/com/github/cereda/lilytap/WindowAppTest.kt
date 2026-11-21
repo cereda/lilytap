@@ -5,7 +5,6 @@ import java.awt.Container
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
-import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,11 +14,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class WindowAppTest {
-    private val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0, "c")
+    private val config = Config(60.0, TimeSignature(4, 4), 2, 1, 0.0)
 
     private val score =
         Score(
-            listOf(Event(TapKind.NOTE, 0, 64)),
+            listOf(Event(TapKind.NOTE, 0, 64, Pitch.DEFAULT)),
             config,
         )
 
@@ -235,15 +234,15 @@ class WindowAppTest {
                 ?: error("output field not found")
         outputField.isAccessible = true
         val output = outputField.get(app) as CodeArea
-        assertEquals("c2 c2 |", output.text)
+        assertEquals("c'2 c'2 |", output.text)
 
         // The header says what happened, and the split button is off for a range.
         val captionField =
             WindowApp::class.java.declaredFields.find { it.name == "scoreCaption" }
                 ?: error("scoreCaption field not found")
         captionField.isAccessible = true
-        val caption = captionField.get(app) as JLabel
-        assertEquals("c1 → c2 c2", caption.text)
+        val caption = captionField.get(app) as CaptionLabel
+        assertEquals("c'1 → c'2 c'2", caption.text)
 
         val splitField =
             WindowApp::class.java.declaredFields.find { it.name == "splitButton" }
@@ -251,6 +250,191 @@ class WindowAppTest {
         splitField.isAccessible = true
         val split = splitField.get(app) as PillButton
         assertFalse(split.isEnabled, "a range of two blocks cannot be split again")
+    }
+
+    @Test
+    fun `the LilyPond text cannot be typed over`() {
+        val app = WindowApp()
+        val field = output(app)
+        assertFalse(field.isEditable, "the text is generated, so it cannot be edited by hand")
+    }
+
+    @Test
+    fun `the pitch field is off and empty when nothing is selected`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val field = styledField(app, "pitchField")
+        assertFalse(field.isEnabled, "there is no note to give a pitch to")
+        assertEquals("", field.text)
+    }
+
+    @Test
+    fun `the pitch field shows the pitch of the selected note`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        val field = styledField(app, "pitchField")
+        assertTrue(field.isEnabled, "a note is selected, so it can be given a pitch")
+        assertEquals("c'", field.text, "middle C is written the way LilyPond writes it")
+    }
+
+    @Test
+    fun `the pitch field puts the name on the selected note`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        val field = styledField(app, "pitchField")
+        field.text = "cis'"
+        applyPitch(app)
+
+        assertEquals("cis'1 |", output(app).text, "the LilyPond text follows the new pitch")
+        assertFalse(field.invalid, "the name was read")
+    }
+
+    @Test
+    fun `the pitch field writes the name back the way LilyPond writes it`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        val field = styledField(app, "pitchField")
+        field.text = " cis "
+        applyPitch(app)
+
+        assertEquals("cis1 |", output(app).text, "the name without a mark is the C below middle C")
+        assertEquals("cis", field.text, "the field says the name in its own spelling")
+    }
+
+    @Test
+    fun `a name that cannot be read turns the border of the field red`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        val field = styledField(app, "pitchField")
+        field.text = "h"
+        applyPitch(app)
+
+        assertTrue(field.invalid, "the name is not a note")
+        assertEquals("c'1 |", output(app).text, "the score is left alone")
+    }
+
+    @Test
+    fun `the pitch edit can be undone`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        val field = styledField(app, "pitchField")
+        field.text = "cis'"
+        applyPitch(app)
+        assertEquals("cis'1 |", output(app).text)
+
+        notation(app).undo()
+        assertEquals("c'1 |", output(app).text, "the pitch comes back")
+    }
+
+    @Test
+    fun `the playback clears the selection`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+        assertNotNull(notation(app).selection, "a block is selected to begin with")
+
+        val startPlayback = WindowApp::class.java.getDeclaredMethod("startPlayback")
+        startPlayback.isAccessible = true
+        startPlayback.invoke(app)
+
+        assertNull(
+            notation(app).selection,
+            "the playhead sweeps the strip, so the selection goes away",
+        )
+        assertEquals(
+            NotationPanel.NOTHING_SELECTED,
+            caption(app).text,
+            "the message of the header follows the selection",
+        )
+
+        val stopPlayback = WindowApp::class.java.getDeclaredMethod("stopPlayback")
+        stopPlayback.isAccessible = true
+        stopPlayback.invoke(app)
+    }
+
+    @Test
+    fun `a click outside the editor clears the selection`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+        assertNotNull(notation(app).selection, "a block is selected to begin with")
+
+        // The timeline is a part of the window, but not a part of the editor.
+        val timeline = timeline(app)
+        timeline.dispatchEvent(MouseEvent(timeline, MouseEvent.MOUSE_PRESSED, 0, 0, 10, 10, 1, false))
+
+        assertNull(
+            notation(app).selection,
+            "the user has moved on to another component, so the selection goes away",
+        )
+        assertEquals(
+            NotationPanel.NOTHING_SELECTED,
+            caption(app).text,
+            "the message of the header follows the selection",
+        )
+    }
+
+    @Test
+    fun `a click on the editor keeps the selection`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        // The pitch field acts on the selected note.
+        val field = styledField(app, "pitchField")
+        field.dispatchEvent(MouseEvent(field, MouseEvent.MOUSE_PRESSED, 0, 0, 10, 10, 1, false))
+        assertNotNull(notation(app).selection, "the pitch field keeps the selection")
+
+        // The edit buttons act on the selected blocks.
+        val split = button(app, "splitButton")
+        split.dispatchEvent(MouseEvent(split, MouseEvent.MOUSE_PRESSED, 0, 0, 10, 10, 1, false))
+        assertNotNull(notation(app).selection, "the edit buttons keep the selection")
     }
 
     @Test
@@ -301,15 +485,15 @@ class WindowAppTest {
         notation.handleKey(KeyEvent.VK_S)
 
         val output = output(app)
-        assertEquals("c2 c2 |", output.text)
+        assertEquals("c'2 c'2 |", output.text)
 
         val revertScore = WindowApp::class.java.getDeclaredMethod("revertScore")
         revertScore.isAccessible = true
         revertScore.invoke(app)
-        assertEquals("c1 |", output.text, "the score is back the way the take ended")
+        assertEquals("c'1 |", output.text, "the score is back the way the take ended")
 
         notation.undo()
-        assertEquals("c2 c2 |", output.text, "the split comes back")
+        assertEquals("c'2 c'2 |", output.text, "the split comes back")
     }
 
     @Test
@@ -573,45 +757,197 @@ class WindowAppTest {
     }
 
     @Test
-    fun `the helper message is never cropped`() {
+    fun `the helper message fits the header`() {
         val app = WindowApp()
 
         val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
         showScore.isAccessible = true
         showScore.invoke(app, score)
 
-        val captionField =
-            WindowApp::class.java.declaredFields.find { it.name == "scoreCaption" }
-                ?: error("scoreCaption field not found")
-        captionField.isAccessible = true
-        val caption = captionField.get(app) as JLabel
+        val caption = caption(app)
+        val header = header(app)
 
-        val headerField =
-            WindowApp::class.java.declaredFields.find { it.name == "scoreHeader" }
-                ?: error("scoreHeader field not found")
-        headerField.isAccessible = true
-        val header = headerField.get(app) as JComponent
+        layOutStage(app)
 
-        // The widest message the header can show: a long take can have hundreds of blocks.
+        assertEquals(
+            CAPTION_WIDTH,
+            caption.width,
+            "the message should have the whole room of the header",
+        )
+
+        // The widest messages the header can show: a long take can have hundreds of blocks.
         for (
         text in
         listOf(
             "512 blocks selected",
-            "12 blocks → c1.",
+            "12 blocks → c'1.",
             "Nothing selected",
             "Reverted to the take",
         )
         ) {
             caption.text = text
-            header.setSize(header.preferredSize)
-            layOut(header)
+            layOutStage(app)
             val fm = caption.getFontMetrics(caption.font)
             assertTrue(
-                caption.width >= fm.stringWidth(text),
-                "the message \"$text\" is cropped: it needs ${fm.stringWidth(text)} pixels " +
-                    "but the header gives it ${caption.width}",
+                fm.stringWidth(caption.fitted(caption.width)) <= caption.width,
+                "the message \"$text\" does not fit the header",
+            )
+            assertEquals(
+                text,
+                caption.fitted(caption.width),
+                "the message \"$text\" should be shown in full",
             )
         }
+    }
+
+    @Test
+    fun `a message that is too long is shortened and keeps the header in place`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val caption = caption(app)
+        val header = header(app)
+
+        caption.text = "ces'4 → ces'8 ces'8 → ces'16 ces'16 → ces'32 ces'32 and more"
+        layOutStage(app)
+
+        val fitted = caption.fitted(caption.width)
+        assertTrue(fitted.endsWith("…"), "the message should be marked as shortened: $fitted")
+        assertTrue(
+            fitted.length < caption.text.length,
+            "the message should be shorter: $fitted",
+        )
+        assertTrue(
+            caption.preferredSize.width <= CAPTION_WIDTH,
+            "the message should not make the label ask for more than $CAPTION_WIDTH pixels",
+        )
+        assertTrue(
+            header.preferredSize.width <= STAGE_WIDTH,
+            "the header should not ask for more than the stage has: " +
+                "${header.preferredSize.width} > $STAGE_WIDTH",
+        )
+    }
+
+    @Test
+    fun `the message of a split is shown in full`() {
+        val app = WindowApp()
+
+        // A note with a flat: its name is long, so the message of a split is long too.
+        val flat = Pitch(PitchStep.C, -1, 4)
+        val long =
+            Score(
+                listOf(
+                    Event(TapKind.NOTE, 0, 32, flat),
+                    Event(TapKind.NOTE, 32, 32, Pitch.DEFAULT),
+                ),
+                config,
+            )
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, long)
+
+        selectTheFirstBlock(app)
+        notation(app).splitSelected()
+        layOutStage(app)
+
+        val caption = caption(app)
+        assertEquals("ces'2 → ces'4 ces'4", caption.text)
+        assertEquals(
+            caption.text,
+            caption.fitted(caption.width),
+            "the message of a split should be shown in full",
+        )
+    }
+
+    @Test
+    fun `the score header never asks for more width than the stage has`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        val header = header(app)
+        layOutStage(app)
+
+        assertTrue(
+            header.preferredSize.width <= STAGE_WIDTH,
+            "the header should not ask for more than the stage has: " +
+                "${header.preferredSize.width} > $STAGE_WIDTH",
+        )
+    }
+
+    @Test
+    fun `the score header has no title of its own`() {
+        val app = WindowApp()
+
+        val header = header(app)
+        layOutStage(app)
+
+        // The strip below says what it is, so the header does not need a title of its own.
+        val titles = glyphLabels(header).filter { it.text.isNotEmpty() }
+        assertTrue(
+            titles.isEmpty(),
+            "the header should have no title: $titles",
+        )
+    }
+
+    @Test
+    fun `the revert button is a word in red`() {
+        val app = WindowApp()
+
+        val revertField =
+            WindowApp::class.java.declaredFields.find { it.name == "revert" }
+                ?: error("revert field not found")
+        revertField.isAccessible = true
+        val revert = revertField.get(app) as PillButton
+
+        assertEquals("Revert", revert.text)
+        assertNull(revert.glyph, "the button is the word alone: the reset arrow means something else")
+        assertEquals(ButtonKind.SEVERE, revert.kind)
+    }
+
+    @Test
+    fun `a long message does not push the score strip out of the window`() {
+        val app = WindowApp()
+
+        // A note with a flat: its name is long, so the message of a split is long too.
+        val flat = Pitch(PitchStep.C, -1, 4)
+        val long =
+            Score(
+                listOf(
+                    Event(TapKind.NOTE, 0, 32, flat),
+                    Event(TapKind.NOTE, 32, 32, Pitch.DEFAULT),
+                ),
+                config,
+            )
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, long)
+
+        selectTheFirstBlock(app)
+        notation(app).splitSelected()
+
+        // The message is now "ces'4 → ces'8 ces'8", the longest one the editor writes.
+        layOutStage(app)
+
+        assertEquals(68, notation(app).height, "the score strip keeps its height")
+        assertEquals(130, timeline(app).height, "the timeline keeps its height")
+        assertEquals(
+            timeline(app).width,
+            notation(app).width,
+            "the timeline and the score strip are the same width",
+        )
+        assertEquals(
+            STAGE_WIDTH,
+            notation(app).width,
+            "the score strip is as wide as the stage",
+        )
     }
 
     @Test
@@ -785,6 +1121,87 @@ class WindowAppTest {
                 ?: error("output field not found")
         field.isAccessible = true
         return field.get(app) as CodeArea
+    }
+
+    /** Clicks the only block of the score on the strip, so that it is selected. */
+    private fun selectTheOnlyBlock(app: WindowApp) {
+        val notation = notation(app)
+        val x = grid(app).xOfCell(0.5).toInt()
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false))
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false))
+    }
+
+    /** Clicks the first block of the score on the strip, so that it is selected. */
+    private fun selectTheFirstBlock(app: WindowApp) {
+        val notation = notation(app)
+        val x = grid(app).xOfCell(0.5).toInt()
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false))
+        notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false))
+    }
+
+    /** The message in the header of the score strip. */
+    private fun caption(app: WindowApp): CaptionLabel {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "scoreCaption" }
+                ?: error("scoreCaption field not found")
+        field.isAccessible = true
+        return field.get(app) as CaptionLabel
+    }
+
+    /** The header of the score strip. */
+    private fun header(app: WindowApp): JComponent {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "scoreHeader" }
+                ?: error("scoreHeader field not found")
+        field.isAccessible = true
+        return field.get(app) as JComponent
+    }
+
+    /** Every label with a glyph in a container, and in the containers inside it. */
+    private fun glyphLabels(container: Container): List<GlyphLabel> {
+        val labels = mutableListOf<GlyphLabel>()
+        for (child in container.components) {
+            if (child is GlyphLabel) labels += child
+            if (child is Container) labels += glyphLabels(child)
+        }
+        return labels
+    }
+
+    /** The timeline of the window. */
+    private fun timeline(app: WindowApp): TimelinePanel {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "timeline" }
+                ?: error("timeline field not found")
+        field.isAccessible = true
+        return field.get(app) as TimelinePanel
+    }
+
+    /** Lays the stage out, so the panels have the sizes they have in the window. */
+    private fun layOutStage(app: WindowApp) {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "stageBody" }
+                ?: error("stageBody field not found")
+        field.isAccessible = true
+        val body = field.get(app) as JPanel
+
+        // The stage is built when the window opens; the test builds it by itself, so no
+        // window has to be opened to lay it out. It is built only once, or the stage would
+        // hold every panel twice.
+        if (body.componentCount == 0) {
+            val build = WindowApp::class.java.getDeclaredMethod("buildStage")
+            build.isAccessible = true
+            build.invoke(app)
+        }
+
+        body.setSize(STAGE_WIDTH, STAGE_HEIGHT)
+        layOut(body)
+    }
+
+    /** Puts what is in the pitch field on the selected note. */
+    private fun applyPitch(app: WindowApp) {
+        val apply = WindowApp::class.java.getDeclaredMethod("applyPitchInput")
+        apply.isAccessible = true
+        apply.invoke(app)
     }
 }
 

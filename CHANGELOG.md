@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Every note of the score carries its own pitch. The header of the score strip has a **Pitch**
+  field: click a block, type the name of the note the way LilyPond writes it (`c'` for middle C,
+  `cis'` for a sharp, `ces'` for a flat, `c''` for an octave up, `c` for an octave down) and press
+  **Enter**. The strip shows the pitch in scientific notation (`C4`, `C♯5`), the LilyPond text and
+  the playback use it, and setting it is an edit like any other, so **Ctrl+Z** takes it back. A
+  note that has no pitch yet takes the pitch of the note before it, so filling a silence in the
+  middle of a melody does not change the melody.
+
+### Changed
+- The block of the score strip shows the pitch of the note instead of its LilyPond text, and a
+  stripe at its foot says how long the note is: the deeper the stripe, the longer the note. The
+  exact duration is still in the width of the block and in the LilyPond text.
+- The **Pitch** setting is gone from the settings card: the pitch belongs to the note now, not to
+  the take, and every note of a take starts on middle C.
+- The LilyPond text is read-only: it is generated from the score, so it cannot be typed over.
+- The notes of the LilyPond text carry their own pitch, so they are written with the octave mark
+  of that pitch: middle C is `c'`, the way LilyPond writes it, instead of the bare `c` of the old
+  placeholder.
+- The window is 60 pixels wider (935 instead of 875): the message in the header of the score strip
+  has room to breathe, and the timeline, the score strip and the LilyPond text are wider too.
+- The **Revert** button is the word alone, in red: it throws the edits away, and now it says so.
+  The reset arrow it used to carry means "reset this value to its default" on the steppers.
+- The header of the score strip has no "Score" label any more: the strip below it says what it is,
+  and the message of the header has the room the label took (235 pixels now).
+- The message in the header of the score strip never makes the window wider: a message that is too
+  long is shortened with an ellipsis, and the full text is in its tooltip.
+- The selection of the score strip goes when the score is played, and when you click anything that
+  is not the editor (the strip, the pitch field and the edit buttons): the ring would only be in
+  the way.
+
+### Fixed
+- The ring around a selected block is drawn in the colour of the text, not in the accent colour:
+  the blocks are painted in the accent colours, and a ring in the accent disappeared into the
+  block it surrounded. A faint glow now surrounds the ring, so the block stands out from the strip
+  as well. The ring now follows the shape of the block and touches it: a sliver of the strip
+  used to show between the block and the ring, around the rounded corners of the block.
+
 ## [0.11.0] - 2026-11-20
 
 ### Added

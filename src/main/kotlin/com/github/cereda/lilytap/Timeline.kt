@@ -104,7 +104,10 @@ internal class TimelinePanel(
 
     init {
         isOpaque = false
-        preferredSize = Dimension(760, 130)
+        preferredSize = Dimension(STAGE_WIDTH, 130)
+        // The timeline keeps its height, whatever else happens in the stage: a layout that
+        // squeezes it would push the score strip out of the window.
+        minimumSize = Dimension(0, 130)
         // The grid tells us when it scrolls, so the score strip below keeps up with us.
         // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
         // instead of mutating shared state during paint.

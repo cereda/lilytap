@@ -53,7 +53,9 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
   [No rests](#no-rests).
 - **Latency** — the delay of *your taps* (reaction time), subtracted from every tap.
 - **Audio latency** — the delay of the *sound*, which shifts the metronome click earlier.
-- **Pitch** — the placeholder pitch printed in the LilyPond output and used by Note playback.
+
+The **pitch** of the notes is not a setting but an edit: every note of the score carries its own
+pitch, and the strip lets you set it — see [The pitch of a note](#the-pitch-of-a-note).
 
 After a take, the suggested latency is the configured one plus the timing error that is left.
 
@@ -75,26 +77,34 @@ number. The button is greyed out while a take runs or a score plays, like the ot
 ## No rests
 
 The last option of the **Smallest rest** control — **No rests** — turns every silence into extra
-time for the note before it, so the transcription never contains a rest: `c4 r4 c4 c4` becomes
-`c2 c4 c4`. A silence before the very first note has no note to join, so it stays a rest. The
+time for the note before it, so the transcription never contains a rest: `c'4 r4 c'4 c'4` becomes
+`c'2 c'4 c'4`. A silence before the very first note has no note to join, so it stays a rest. The
 other three options say how short a silence may be before it becomes a rest of its own.
 
 ## The score strip
 
 Below the timeline sits the score of the take: one block for every note and rest, drawn on the
 same grid as the timeline, so a block sits exactly under the beat it belongs to. The block shows
-its LilyPond text (`c4`, `r2`) when there is room for it.
+the pitch of the note (`C4`, `C♯5`) when there is room for it, and a stripe at its foot says how
+long the note is: the deeper the stripe, the longer the note. The exact duration is in the width
+of the block and in the LilyPond text.
 
-- **Click a block** to select it. The selected block gets a ring around it.
+- **Click a block** to select it. The selected block gets a ring around it, in the colour of the
+  text, with a faint glow around the ring, so it stands out from the block it surrounds and from
+  the strip around it. The ring follows the shape of the block and touches it: no corner of the
+  block, and no sliver of the strip, shows between the two.
 - **Shift-click** a second block to select a range of blocks.
+- The selection goes when you play the score, and when you click anything that is not the editor
+  (the strip, the pitch field and the edit buttons): the ring would only be in the way.
 - **Double-click a block** to turn it into a rest, and double-click it again to turn it back
   into a note.
 - **Drag the border between two blocks** to change their lengths: the note before the border
   grows and the one after it shrinks, or the other way round. The border snaps to the nearest
   grid cell, and bar lines pull it harder, so a note can be lined up exactly with the bar. Every
   block keeps at least one cell, and the bar always stays full.
-- The **Revert** button puts the score back the way it was when the take ended. It is an edit
-  like any other, so **Ctrl+Z** brings your work back if you press it by mistake.
+- The **Revert** button puts the score back the way it was when the take ended. It is the one
+  button in red, because it throws your edits away. It is an edit like any other, so **Ctrl+Z**
+  brings your work back if you press it by mistake.
 - The eye icon next to "Raw taps" shows and hides the whole strip; the timeline expands to fill
   the space it leaves. Nothing is persisted, so the strip is visible again on the next launch.
 
@@ -107,23 +117,44 @@ to what you make of it afterwards.
 The strip has the keyboard after you click it (a thin line along its bottom edge says so), and
 the header above it carries three buttons - **Split**, **Swap** and **Merge**, each with its own
 icon - that do the same thing as the keys. A button is greyed out when the current selection does
-not allow it, and the text next to the "Score" label says what is selected (`c2 selected`,
-`3 blocks selected`) or what just happened (`c2 → c4 c4`): the blocks before the edit, an arrow,
+not allow it, and the message in the header says what is selected (`c'2 selected`,
+`3 blocks selected`) or what just happened (`c'2 → c'4 c'4`): the blocks before the edit, an arrow,
 and the blocks that are there now. A long merge says how many blocks it folded together
-(`12 blocks → c1`).
+(`12 blocks → c'1`). The header has no title of its own: the strip below it says what it is.
 
 | | |
 |---|---|
-| **S** - split | Cuts the selected block in half. The first half keeps the kind of the block and the second half becomes a note, so a silence that is split becomes a silence followed by a note (`r2` becomes `r4 c4`) and a note that is split is re-articulated (`c2` becomes `c4 c4`). |
+| **S** - split | Cuts the selected block in half. The first half keeps the kind of the block and the second half becomes a note, so a silence that is split becomes a silence followed by a note (`r2` becomes `r4 c'4`) and a note that is split is re-articulated (`c'2` becomes `c'4 c'4`). |
 | **X** - swap | Trades the two selected blocks. Each keeps its own length and moves in time, so a note that is swapped with the silence next to it keeps sounding for as long as it did - it just starts later. Two silences that end up touching are merged into one. |
-| **M** - merge | Folds the selected blocks into one. A note wins over a silence: the silences inside the range are absorbed by the note, so a note followed by a silence becomes one longer note (`c2 r2` becomes `c1`). |
+| **M** - merge | Folds the selected blocks into one. A note wins over a silence: the silences inside the range are absorbed by the note, so a note followed by a silence becomes one longer note (`c'2 r2` becomes `c'1`). |
 | **Ctrl+Z** - undo | Takes the last edit back. The selection and the message come back with it. |
 | **Ctrl+Shift+Z** - redo | Does the edit that was undone again. **Ctrl+Y** does the same. |
 | **←** **→** | Move the selection one block to the left or to the right. |
 | **Esc** | Clear the selection. |
 
-The message in the header always fits: a merge of many blocks says `12 blocks → c1` instead of
-listing every one of them, and the full text is also in the tooltip of the message.
+The message in the header always fits: a merge of many blocks says `12 blocks → c'1` instead of
+listing every one of them, and a message that is still too wide is shortened with an ellipsis
+(`ces'4 → ces'8…`). The full text is always in the tooltip of the message. The message never
+makes the window wider, so the timeline and the score strip always keep their place.
+
+### The pitch of a note
+
+Every note of the score carries its own pitch. A take says *when* the notes sound, not which ones
+they are, so they all start on middle C; the pitch is set afterwards, on the score itself.
+
+- **Click a block** to select it, then type its pitch in the **Pitch** field of the header and
+  press **Enter**. The field takes the name the way LilyPond writes it: `c'` (middle C), `cis'`
+  (a sharp), `ces'` (a flat), `c''` (an octave up), `c` (an octave down). A name that cannot be
+  read turns the border of the field red.
+- The strip shows the pitch in scientific notation (`C4`, `C♯5`, `C♭3`), where the digit is
+  always the octave. The LilyPond text and the field keep LilyPond's own spelling (`cis'`), which
+  puts `c` in the octave *below* middle C: LilyPond's middle C is `c'`.
+- Setting the pitch is an edit like any other: **Ctrl+Z** takes it back, and the message in the
+  header says what changed (`C4 → C♯5`).
+- A note that has no pitch yet takes the pitch of the note before it, so filling a silence in the
+  middle of a melody does not change the melody. The first note of a score starts on middle C.
+- Splitting a note keeps its pitch in both halves, merging keeps the pitch of the first note of
+  the range, and swapping moves the pitch with the note.
 
 ### Undoing an edit
 
@@ -132,12 +163,13 @@ They are greyed out when there is nothing to undo or to redo, so they say whethe
 anything to do. The keys do the same thing.
 
 An undo takes one edit back at a time, and the selection and the message come back with it: the
-header says what it said before the edit (`c2 selected` instead of `c2 → c4 c4`). A drag of a
+header says what it said before the edit (`c'2 selected` instead of `c'2 → c'4 c'4`). A drag of a
 border is one edit, not one per pixel, and a new take starts the history over. An edit made
 after an undo throws away the edits that were undone - the history is a line, not a tree.
 
 **Revert** is the panic button: it jumps all the way back to the score the take ended with. It is
-an edit like any other, so **Ctrl+Z** brings your work back if you press it by mistake.
+the word in red at the end of the header, because it throws the edits away. It is an edit like any
+other, so **Ctrl+Z** brings your work back if you press it by mistake.
 
 A silence is always one block: the strip never shows two rests in a row. That is why swapping two
 blocks can merge two silences into one, and why splitting a silence turns its second half into a
@@ -158,10 +190,10 @@ the time signature names. Everything that counts beats follows that beat:
 
 | in 6/8 | the text |
 |---|---|
-| a note of four eighths | `c4. ~ c8` (a dotted quarter tied to an eighth) |
+| a note of four eighths | `c'4. ~ c'8` (a dotted quarter tied to an eighth) |
 | a silence of four eighths | `r4. r8` (a dotted quarter and an eighth) |
-| a note that fills the bar | `c4. ~ c4.` |
-| a note of three eighths | `c4.` (a dotted quarter - it fills a group) |
+| a note that fills the bar | `c'4. ~ c'4.` |
+| a note of three eighths | `c'4.` (a dotted quarter - it fills a group) |
 
 The **grid** does not move: the cells still cut the note value (the eighth in 6/8), so the eighths
 of a 6/8 bar land exactly on the grid, and the setting says so - its caption reads `Cells / eighth`
@@ -169,7 +201,7 @@ instead of `Cells / beat`.
 
 A simple meter (4/4, 3/4, 2/4) is written the way it always was, and an irregular one (5/8, 7/8)
 is left alone: those meters can be grouped in more than one way, and the app does not guess. The
-blocks of the strip keep their own durations either way - a block of four eighths still says `c2`,
+blocks of the strip keep their own durations either way - a block of four eighths still says `c'2`,
 while the text spells it the way the meter wants it.
 
 ### The 3-feel
@@ -195,7 +227,7 @@ compound meter that comes back is still in 3-feel.
 ## Playback
 
 The **Play** button in the timeline header plays the edited score back through the audio output.
-The pitch setting sets the tone, and a playhead moves across both the timeline and the score
+Each note sounds its own pitch, and a playhead moves across both the timeline and the score
 strip as the score plays. Pressing **Play** scrolls the view back to the beginning, and long
 scores scroll along with the playhead so it stays on screen until the end. Click the button again
 (it becomes **Stop**) to halt playback. Playback uses the configured audio latency so the sound
@@ -204,10 +236,10 @@ playhead waits for the same head start before it moves, so the first note lands 
 Nothing is played if there is no score yet.
 
 The sound button next to **Play** (a note icon for the score's pitch, a metronome icon for a
-click) switches the playback sound: **Note** is the score's pitch, while **Beat** replaces each
-note onset with a short percussive click (accented on bar downbeats) and leaves rests silent. Beat
-mode makes the rhythm easier to follow when the pitch is only a placeholder. Editing a block
-stops playback, so the sound and the blocks always agree.
+click) switches the playback sound: **Note** plays the pitches of the score, while **Beat**
+replaces each note onset with a short percussive click (accented on bar downbeats) and leaves
+rests silent. Beat mode makes the rhythm easier to follow when the melody does not matter.
+Editing a block stops playback, so the sound and the blocks always agree.
 
 While a score is playing, the settings and the **Calibrate** button are disabled: they describe
 the next take, not the one that is playing, and a calibration would beep over the playback. The
