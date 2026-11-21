@@ -1091,6 +1091,10 @@ internal class CodeArea : JTextArea(4, 40) {
         font = Theme.mono(14f)
         margin = Insets(10, 12, 10, 12)
         isEditable = false
+        // The card that holds the text is narrow, so the text wraps at its width. The text
+        // itself keeps its own line breaks: what is copied is what was written.
+        lineWrap = true
+        wrapStyleWord = true
         refreshTheme()
     }
 

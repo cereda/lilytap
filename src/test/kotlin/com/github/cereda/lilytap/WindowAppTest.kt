@@ -6,6 +6,7 @@ import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -306,7 +307,7 @@ class WindowAppTest {
     }
 
     @Test
-    fun `the pitch field writes the name back the way LilyPond writes it`() {
+    fun `the pitch field is empty after the pitch is written`() {
         val app = WindowApp()
 
         val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
@@ -320,7 +321,7 @@ class WindowAppTest {
         applyPitch(app)
 
         assertEquals("cis1 |", output(app).text, "the name without a mark is the C below middle C")
-        assertEquals("cis", field.text, "the field says the name in its own spelling")
+        assertEquals("", field.text, "the field is empty: it waits for the next note of the melody")
     }
 
     @Test
@@ -1077,11 +1078,15 @@ class WindowAppTest {
         tapNow.invoke(app)
     }
 
-    /** A key press in the window. */
+    /**
+     * A key press in the window.
+     *
+     * @return true when the window swallowed the key.
+     */
     private fun press(
         app: WindowApp,
         keyCode: Int,
-    ) {
+    ): Boolean {
         val handleKey = WindowApp::class.java.getDeclaredMethod("handleKey", KeyEvent::class.java)
         handleKey.isAccessible = true
         val event =
@@ -1093,7 +1098,7 @@ class WindowAppTest {
                 keyCode,
                 KeyEvent.CHAR_UNDEFINED,
             )
-        handleKey.invoke(app, event)
+        return handleKey.invoke(app, event) as Boolean
     }
 
     /** The score strip of the window. */

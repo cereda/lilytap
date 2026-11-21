@@ -377,6 +377,40 @@ internal class NotationPanel(
             return s.events[range.first].pitch
         }
 
+    /** The number of notes in the take: the rests carry no pitch. */
+    val noteCount: Int
+        get() = score?.events?.count { it.kind == TapKind.NOTE } ?: 0
+
+    /**
+     * The place of the selected note among the notes of the take, counting from one.
+     *
+     * A rest, a range of blocks and an empty selection have no place among the notes, so
+     * they give null.
+     */
+    val selectedNoteNumber: Int?
+        get() {
+            val s = score ?: return null
+            val range = selectedRange(s) ?: return null
+            if (range.first != range.last) return null
+            val index = range.first
+            if (s.events[index].kind != TapKind.NOTE) return null
+            return s.events.take(index + 1).count { it.kind == TapKind.NOTE }
+        }
+
+    /**
+     * Where the cursor is among the notes of the take: "3 / 12".
+     *
+     * A dash means that the cursor is not on a note: it is on a rest, on a range of blocks,
+     * or on nothing at all.
+     */
+    val cursorText: String
+        get() {
+            val notes = noteCount
+            if (notes == 0) return ""
+            val place = selectedNoteNumber
+            return if (place == null) "— / $notes" else "$place / $notes"
+        }
+
     /** The indices of the blocks the selection covers. */
     private fun selectedRange(s: Score): IntRange? {
         val sel = selection ?: return null
@@ -418,6 +452,51 @@ internal class NotationPanel(
         caption = NOTHING_SELECTED
         repaint()
         onSelectionChange?.invoke()
+    }
+
+    /**
+     * Puts the selection on a block without changing the message.
+     *
+     * The cursor moves on its own after a pitch is written, and the message of the edit that
+     * came before it says more than the name of the block the cursor is on.
+     *
+     * @param index the index of the block.
+     */
+    private fun selectQuietly(index: Int) {
+        val s = score ?: return
+        val event = s.events.getOrNull(index) ?: return
+        val moved = ScoreSelection(event.startUnits, event.endUnits)
+        selection = moved
+        anchor = moved
+        repaint()
+        onSelectionChange?.invoke()
+    }
+
+    /**
+     * Takes the cursor to the first note of the take.
+     *
+     * The melody is filled in from the top: this button starts the walk, and every pitch
+     * that is written moves the cursor on to the next note.
+     */
+    fun fillMelody() {
+        val s = score ?: return
+        val first = s.events.indices.firstOrNull { s.events[it].kind == TapKind.NOTE } ?: return
+        select(first, false)
+    }
+
+    /**
+     * Moves the cursor to the next note of the take.
+     *
+     * The rests are skipped: a rest has no pitch to write. When the take has no note left,
+     * the cursor stays where it is.
+     */
+    private fun advanceCursor() {
+        val s = score ?: return
+        val range = selectedRange(s) ?: return
+        val next =
+            (range.first + 1 until s.events.size).firstOrNull { s.events[it].kind == TapKind.NOTE }
+                ?: return
+        selectQuietly(next)
     }
 
     /** Moves the selection one block to the left or to the right. */
@@ -579,23 +658,32 @@ internal class NotationPanel(
     }
 
     /**
-     * Sets the pitch of the selected block.
+     * Puts a pitch on the selected block and moves the cursor to the next note.
      *
-     * Only a single note can be given a pitch: a rest has none, and a range of blocks would
-     * have to guess which one the pitch belongs to.
+     * A rest has no pitch, but a pitch can be given to it: the silence becomes a note, which
+     * is how a gap in the melody is filled in place. Every pitch that is accepted moves the
+     * cursor on, so a whole melody can be written in one go.
      *
      * @param pitch the pitch the note sounds.
-     * @return true when the score changed.
+     * @return true when the pitch was accepted.
      */
     fun setSelectedPitch(pitch: Pitch): Boolean {
         val s = score ?: return false
         val range = selectedRange(s) ?: return false
         if (range.first != range.last) return false
         val index = range.first
-        val old = s.events[index].pitch ?: return false
-        val edited = s.setPitch(index, pitch)
-        if (edited == s) return false
-        applyEdit(edited, old.scientific, pitch.scientific)
+        val event = s.events[index]
+        val before = event.pitch?.scientific ?: REST_NAME
+        val edited =
+            if (event.kind == TapKind.REST) {
+                s.fillRest(index, pitch)
+            } else {
+                s.setPitch(index, pitch)
+            }
+        if (edited != s) {
+            applyEdit(edited, before, pitch.scientific)
+        }
+        advanceCursor()
         return true
     }
 
@@ -1052,6 +1140,9 @@ internal class NotationPanel(
 
         /** What a rest says in its block: it has no pitch. */
         private const val REST_LABEL = "R"
+
+        /** What the header says about a rest that is given a pitch. */
+        private const val REST_NAME = "Rest"
 
         /** What the header says when nothing is selected. */
         const val NOTHING_SELECTED = "Nothing selected"

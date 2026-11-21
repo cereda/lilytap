@@ -26,6 +26,11 @@ A dark, custom-painted UI (no extra dependencies, icons are drawn in code):
 steppers you can click, hold, scroll or drag, a sliding option picker, a beat indicator, a glowing
 playhead over the timeline, and a Copy button that confirms with a check mark.
 
+The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
+carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
+left. A legend above the Start button says what the colours of the raw taps mean and which keys
+play the piano.
+
 Light and dark themes (sun/moon button in the header). The theme follows your OS setting on every
 launch; the sun/moon button switches it for the session. **Ctrl+Enter** (Cmd+Enter on macOS) starts
 a take; Esc aborts.
@@ -153,10 +158,39 @@ they are, so they all start on middle C; the pitch is set afterwards, on the sco
   puts `c` in the octave *below* middle C: LilyPond's middle C is `c'`.
 - Setting the pitch is an edit like any other: **Ctrl+Z** takes it back, and the message in the
   header says what changed (`C4 → C♯5`).
-- A note that has no pitch yet takes the pitch of the note before it, so filling a silence in the
-  middle of a melody does not change the melody. The first note of a score starts on middle C.
+- The field is emptied once the pitch is written: it waits for the next note of the melody, and
+  the cursor has already moved on to it — see [The pitches panel](#the-pitches-panel).
 - Splitting a note keeps its pitch in both halves, merging keeps the pitch of the first note of
   the range, and swapping moves the pitch with the note.
+
+### The pitches panel
+
+Below the score strip sits the **Pitches** panel: a piano that writes the pitch of the selected
+note, and a counter that says where the cursor is among the notes of the take (`3 / 12`).
+
+- **Click a key** of the piano to give it to the selected note.
+- **Play it on the keyboard** instead: the number row carries the white keys and the top row the
+  black ones. The keys of the strip (**S**, **X**, **M**) keep their meaning, so the tracker lives
+  on the rows above them.
+
+  | | |
+  |---|---|
+  | `1` `2` `3` `4` `5` `6` `7` `8` `9` `0` | the white keys: middle C, D, E, F, G, A, B, C, D, E |
+  | `Q` `W` `E` `R` `T` `Y` `I` `O` `P` | the black keys: C♯, D♯, F♯, G♯, A♯, then the octave above |
+
+- The **cursor walks the melody**: every pitch that is written - by a click, by a tracker key or in
+  the pitch field - moves it to the next note, and the silences are stepped over, because a rest
+  has no pitch. The counter says where the cursor is, and the message in the header of the strip
+  says what the last edit did (`C4 → C♯4`).
+- **Fill the melody** takes the cursor to the first note of the take. A tracker key with nothing
+  selected starts the walk there as well, so the first pitch of the melody does not need a click.
+- A pitch on a silence turns it into a note: the gap keeps its length and sounds the note you
+  gave it.
+- The piano is an editor, not an instrument: it is greyed out while a take is being recorded and
+  while the score plays. While the score plays the key that is sounding is lit, and the notes of
+  the take stay lit faintly.
+- The tracker keys are ignored while a text field has the keyboard: there the keys are text, not
+  pitches. Click the strip (or press **Tab**) to give the keyboard back to the piano.
 
 ### Undoing an edit
 
@@ -276,7 +310,9 @@ latency starts at zero.
 `Rhythm.kt` is the pure transcription logic (taps become a score). `Score.kt` is the score
 itself: the notes and rests, the LilyPond text and the edits that can be made to them.
 `GridView.kt` is the grid the timeline and the score strip share, `NotationPanel.kt` the score
-strip itself. `WindowApp.kt` is the window (layout + recording logic), `Timeline.kt` the
+strip itself. `PianoPanel.kt` is the piano of the pitches panel, `PitchesPanel.kt` the panel that
+holds it, and `Tracker.kt` the keys of the keyboard that play it. `LegendPanel.kt` is the legend
+above the Start button. `WindowApp.kt` is the window (layout + recording logic), `Timeline.kt` the
 recording timeline, `Player.kt` playback, `Metronome.kt` the count-in and calibration click,
 `Sound.kt` the click waveform, `Widgets.kt` the widget kit (buttons, steppers, etc.),
 `Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt` is the entry point and opens

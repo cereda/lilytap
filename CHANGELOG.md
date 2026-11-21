@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A **Pitches** panel below the score: a piano that writes the pitch of the selected note. Click a
+  key, or play it on the keyboard — the number row carries the white keys (`1` is middle C and `0`
+  is the E above) and the top row the black ones (`Q` is C♯, `W` is D♯, `E` is F♯, `R` is G♯, `T` is
+  A♯, and `Y`, `I`, `O`, `P` carry the octave above). The keys of the strip (**S**, **X**, **M**)
+  keep their meaning, so the tracker lives on the rows above them.
+- The cursor walks the melody: every pitch that is written - by a click, by a tracker key or in the
+  pitch field - moves it to the next note, the silences are stepped over, and the counter says where
+  it is (`3 / 12`). **Fill the melody** takes the cursor to the first note, and a tracker key with
+  nothing selected starts the walk there.
+- A pitch on a silence turns it into a note, so a gap in the melody can be filled in place: the gap
+  keeps its length and sounds the note that was given to it.
+- A legend above the Start button says what the colours of the raw taps mean (amber = pressed late,
+  teal = pressed early) and which keys play the piano.
+
+### Changed
+- The bottom of the window is split in two: the Pitches panel takes two thirds of the width and the
+  LilyPond text the third that is left, which wraps now.
+- The **Pitch** field is emptied once the pitch is written: it waits for the next note, which the
+  cursor has already moved on to.
+- The piano is an editor, not an instrument: it is greyed out while a take is being recorded and
+  while the score plays. While the score plays the key that is sounding is lit, and the notes of
+  the take stay lit faintly.
+
 ## [0.12.1] - 2026-11-21
 
 ### Changed

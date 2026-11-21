@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -392,6 +393,31 @@ class ScoreTest {
         val s = score(note(0, 4), note(4, 4))
         s.setPitch(0, sharp)
         assertEquals(Pitch.DEFAULT, s.events[0].pitch)
+    }
+
+    @Test
+    fun `a rest can be filled with a note`() {
+        val edited = score(rest(0, 4), note(4, 4)).fillRest(0, sharp)
+        assertEquals(TapKind.NOTE, edited.events[0].kind)
+        assertEquals(sharp, edited.events[0].pitch)
+        assertEquals(cells(4), edited.events[0].lengthUnits, "the note keeps the length of the rest")
+        assertEquals("cis''2 c'2 |", edited.lilypond)
+    }
+
+    @Test
+    fun `only a rest can be filled`() {
+        val s = score(note(0, 8))
+        assertFailsWith<IllegalArgumentException> { s.fillRest(0, sharp) }
+        assertFailsWith<IllegalArgumentException> { s.fillRest(1, sharp) }
+        assertFailsWith<IllegalArgumentException> { s.fillRest(-1, sharp) }
+    }
+
+    @Test
+    fun `filling a rest leaves the original alone`() {
+        val s = score(rest(0, 8))
+        s.fillRest(0, sharp)
+        assertEquals(TapKind.REST, s.events[0].kind)
+        assertNull(s.events[0].pitch)
     }
 
     @Test

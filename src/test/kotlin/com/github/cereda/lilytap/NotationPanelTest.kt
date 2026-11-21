@@ -415,7 +415,7 @@ class NotationPanelTest {
     }
 
     @Test
-    fun `setting the pitch of a rest does nothing`() {
+    fun `setting the pitch of a rest fills the silence`() {
         val (panel, grid) = panel()
         panel.score =
             Score(
@@ -426,16 +426,213 @@ class NotationPanelTest {
                 config,
             )
         click(panel, grid.xOfCell(1.0).toInt())
-        assertFalse(panel.setSelectedPitch(sharp))
+        assertTrue(panel.setSelectedPitch(sharp), "a pitch can be given to a rest")
+        assertEquals(
+            TapKind.NOTE,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.kind,
+            "the silence becomes a note",
+        )
+        assertEquals(
+            sharp,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+            "the note sounds the pitch that was written",
+        )
     }
 
     @Test
-    fun `setting the pitch a block already has does nothing`() {
+    fun `the cursor moves on even when the pitch is the same`() {
         val (panel, grid) = panel()
         panel.score = score()
         click(panel, grid.xOfCell(1.0).toInt())
-        assertFalse(panel.setSelectedPitch(Pitch.DEFAULT))
-        assertFalse(panel.canUndo, "nothing happened, so there is nothing to undo")
+        assertTrue(panel.setSelectedPitch(Pitch.DEFAULT))
+        assertEquals(
+            Pitch.DEFAULT,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+            "the pitch is still the one it was",
+        )
+        assertFalse(panel.canUndo, "nothing changed, so there is nothing to undo")
+        assertEquals(
+            2,
+            panel.selectedNoteNumber,
+            "the cursor moved on to the next note",
+        )
+    }
+
+    @Test
+    fun `the cursor moves to the next note after a pitch is written`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        panel.setSelectedPitch(sharp)
+        assertEquals(2, panel.selectedNoteNumber, "the cursor is on the second note")
+        assertEquals(1, panel.selectedBlocks, "the cursor is on one block")
+    }
+
+    @Test
+    fun `the cursor skips the rests`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.NOTE, 0, 2),
+                    event(TapKind.REST, 2, 2),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        click(panel, grid.xOfCell(1.0).toInt())
+        panel.setSelectedPitch(sharp)
+        assertEquals(
+            2,
+            panel.selectedNoteNumber,
+            "the rest has no pitch: the cursor steps over it",
+        )
+    }
+
+    @Test
+    fun `the cursor stops at the end of the take`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(5.0).toInt())
+        panel.setSelectedPitch(sharp)
+        assertEquals(3, panel.selectedNoteNumber, "the cursor stays on the last note")
+    }
+
+    @Test
+    fun `the fill takes the cursor to the first note`() {
+        val (panel, _) = panel()
+        panel.score = score()
+        panel.fillMelody()
+        assertEquals(1, panel.selectedNoteNumber)
+        assertEquals("c'4 selected", panel.caption)
+    }
+
+    @Test
+    fun `the fill walks over the rests at the top of the take`() {
+        val (panel, _) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 2),
+                    event(TapKind.NOTE, 2, 2),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        panel.fillMelody()
+        assertEquals(1, panel.selectedNoteNumber, "the first note is the first one with a pitch")
+    }
+
+    @Test
+    fun `the cursor moves on when a silence is filled`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 2),
+                    event(TapKind.NOTE, 2, 2),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertTrue(panel.setSelectedPitch(sharp))
+        assertEquals(
+            TapKind.NOTE,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.kind,
+            "the silence becomes a note",
+        )
+        assertEquals(
+            2,
+            panel.selectedNoteNumber,
+            "the cursor is on the note that comes after the filled silence",
+        )
+    }
+
+    @Test
+    fun `the counter counts the notes and not the blocks`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.NOTE, 0, 2),
+                    event(TapKind.REST, 2, 2),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        assertEquals("— / 2", panel.cursorText, "the take has two notes and three blocks")
+        click(panel, grid.xOfCell(5.0).toInt())
+        assertEquals("2 / 2", panel.cursorText, "the cursor is on the second note")
+    }
+
+    @Test
+    fun `a take without notes has no counter`() {
+        val (panel, _) = panel()
+        panel.score = Score(listOf(event(TapKind.REST, 0, 8)), config)
+        assertEquals("", panel.cursorText)
+        panel.fillMelody()
+        assertEquals(0, panel.selectedBlocks, "there is no note to walk to")
+    }
+
+    @Test
+    fun `the counter says where the cursor is among the notes`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        assertEquals("— / 3", panel.cursorText, "without a selection the cursor is nowhere")
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertEquals("1 / 3", panel.cursorText)
+        panel.setSelectedPitch(sharp)
+        assertEquals("2 / 3", panel.cursorText, "the cursor moved on")
+    }
+
+    @Test
+    fun `the counter has a dash when the cursor is not on a note`() {
+        val (panel, grid) = panel()
+        panel.score =
+            Score(
+                listOf(
+                    event(TapKind.REST, 0, 4),
+                    event(TapKind.NOTE, 4, 4),
+                ),
+                config,
+            )
+        click(panel, grid.xOfCell(1.0).toInt())
+        assertEquals("— / 1", panel.cursorText, "a rest is not one of the notes")
+    }
+
+    @Test
+    fun `the undo puts the cursor back on the note that was filled`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(1.0).toInt())
+        panel.setSelectedPitch(sharp)
+        panel.undo()
+        assertEquals(
+            1,
+            panel.selectedNoteNumber,
+            "the cursor is back on the note that was filled",
+        )
+        assertEquals(
+            Pitch.DEFAULT,
+            panel.score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+            "the pitch is undone as well",
+        )
     }
 
     // -------------------------------------------------------------------------------------------

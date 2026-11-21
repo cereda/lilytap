@@ -164,6 +164,28 @@ data class Score(
     }
 
     /**
+     * Fills the rest at [index] with a note of the given pitch.
+     *
+     * A silence in the middle of a melody can be filled in place: the rest becomes a note
+     * that sounds the pitch, and it keeps the length it had.
+     *
+     * @param index the index of the rest in [events].
+     * @param pitch the pitch the note sounds.
+     * @return the edited score.
+     */
+    fun fillRest(
+        index: Int,
+        pitch: Pitch,
+    ): Score {
+        require(index in events.indices) { "There is no event $index" }
+        val event = events[index]
+        require(event.kind == TapKind.REST) { "Only a rest can be filled" }
+        val changed = events.toMutableList()
+        changed[index] = event.copy(kind = TapKind.NOTE, pitch = pitch)
+        return copy(events = changed)
+    }
+
+    /**
      * Splits the event at [index] in two halves.
      *
      * The cut is at the middle of the event: the first half is the shorter one when the

@@ -152,12 +152,6 @@ private fun runCommand(vararg cmd: String): String? =
         null
     }
 
-private fun escapeHtml(text: String): String =
-    text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-
 /**
  * The offset of a calibration tap from the nearest beat, in milliseconds, or null when the tap
  * falls outside the recorded bars. [ms] is measured from the first recorded beat, not from the
@@ -321,6 +315,12 @@ internal class WindowApp {
     private val timeline = TimelinePanel(grid)
     private val notation = NotationPanel(grid)
 
+    /** The pitches panel: the piano that writes the pitch of the selected note. */
+    private val pitches = PitchesPanel()
+
+    /** The legend of the top column: the colours of the raw taps and the tracker keys. */
+    private val legend = LegendPanel()
+
     /**
      * The way back to the score the take ended with.
      *
@@ -328,6 +328,9 @@ internal class WindowApp {
      */
     private val revert = PillButton("Revert", null, ButtonKind.SEVERE, heightPx = 32)
     private val output = CodeArea()
+
+    /** The card that holds the LilyPond text: the third of the bottom row. */
+    private val outputCard = Card()
     private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
     private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
@@ -459,6 +462,7 @@ internal class WindowApp {
         wireTimeSignature()
         wireThreeFeel()
         wirePitchField()
+        wirePitchesPanel()
         minRest.onChange = { minRest.toolTipText = restToolTip() }
         updateThreeFeel()
     }
@@ -600,18 +604,13 @@ internal class WindowApp {
                     ),
                 )
             }
-        val startWrap =
-            JPanel(GridBagLayout()).apply {
-                isOpaque = false
-                border = BorderFactory.createEmptyBorder(0, 20, 0, 0)
-                add(start)
-            }
+        val startColumn = buildStartColumn()
         val settings =
             Card().apply {
                 layout = BorderLayout()
                 border = BorderFactory.createEmptyBorder(18, 20, 18, 20)
                 add(rows, BorderLayout.CENTER)
-                add(startWrap, BorderLayout.EAST)
+                add(startColumn, BorderLayout.EAST)
             }
 
         rawToggle.isEnabled = false
@@ -629,34 +628,7 @@ internal class WindowApp {
             add(beatDots)
         }
         val stage = buildStage()
-
-        scroll.apply {
-            border = BorderFactory.createEmptyBorder()
-            viewport.background = Theme.code
-            verticalScrollBar.ui = ThinScrollBar()
-            verticalScrollBar.preferredSize = Dimension(10, 0)
-            horizontalScrollBar.ui = ThinScrollBar()
-            horizontalScrollBar.preferredSize = Dimension(0, 10)
-        }
-        val codeCard =
-            Card({ Theme.code }, 12.0).apply {
-                layout = BorderLayout()
-                border = BorderFactory.createEmptyBorder(6, 6, 6, 6)
-                add(scroll, BorderLayout.CENTER)
-            }
-        val outputHeader =
-            JPanel(BorderLayout()).apply {
-                isOpaque = false
-                add(GlyphLabel(Glyph.NOTE, "LilyPond", 14f, { Theme.text }, Font.BOLD), BorderLayout.WEST)
-                add(copy, BorderLayout.EAST)
-            }
-        val outputCard =
-            Card().apply {
-                layout = BorderLayout(0, 10)
-                border = BorderFactory.createEmptyBorder(14, 18, 16, 18)
-                add(outputHeader, BorderLayout.NORTH)
-                add(codeCard, BorderLayout.CENTER)
-            }
+        val bottom = buildBottom()
 
         val headerRow =
             JPanel(BorderLayout()).apply {
@@ -683,7 +655,7 @@ internal class WindowApp {
                 border = BorderFactory.createEmptyBorder(16, 20, 20, 20)
                 add(top, BorderLayout.NORTH)
                 add(stage, BorderLayout.CENTER)
-                add(outputCard, BorderLayout.SOUTH)
+                add(bottom, BorderLayout.SOUTH)
             }
 
         start.onClick = { if (session == null) begin() else abort() }
@@ -722,7 +694,7 @@ internal class WindowApp {
 
         // Nothing should look selected on startup: park focus on the background, and let a click
         // on any empty area take focus away from a text field later on.
-        parkFocusOutsideScore(settings, stage, outputCard)
+        parkFocusOutsideScore(settings, stage, bottom, outputCard)
     }
 
     /**
@@ -761,12 +733,39 @@ internal class WindowApp {
     }
 
     /**
+     * Wires the pitches panel: the piano writes a pitch, and the button starts the walk.
+     *
+     * The panel is an editor: it says nothing while a take runs, and while the score plays it
+     * only shows what is sounding.
+     */
+    private fun wirePitchesPanel() {
+        pitches.piano.onPitch = { pitch -> fillPitch(pitch) }
+        pitches.fill.onClick = { notation.fillMelody() }
+    }
+
+    /**
+     * Puts a pitch on the selected note.
+     *
+     * When nothing is selected, the walk starts at the first note of the take: a pitch that is
+     * written always has a note to land on.
+     *
+     * @param pitch the pitch the note sounds.
+     */
+    private fun fillPitch(pitch: Pitch) {
+        if (notation.selectedBlocks == 0) notation.fillMelody()
+        notation.setSelectedPitch(pitch)
+    }
+
+    /**
      * Puts the name in the pitch field on the selected note.
      *
      * The field takes a LilyPond name (`c'`, `cis'`, `ces'`); a name that cannot be read
      * turns the border of the field red and says what a name looks like. A name that was read
      * is written back in its own spelling, so the field always says the same thing as the
      * LilyPond text.
+     *
+     * The pitch is written and the cursor moves on to the next note, so the field is emptied:
+     * it waits for the next note of the melody.
      */
     private fun applyPitchInput() {
         val text = pitchField.text.trim()
@@ -782,7 +781,9 @@ internal class WindowApp {
         pitchField.invalid = false
         pitchField.toolTipText = PITCH_TOOLTIP
         pitchField.text = pitch.lilypond
-        notation.setSelectedPitch(pitch)
+        if (notation.setSelectedPitch(pitch)) {
+            pitchField.text = ""
+        }
     }
 
     /**
@@ -822,14 +823,17 @@ internal class WindowApp {
     /**
      * The parts of the window that work on the score.
      *
-     * The strip, the pitch field and the edit buttons: they all act on the selected blocks,
-     * so the selection has to survive a click on any of them.
+     * The strip, the pitch field, the pitches panel and the edit buttons: they all act on the
+     * selected blocks, so the selection has to survive a click on any of them.
      */
     private val editorParts: Set<Component>
         get() =
             setOf(
                 notation,
                 pitchField,
+                pitches,
+                pitches.piano,
+                pitches.fill,
                 splitButton,
                 swapButton,
                 mergeButton,
@@ -944,15 +948,26 @@ internal class WindowApp {
      * away from a text field later on.
      *
      * The score strip keeps the keyboard while it is being edited: its keys split, swap and
-     * merge the selected blocks.
+     * merge the selected blocks. The piano keeps it too: it writes the pitch of the selected
+     * note, and the keys of the tracker do the same.
      */
     private fun parkFocusOutsideScore(
         settings: JComponent,
         stage: JComponent,
+        bottom: JComponent,
         outputCard: JComponent,
     ) {
         val background = frame.contentPane as JComponent
-        val keepsFocus = setOf(notation, splitButton, swapButton, mergeButton, undoButton, redoButton)
+        val keepsFocus =
+            setOf(
+                notation,
+                splitButton,
+                swapButton,
+                mergeButton,
+                undoButton,
+                redoButton,
+                pitches.piano,
+            )
         val release =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -960,7 +975,7 @@ internal class WindowApp {
                     background.requestFocusInWindow()
                 }
             }
-        for (c in listOf(background, settings, stage, outputCard)) c.addMouseListener(release)
+        for (c in listOf(background, settings, stage, bottom, outputCard)) c.addMouseListener(release)
         SwingUtilities.invokeLater { background.requestFocusInWindow() }
     }
 
@@ -1034,6 +1049,7 @@ internal class WindowApp {
         currentPlayer = player
         isPlaying = true
         setPlaybackControlsEnabled(true)
+        updatePitchesPanel()
         playbackPositionMs = 0.0
         updatePlayButton()
         timeline.score = score
@@ -1065,9 +1081,11 @@ internal class WindowApp {
         playbackPositionMs = -1.0
         timeline.playbackPositionMs = -1.0
         notation.playbackPositionMs = -1.0
+        pitches.piano.playbackPositionMs = -1.0
         // While a take is being recorded the settings stay off; they come back with the window.
         if (session == null) setPlaybackControlsEnabled(false)
         updatePlayButton()
+        updatePitchesPanel()
     }
 
     private fun updatePlayButton() {
@@ -1148,6 +1166,40 @@ internal class WindowApp {
     }
 
     /**
+     * The column beside the settings: the legend above the Start button.
+     *
+     * The legend says what the colours of the raw taps mean and which keys play the piano,
+     * and the Start button stays in the middle of the column.
+     */
+    private fun buildStartColumn(): JComponent = buildStartColumn(legend, start)
+
+    /**
+     * The bottom row of the window: the pitches panel and the LilyPond text.
+     *
+     * The pitches panel takes two thirds of the row and the LilyPond card the rest. The two
+     * cards ask for the width they get, so the window keeps the size it has.
+     */
+    private fun buildBottom(): JComponent {
+        scroll.apply {
+            border = BorderFactory.createEmptyBorder()
+            viewport.background = Theme.code
+            verticalScrollBar.ui = ThinScrollBar()
+            verticalScrollBar.preferredSize = Dimension(10, 0)
+            horizontalScrollBar.ui = ThinScrollBar()
+            horizontalScrollBar.preferredSize = Dimension(0, 10)
+        }
+        val codeCard = buildCodeCard(scroll)
+        val outputHeader = buildOutputHeader(copy)
+        outputCard.apply {
+            layout = BorderLayout(0, 10)
+            border = BorderFactory.createEmptyBorder(14, 18, 16, 18)
+            add(outputHeader, BorderLayout.NORTH)
+            add(codeCard, BorderLayout.CENTER)
+        }
+        return buildBottom(buildPitchesCard(pitches), outputCard)
+    }
+
+    /**
      * The stage: the status line, the recording timeline and the score strip below it.
      * Both panels share one grid, so the strip lines up with the timeline.
      */
@@ -1196,93 +1248,7 @@ internal class WindowApp {
         }
     }
 
-    /**
-     * A themed modal dialog: undecorated, draggable by its header, closed with OK, Enter or Esc.
-     */
-    private fun showMessage(
-        title: String,
-        headline: String,
-        description: String,
-        glyph: Glyph,
-        accent: Color = Theme.accent,
-    ) {
-        val dialog = JDialog(frame, null, Dialog.ModalityType.APPLICATION_MODAL)
-        dialog.isUndecorated = true
-        dialog.isResizable = false
-
-        val ok = PillButton("OK", Glyph.CHECK, ButtonKind.PRIMARY, minW = 120, heightPx = 40)
-        val header = GlyphLabel(glyph, title, 16f, { Theme.text }, Font.BOLD)
-        val value =
-            JLabel(headline).apply {
-                font = Theme.font(22f, Font.BOLD)
-                foreground = accent
-            }
-        val body =
-            JLabel("<html><body style='width:320px'>${escapeHtml(description)}</body></html>").apply {
-                font = Theme.font(13f)
-                foreground = Theme.dim
-            }
-        val card =
-            Card().apply {
-                layout = BorderLayout(0, 12)
-                border = BorderFactory.createEmptyBorder(18, 24, 18, 24)
-                add(header, BorderLayout.NORTH)
-                add(
-                    JPanel(BorderLayout(0, 6)).apply {
-                        isOpaque = false
-                        add(value, BorderLayout.NORTH)
-                        add(body, BorderLayout.CENTER)
-                    },
-                    BorderLayout.CENTER,
-                )
-                add(
-                    JPanel(BorderLayout()).apply {
-                        isOpaque = false
-                        add(ok, BorderLayout.EAST)
-                    },
-                    BorderLayout.SOUTH,
-                )
-            }
-        val content = dialog.contentPane as JComponent
-        content.background = Theme.bg
-        content.border = BorderFactory.createEmptyBorder(12, 12, 12, 12)
-        content.add(card, BorderLayout.CENTER)
-
-        ok.onClick = { dialog.dispose() }
-        dialog.rootPane.registerKeyboardAction(
-            { dialog.dispose() },
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW,
-        )
-        dialog.rootPane.registerKeyboardAction(
-            { dialog.dispose() },
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW,
-        )
-
-        // the header doubles as the drag handle
-        var grab: Point? = null
-        header.addMouseListener(
-            object : MouseAdapter() {
-                override fun mousePressed(e: MouseEvent) {
-                    val here = e.locationOnScreen
-                    val there = dialog.location
-                    grab = Point(here.x - there.x, here.y - there.y)
-                }
-
-                override fun mouseDragged(e: MouseEvent) {
-                    val g = grab ?: return
-                    val here = e.locationOnScreen
-                    dialog.location = Point(here.x - g.x, here.y - g.y)
-                }
-            },
-        )
-
-        dialog.pack()
-        dialog.setLocationRelativeTo(frame)
-        dialog.isVisible = true
-    }
-
+    /** Puts the LilyPond text on the clipboard. */
     private fun copyOutput() {
         if (output.text.isBlank()) return
         Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(output.text), null)
@@ -1313,6 +1279,21 @@ internal class WindowApp {
         // The tooltip carries the whole message, so a long one is still readable.
         scoreCaption.toolTipText = notation.caption
         updatePitchField()
+        updatePitchesPanel()
+    }
+
+    /**
+     * The pitches panel follows the strip: the score it shows, the note that is selected and
+     * where the cursor is among the notes.
+     *
+     * The panel is quiet while the app is recording or playing: there is no score to edit
+     * then, and the keys would only invite clicks that do nothing.
+     */
+    private fun updatePitchesPanel() {
+        pitches.piano.score = notation.score
+        pitches.piano.selectedPitch = notation.selectedPitch
+        pitches.piano.interactive = session == null && !isPlaying
+        pitches.setCounter(notation.cursorText)
     }
 
     /** Puts the score back the way it was when the take ended. The revert can be undone. */
@@ -1370,11 +1351,14 @@ internal class WindowApp {
                 )
             } catch (e: IllegalArgumentException) {
                 showMessage(
-                    "Invalid settings",
-                    e.message ?: "The settings are not valid.",
-                    "Fix the setting and try again.",
-                    Glyph.BOLT,
-                    Theme.rec,
+                    frame,
+                    Message(
+                        "Invalid settings",
+                        e.message ?: "The settings are not valid.",
+                        "Fix the setting and try again.",
+                        Glyph.BOLT,
+                        Theme.rec,
+                    ),
                 )
                 return
             }
@@ -1399,6 +1383,7 @@ internal class WindowApp {
         val s = Session(config, minRestCells, startNanos, origin, end, beatNanos)
         session = s
         timeline.session = s
+        updatePitchesPanel()
         lastPress = null
         output.text = ""
         clearScore()
@@ -1510,21 +1495,27 @@ internal class WindowApp {
             status.mood = Mood.DONE
             status.text = "Calibrated: ${corrected.roundToLong()} ms audio latency."
             showMessage(
-                "Calibration complete",
-                "${corrected.roundToLong()} ms",
-                "The click is now shifted earlier by this much. The measurement includes your own " +
-                    "reaction time, so lower it a few steps if the click sounds early.",
-                Glyph.CHECK,
+                frame,
+                Message(
+                    "Calibration complete",
+                    "${corrected.roundToLong()} ms",
+                    "The click is now shifted earlier by this much. The measurement includes your own " +
+                        "reaction time, so lower it a few steps if the click sounds early.",
+                    Glyph.CHECK,
+                ),
             )
         } else {
             status.mood = Mood.STOPPED
             status.text = "Calibration cancelled."
             showMessage(
-                "Calibration cancelled",
-                "No taps recorded",
-                "The audio latency was left unchanged.",
-                Glyph.PAUSE,
-                Theme.warn,
+                frame,
+                Message(
+                    "Calibration cancelled",
+                    "No taps recorded",
+                    "The audio latency was left unchanged.",
+                    Glyph.PAUSE,
+                    Theme.warn,
+                ),
             )
         }
 
@@ -1604,6 +1595,7 @@ internal class WindowApp {
                 playbackPositionMs = clamped
                 timeline.playbackPositionMs = clamped
                 notation.playbackPositionMs = clamped
+                pitches.piano.playbackPositionMs = clamped
                 // Follow after the position is updated, or the grid scrolls to a stale spot.
                 timeline.follow()
                 if (clamped >= totalMs) stopPlayback()
@@ -1685,6 +1677,23 @@ internal class WindowApp {
         return true
     }
 
+    /**
+     * Handles a tracker key: it writes a pitch on the selected note.
+     *
+     * The tracker keys are the editor's: while a take is running every key is a tap, and
+     * while the score plays they do nothing.
+     *
+     * @param e the key event.
+     * @return true when the key was a tracker key and was used.
+     */
+    private fun handleTrackerKey(e: KeyEvent): Boolean {
+        if (isAutoRepeat(e)) return false
+        val owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
+        val pitch = trackerPitch(e, owner) ?: return false
+        fillPitch(pitch)
+        return true
+    }
+
     /** Receives every key event in the window; while recording it consumes all of them. */
     private fun handleKey(e: KeyEvent): Boolean {
         // Ctrl/Cmd+Enter starts a take. The chord is never recorded as a note while playing.
@@ -1719,6 +1728,10 @@ internal class WindowApp {
                 return true
             }
         }
+
+        // The tracker keys play the piano: they write a pitch on the selected note. They do
+        // nothing while a take runs (every key is a tap then) or while the score plays.
+        if (session == null && !isPlaying && handleTrackerKey(e)) return true
 
         val s = session ?: return false
         val now = System.nanoTime()
@@ -1854,6 +1867,7 @@ internal class WindowApp {
         s.ticker.join(300)
         stopPlayback()
         setControlsEnabled(true)
+        updatePitchesPanel()
         start.text = "Start"
         start.glyph = Glyph.PLAY
         start.kind = ButtonKind.PRIMARY
