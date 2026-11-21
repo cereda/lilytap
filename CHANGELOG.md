@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-21
+
 ### Added
 - Every note of the score carries its own pitch. The header of the score strip has a **Pitch**
   field: click a block, type the name of the note the way LilyPond writes it (`c'` for middle C,
@@ -357,7 +359,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/cereda/lilytap/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cereda/lilytap/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cereda/lilytap/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cereda/lilytap/compare/v0.8.0...v0.9.0
