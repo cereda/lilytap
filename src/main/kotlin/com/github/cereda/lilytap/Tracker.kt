@@ -7,7 +7,10 @@ package com.github.cereda.lilytap
  * The keys name the notes of the scale instead of fixed pitches: the number row carries the
  * white keys (1 is C, 2 is D, and so on up to 7, which is B) and the top row the sharps (Q is
  * C♯, W is D♯, E is F♯, R is G♯ and T is A♯). The octave they sound is the live one: 8 moves
- * it up, 9 moves it down and 0 puts it back on the note that is selected.
+ * it down, 9 moves it up and 0 puts it back on the note that is selected.
+ *
+ * The number row climbs to the right, so the smaller of the two numbers is the lower octave:
+ * the keyboard reads like the piano, where the low keys are on the left.
  *
  * The keys of the score editor (S, X and M) keep their meaning, so the tracker lives on the
  * rows above them.
@@ -44,11 +47,11 @@ internal val TRACKER_KEYS: Map<Int, Int> =
 internal val TRACKER_LABELS: Map<Int, String> =
     TRACKER_KEYS.entries.associate { (key, pitchClass) -> pitchClass to KeyEvent.getKeyText(key) }
 
-/** The key that moves the tracker an octave up. */
-internal const val OCTAVE_UP = KeyEvent.VK_8
-
 /** The key that moves the tracker an octave down. */
-internal const val OCTAVE_DOWN = KeyEvent.VK_9
+internal const val OCTAVE_DOWN = KeyEvent.VK_8
+
+/** The key that moves the tracker an octave up. */
+internal const val OCTAVE_UP = KeyEvent.VK_9
 
 /** The key that puts the tracker back on the octave of the selected note. */
 internal const val OCTAVE_RESET = KeyEvent.VK_0
@@ -128,12 +131,21 @@ internal class TrackerState {
 
     /** Moves the tracker an octave up. */
     fun up() {
-        octave = (octave + 1).coerceIn(Pitch.MIN_OCTAVE, Pitch.MAX_OCTAVE)
+        moveTo(octave + 1)
     }
 
     /** Moves the tracker an octave down. */
     fun down() {
-        octave = (octave - 1).coerceIn(Pitch.MIN_OCTAVE, Pitch.MAX_OCTAVE)
+        moveTo(octave - 1)
+    }
+
+    /**
+     * Puts the tracker on an octave, leaving the anchor alone.
+     *
+     * @param octave the octave the tracker plays.
+     */
+    fun moveTo(octave: Int) {
+        this.octave = octave.coerceIn(Pitch.MIN_OCTAVE, Pitch.MAX_OCTAVE)
     }
 
     /** Puts the tracker back on the anchored octave, when there is one. */
@@ -171,6 +183,9 @@ internal class TrackerState {
  * it when the selection moves to another note and when a new score arrives; the tracker says
  * which octave it is in on the panel.
  *
+ * The stepper of the panel moves the tracker, and the tracker moves the stepper: the two are
+ * the same octave seen from two sides.
+ *
  * @param panel the panel that shows the octave.
  * @param onPitch called with the pitch a tracker key plays.
  */
@@ -180,6 +195,12 @@ internal class Tracker(
 ) {
     /** The state of the tracker: the octave it plays and the one it goes back to. */
     private val state = TrackerState()
+
+    init {
+        // The stepper of the panel is the octave of the tracker, seen from the mouse.
+        panel.octave.onChange = { value -> moveTo(value.toInt()) }
+        panel.octave.onMiddleClick = { reset() }
+    }
 
     /** The octave the tracker plays. */
     val octave: Int get() = state.octave
@@ -232,6 +253,16 @@ internal class Tracker(
      */
     fun anchorTo(octave: Int) {
         state.anchorTo(octave)
+        sayOctave()
+    }
+
+    /**
+     * Puts the tracker on an octave, leaving the anchor alone.
+     *
+     * @param octave the octave the tracker plays.
+     */
+    fun moveTo(octave: Int) {
+        state.moveTo(octave)
         sayOctave()
     }
 

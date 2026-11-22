@@ -486,7 +486,12 @@ private class MenuList(
     }
 }
 
-/** "- 60 +" control. Click the ends (hold to repeat), scroll the wheel, or drag the middle. */
+/**
+ * "- 60 +" control. Click the ends (hold to repeat), scroll the wheel, or drag the middle.
+ *
+ * A click on the value without a drag is a click of its own: [onMiddleClick] fires then, so the
+ * control can say what a click on the number means.
+ */
 internal class Stepper(
     initial: Double,
     private val minValue: Double,
@@ -504,10 +509,20 @@ internal class Stepper(
             }
         }
 
+    /** The value as it is written on the control: "60", "C5". */
+    val text: String get() = format(value)
+
+    /** Called when the user changes the value: a click, a hold, the wheel or a drag. */
+    var onChange: ((Double) -> Unit)? = null
+
+    /** Called when the user clicks the value without dragging it. */
+    var onMiddleClick: (() -> Unit)? = null
+
     private val btn = 34.0
     private var hoverZone: Int? = null
     private var repeatDir = 0
     private var dragging = false
+    private var dragMoved = false
     private var dragStartX = 0
     private var dragStartValue = 0.0
     private val repeater = Timer(70) { bump(repeatDir) }.apply { initialDelay = 380 }
@@ -521,6 +536,10 @@ internal class Stepper(
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
                     if (!isEnabled) return
+                    // Every press starts from a clean slate: a release outside the control can
+                    // leave the drag behind.
+                    dragging = false
+                    dragMoved = false
                     val z = zone(e.x)
                     if (z != 0) {
                         repeatDir = z
@@ -535,13 +554,16 @@ internal class Stepper(
 
                 override fun mouseReleased(e: MouseEvent) {
                     repeater.stop()
+                    // A click on the value is not a drag: the middle is the value itself.
+                    if (dragging && !dragMoved) onMiddleClick?.invoke()
                     dragging = false
                 }
 
                 override fun mouseDragged(e: MouseEvent) {
                     if (dragging && isEnabled) {
                         val ticks = (e.x - dragStartX) / 6
-                        value = dragStartValue + ticks * stepSize
+                        if (ticks != 0) dragMoved = true
+                        setFromUser(dragStartValue + ticks * stepSize)
                     }
                 }
 
@@ -561,7 +583,9 @@ internal class Stepper(
             }
         addMouseListener(mouse)
         addMouseMotionListener(mouse)
-        addMouseWheelListener { e -> if (isEnabled) value = value - e.wheelRotation * stepSize }
+        addMouseWheelListener { e ->
+            if (isEnabled) setFromUser(value - e.wheelRotation * stepSize)
+        }
     }
 
     private fun zone(x: Int): Int =
@@ -572,7 +596,21 @@ internal class Stepper(
         }
 
     private fun bump(dir: Int) {
-        value = value + dir * stepSize
+        setFromUser(value + dir * stepSize)
+    }
+
+    /**
+     * Puts a value the user asked for, and tells whoever is watching.
+     *
+     * The value the app puts in the control is silent: only the user moves it.
+     *
+     * @param v the value the user asked for.
+     */
+    private fun setFromUser(v: Double) {
+        val n = v.coerceIn(minValue, maxValue)
+        if (n == value) return
+        value = n
+        onChange?.invoke(n)
     }
 
     override fun getPreferredSize(): Dimension = Dimension(width, 38)

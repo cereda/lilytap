@@ -53,7 +53,33 @@ class PitchesPanelTest {
     }
 
     @Test
-    fun `the octave button says what it goes back to`() {
+    fun `the octave control is a stepper that moves the tracker`() {
+        val panel = PitchesPanel()
+        assertEquals(4.0, panel.octave.value, "the stepper starts in the middle")
+        panel.octave.value = 6.0
+        assertEquals(6.0, panel.octave.value, "the stepper takes the value it is given")
+        assertEquals("C6", panel.octaveText, "the stepper writes the octave")
+    }
+
+    @Test
+    fun `the octave control stays inside the range of the keyboard`() {
+        val panel = PitchesPanel()
+        panel.setOctave(Pitch.MAX_OCTAVE + 2, null)
+        assertEquals(
+            Pitch.MAX_OCTAVE.toDouble(),
+            panel.octave.value,
+            "the stepper cannot go above the top of the keyboard",
+        )
+        panel.setOctave(Pitch.MIN_OCTAVE - 2, null)
+        assertEquals(
+            Pitch.MIN_OCTAVE.toDouble(),
+            panel.octave.value,
+            "the stepper cannot go below the bottom of the keyboard",
+        )
+    }
+
+    @Test
+    fun `the octave control says what it goes back to`() {
         val panel = PitchesPanel()
         panel.setOctave(5, 4)
         val tip = panel.octave.toolTipText ?: ""
@@ -62,7 +88,7 @@ class PitchesPanelTest {
     }
 
     @Test
-    fun `the octave button says when there is no note to go back to`() {
+    fun `the octave control says when there is no note to go back to`() {
         val panel = PitchesPanel()
         panel.setOctave(5, null)
         val tip = panel.octave.toolTipText ?: ""
@@ -124,8 +150,8 @@ class PitchesPanelTest {
             "the legend says what the top row plays",
         )
         assertTrue(
-            legend.trackerLines.any { it.contains("octave") },
-            "the legend says how the octave moves",
+            legend.trackerLines.any { it.contains("8 / 9 = octave down / up") },
+            "the legend says that the smaller key goes down",
         )
         assertTrue(
             legend.trackerLines.any { it.contains("0") },

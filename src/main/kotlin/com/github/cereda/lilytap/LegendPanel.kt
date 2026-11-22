@@ -34,7 +34,7 @@ internal class LegendPanel : JComponent() {
         listOf(
             "1–7 = C D E F G A B",
             "Q W E R T = the sharps",
-            "8 / 9 = octave up / down",
+            "8 / 9 = octave down / up",
             "0 = back to the note",
         )
 
@@ -44,7 +44,7 @@ internal class LegendPanel : JComponent() {
         toolTipText =
             "Raw taps: amber = pressed late, teal = pressed early. " +
             "Tracker keys: 1 to 7 are C to B, Q W E R T the sharps, " +
-            "8 and 9 move the octave and 0 puts it back on the note you are on."
+            "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on."
     }
 
     override fun getPreferredSize(): Dimension = Dimension(legendWidth, 80)

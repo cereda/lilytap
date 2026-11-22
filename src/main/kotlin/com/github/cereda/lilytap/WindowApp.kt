@@ -748,7 +748,6 @@ internal class WindowApp {
             fillPitch(pitch)
         }
         pitches.fill.onClick = { notation.fillMelody() }
-        pitches.octave.onClick = { tracker.reset() }
     }
 
     /**

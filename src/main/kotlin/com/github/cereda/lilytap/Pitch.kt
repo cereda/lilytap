@@ -62,7 +62,7 @@ data class Pitch(
         require(octave in MIN_OCTAVE..MAX_OCTAVE) {
             "The octave of a pitch is between $MIN_OCTAVE and $MAX_OCTAVE"
         }
-        require(midi in 0..127) { "The pitch must be a note a MIDI keyboard can play" }
+        require(midi in 12..127) { "The pitch must be a note a MIDI keyboard can play" }
     }
 
     /** The MIDI note number: middle C is 60. */
@@ -102,8 +102,13 @@ data class Pitch(
         }
 
     companion object {
-        /** The lowest octave a pitch can have (C-1, the lowest note of a MIDI keyboard). */
-        const val MIN_OCTAVE = -1
+        /**
+         * The lowest octave a pitch can have (C0).
+         *
+         * The app keeps to the octaves LilyPond writes in absolute mode, from `c,,,` to
+         * `c''''`: the note below C0 would be a `c,,,,` nobody writes.
+         */
+        const val MIN_OCTAVE = 0
 
         /** The highest octave a pitch can have (C8). */
         const val MAX_OCTAVE = 8

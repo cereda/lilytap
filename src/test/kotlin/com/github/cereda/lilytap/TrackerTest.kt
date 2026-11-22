@@ -95,9 +95,16 @@ class TrackerTest {
 
     @Test
     fun `the octave keys move the tracker`() {
-        assertEquals(TrackerAction.Up, action(KeyEvent.VK_8))
-        assertEquals(TrackerAction.Down, action(KeyEvent.VK_9))
+        assertEquals(TrackerAction.Down, action(KeyEvent.VK_8))
+        assertEquals(TrackerAction.Up, action(KeyEvent.VK_9))
         assertEquals(TrackerAction.Reset, action(KeyEvent.VK_0))
+    }
+
+    @Test
+    fun `the smaller octave key goes down and the bigger one goes up`() {
+        assertTrue(OCTAVE_DOWN < OCTAVE_UP, "the number row climbs to the right")
+        assertEquals(KeyEvent.VK_8, OCTAVE_DOWN)
+        assertEquals(KeyEvent.VK_9, OCTAVE_UP)
     }
 
     @Test
@@ -174,6 +181,33 @@ class TrackerTest {
         tracker.down()
         tracker.down()
         assertEquals(3, tracker.octave)
+    }
+
+    @Test
+    fun `the tracker goes to the octave it is told to`() {
+        val tracker = TrackerState()
+        tracker.moveTo(6)
+        assertEquals(6, tracker.octave)
+        tracker.moveTo(1)
+        assertEquals(1, tracker.octave)
+    }
+
+    @Test
+    fun `the tracker stays inside the range when it is told to move`() {
+        val tracker = TrackerState()
+        tracker.moveTo(Pitch.MAX_OCTAVE + 3)
+        assertEquals(Pitch.MAX_OCTAVE, tracker.octave, "the tracker cannot go above the top")
+        tracker.moveTo(Pitch.MIN_OCTAVE - 3)
+        assertEquals(Pitch.MIN_OCTAVE, tracker.octave, "the tracker cannot go below the bottom")
+    }
+
+    @Test
+    fun `the tracker keeps its anchor when it is told to move`() {
+        val tracker = TrackerState()
+        tracker.anchorTo(5)
+        tracker.moveTo(2)
+        assertEquals(2, tracker.octave, "the tracker is where it was told to go")
+        assertEquals(5, tracker.anchor, "the anchor is where the note is")
     }
 
     @Test

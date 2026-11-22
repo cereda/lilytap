@@ -177,7 +177,7 @@ note, and a counter that says where the cursor is among the notes of the take (`
   |---|---|
   | `1` `2` `3` `4` `5` `6` `7` | the notes of the scale: C, D, E, F, G, A, B |
   | `Q` `W` `E` `R` `T` | the sharps of the same octave: C♯, D♯, F♯, G♯, A♯ |
-  | `8` `9` | an octave up, an octave down |
+  | `8` `9` | an octave down, an octave up |
   | `0` | back to the octave of the note you are on |
 
 - The keys play **the octave the panel shows** (`C4` at the start), not a fixed one: the same
@@ -186,6 +186,12 @@ note, and a counter that says where the cursor is among the notes of the take (`
   key of the piano puts the tracker in its octave, and clicking a block of the strip puts it in
   the octave of that block. The walk that follows a written pitch does not move it, so an octave
   you moved to by hand survives the melody.
+- The **stepper** next to **Fill the melody** says the same octave (`C4`) and moves it with the
+  mouse: `−` takes it down, `+` takes it up, and a click on the number puts the tracker back on
+  the octave of the note you are on — the way the `0` key does. Dragging the number moves the
+  octave as well, and the wheel turns it.
+- The number row climbs to the right, so the smaller of the two octave keys is the lower one:
+  `8` is the octave down and `9` the octave up, like the piano, whose low keys are on the left.
 - The **cursor walks the melody**: every pitch that is written - by a click, by a tracker key or in
   the pitch field - moves it to the next note, and the silences are stepped over, because a rest
   has no pitch. The counter says where the cursor is, and the message in the header of the strip

@@ -89,8 +89,19 @@ class PitchTest {
 
     @Test
     fun `the lowest and the highest notes of the keyboard are read`() {
-        assertEquals(Pitch(PitchStep.C, 0, -1), Pitch.parse("c" + ",".repeat(4)))
+        assertEquals(Pitch(PitchStep.C, 0, 0), Pitch.parse("c" + ",".repeat(3)))
         assertEquals(Pitch(PitchStep.C, 0, 8), Pitch.parse("c" + "'".repeat(5)))
+    }
+
+    @Test
+    fun `a note below the keyboard is not read`() {
+        assertNull(Pitch.parse("c" + ",".repeat(4)), "C-1 is not a note the app writes")
+    }
+
+    @Test
+    fun `the octave of a pitch is between C0 and C8`() {
+        assertEquals(0, Pitch.MIN_OCTAVE)
+        assertEquals(8, Pitch.MAX_OCTAVE)
     }
 
     // -------------------------------------------------------------------------------------------
@@ -135,7 +146,7 @@ class PitchTest {
                 Pitch(PitchStep.E, -1, 7),
                 Pitch(PitchStep.F, 0, 8),
                 Pitch(PitchStep.G, 1, 0),
-                Pitch(PitchStep.A, -1, -1),
+                Pitch(PitchStep.A, -1, 0),
                 Pitch(PitchStep.B, 0, 4),
             )
         for (pitch in pitches) {

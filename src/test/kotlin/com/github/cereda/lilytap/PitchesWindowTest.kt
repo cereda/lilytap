@@ -118,7 +118,8 @@ class PitchesWindowTest {
         assertTrue(tip.contains("teal"), "the legend says that teal is early")
         assertTrue(tip.contains("1 to 7 are C to B"), "the legend says what the number row plays")
         assertTrue(tip.contains("Q W E R T the sharps"), "the legend says what the top row plays")
-        assertTrue(tip.contains("8 and 9 move the octave"), "the legend says how the octave moves")
+        assertTrue(tip.contains("8 moves the octave down"), "the legend says how the octave moves")
+        assertTrue(tip.contains("9 moves it up"), "the legend says how the octave moves")
         assertTrue(tip.contains("0 puts it back"), "the legend says what the zero key does")
     }
 
@@ -190,7 +191,7 @@ class PitchesWindowTest {
         val app = WindowApp()
 
         showScore(app, twoNotes)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         assertEquals("C5", pitches(app).octaveText)
 
         pitches(app).fill.onClick?.invoke()
@@ -313,7 +314,7 @@ class PitchesWindowTest {
         val app = WindowApp()
 
         showScore(app, score)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         press(app, KeyEvent.VK_1)
 
         assertEquals(
@@ -444,11 +445,24 @@ class PitchesWindowTest {
         showScore(app, score)
 
         press(app, KeyEvent.VK_8)
-        assertEquals("C5", pitches(app).octaveText, "the tracker moved up")
+        assertEquals("C3", pitches(app).octaveText, "the tracker moved down")
 
         press(app, KeyEvent.VK_9)
         press(app, KeyEvent.VK_9)
-        assertEquals("C3", pitches(app).octaveText, "the tracker moved down twice")
+        assertEquals("C5", pitches(app).octaveText, "the tracker moved up twice")
+    }
+
+    @Test
+    fun `the smaller octave key goes down and the bigger one goes up`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+
+        press(app, KeyEvent.VK_8)
+        assertEquals("C3", pitches(app).octaveText, "8 is the lower octave")
+
+        press(app, KeyEvent.VK_9)
+        assertEquals("C4", pitches(app).octaveText, "9 is the higher octave")
     }
 
     @Test
@@ -456,7 +470,7 @@ class PitchesWindowTest {
         val app = WindowApp()
 
         showScore(app, score)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         press(app, KeyEvent.VK_1)
 
         assertEquals(
@@ -490,7 +504,7 @@ class PitchesWindowTest {
 
         showScore(app, twoNotes)
         selectTheBlock(app, 0)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         press(app, KeyEvent.VK_1)
 
         assertEquals(
@@ -511,7 +525,7 @@ class PitchesWindowTest {
 
         showScore(app, twoNotes)
         selectTheBlock(app, 1)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         assertEquals("C6", pitches(app).octaveText, "the tracker moved up")
 
         press(app, KeyEvent.VK_0)
@@ -523,14 +537,14 @@ class PitchesWindowTest {
     }
 
     @Test
-    fun `the octave button goes back to the note that is selected`() {
+    fun `the octave control goes back to the note that is selected`() {
         val app = WindowApp()
 
         showScore(app, twoNotes)
         selectTheBlock(app, 1)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
 
-        pitches(app).octave.onClick?.invoke()
+        clickTheOctaveValue(app)
 
         assertEquals(
             "C5",
@@ -540,12 +554,31 @@ class PitchesWindowTest {
     }
 
     @Test
+    fun `the octave control moves the tracker`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+
+        val octave = pitches(app).octave
+        octave.setSize(116, 38)
+        octave.dispatchEvent(
+            MouseEvent(octave, MouseEvent.MOUSE_PRESSED, 0, 0, 105, 10, 1, false),
+        )
+        octave.dispatchEvent(
+            MouseEvent(octave, MouseEvent.MOUSE_RELEASED, 0, 0, 105, 10, 1, false),
+        )
+
+        assertEquals("C5", pitches(app).octaveText, "the stepper took the tracker up")
+        assertEquals(5, pitches(app).piano.liveOctave, "the piano marks the same octave")
+    }
+
+    @Test
     fun `the piano follows the hand that clicks it`() {
         val app = WindowApp()
 
         showScore(app, score)
         selectTheOnlyBlock(app)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         assertEquals("C5", pitches(app).octaveText)
 
         val piano = pitches(app).piano
@@ -567,7 +600,7 @@ class PitchesWindowTest {
         val app = WindowApp()
 
         showScore(app, score)
-        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_9)
         assertEquals("C5", pitches(app).octaveText)
 
         showScore(app, score)
@@ -621,6 +654,22 @@ class PitchesWindowTest {
                 KeyEvent.CHAR_UNDEFINED,
             )
         return handleKey.invoke(app, event) as Boolean
+    }
+
+    /**
+     * Clicks the number of the octave control, without moving it.
+     *
+     * The click on the value puts the tracker back on the note that is selected.
+     */
+    private fun clickTheOctaveValue(app: WindowApp) {
+        val octave = pitches(app).octave
+        octave.setSize(116, 38)
+        octave.dispatchEvent(
+            MouseEvent(octave, MouseEvent.MOUSE_PRESSED, 0, 0, 58, 10, 1, false),
+        )
+        octave.dispatchEvent(
+            MouseEvent(octave, MouseEvent.MOUSE_RELEASED, 0, 0, 58, 10, 1, false),
+        )
     }
 
     /** A field of the window, by the name it has. */
