@@ -12,12 +12,19 @@ import javax.swing.Timer
 /**
  * The card that holds the LilyPond text.
  *
- * The card carries the text, the button that copies it, and the button that chooses how the
- * octaves are written: in full, or relative to the note before. The first line of the text is
- * a comment that says which way it is written, so a fragment that is copied into a file says
- * what it is.
+ * The card carries the text and two icon buttons: one that copies it, and one that chooses
+ * how the octaves are written, in full or relative to the note before. The first line of the
+ * text is a comment that says which way it is written, so a fragment that is copied into a
+ * file says what it is.
+ *
+ * @param putOnClipboard what the copy button does with the text. It is a parameter so that
+ * the tests can watch the copy without touching the clipboard of the machine.
  */
-internal class LilyPondOutput {
+internal class LilyPondOutput(
+    private val putOnClipboard: (String) -> Unit = { text ->
+        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
+    },
+) {
     /** The text of the transcription. */
     val area = CodeArea()
 
@@ -25,10 +32,10 @@ internal class LilyPondOutput {
     val scroll = JScrollPane(area)
 
     /** The button that copies the text. */
-    val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 28)
+    val copy = PillButton("", Glyph.COPY, minW = 40, heightPx = 28)
 
     /** The button that writes the octaves relative to the note before. */
-    val relative = PillButton("Rel", null, ButtonKind.GHOST, heightPx = 28)
+    val relative = PillButton("", Glyph.RELATIVE, ButtonKind.GHOST, heightPx = 28)
 
     /** The card that holds the text: the third of the bottom row. */
     val card = Card()
@@ -56,6 +63,7 @@ internal class LilyPondOutput {
             add(buildCodeCard(scroll), BorderLayout.CENTER)
         }
         copy.onClick = { copyText() }
+        copy.toolTipText = COPY_TOOLTIP
         relative.toolTipText =
             "Write the octaves relative to the note before, the way LilyPond reads them."
     }
@@ -100,10 +108,10 @@ internal class LilyPondOutput {
     /** Puts the LilyPond text on the clipboard. */
     fun copyText() {
         if (area.text.isBlank()) return
-        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(area.text), null)
-        copy.text = "Copied"
+        putOnClipboard(area.text)
         copy.glyph = Glyph.CHECK
         copy.accentOverride = Theme.ok
+        copy.toolTipText = COPIED_TOOLTIP
         copyReset.restart()
     }
 
@@ -116,8 +124,16 @@ internal class LilyPondOutput {
 
     /** Puts the copy button back the way it was. */
     private fun resetCopy() {
-        copy.text = "Copy"
         copy.glyph = Glyph.COPY
         copy.accentOverride = null
+        copy.toolTipText = COPY_TOOLTIP
+    }
+
+    private companion object {
+        /** What the copy button says when there is nothing to copy yet. */
+        const val COPY_TOOLTIP = "Copy the LilyPond text."
+
+        /** What the copy button says once the text is on the clipboard. */
+        const val COPIED_TOOLTIP = "The LilyPond text is on the clipboard."
     }
 }

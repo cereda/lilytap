@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The buttons of the LilyPond card are icons, the way the app switches its modes: the button of
+  the relative octaves shows two note heads and lights up in the accent colour when it is on, and
+  the copy button shows the copy mark and turns into a check mark when the text is on the
+  clipboard. Their tooltips say what they do.
+
 ## [0.14.0] - 2026-11-22
 
 ### Added

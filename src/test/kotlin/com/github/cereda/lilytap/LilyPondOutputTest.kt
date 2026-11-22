@@ -95,8 +95,31 @@ class LilyPondOutputTest {
 
         output.copyText() // must not throw, and must not touch the button
 
-        assertEquals("Copy", output.copy.text, "the button still says Copy")
+        assertEquals(Glyph.COPY, output.copy.glyph, "the button still shows the copy mark")
         assertNull(output.copy.accentOverride, "the button is quiet")
+    }
+
+    @Test
+    fun `the copy button turns into a check when the text is copied`() {
+        var copied = ""
+        val output = LilyPondOutput { copied = it }
+        output.show(score)
+
+        output.copyText()
+
+        assertEquals("% absolute\nc'1 |", copied, "the text is on the clipboard")
+        assertEquals(Glyph.CHECK, output.copy.glyph, "the button shows the check mark")
+        assertNotNull(output.copy.accentOverride, "the button is lit")
+    }
+
+    @Test
+    fun `the buttons of the card are icons`() {
+        val output = LilyPondOutput()
+
+        assertEquals("", output.relative.text, "the relative button has no word")
+        assertEquals("", output.copy.text, "the copy button has no word")
+        assertEquals(Glyph.RELATIVE, output.relative.glyph, "the relative button shows its own mark")
+        assertEquals(Glyph.COPY, output.copy.glyph, "the copy button shows the copy mark")
     }
 
     @Test
@@ -112,7 +135,7 @@ class LilyPondOutputTest {
                 .filterIsInstance<JComponent>()
                 .flatMap { it.components.toList() }
                 .filterIsInstance<PillButton>()
-        assertTrue(buttons.contains(output.relative), "the header carries the Rel button")
-        assertTrue(buttons.contains(output.copy), "the header carries the Copy button")
+        assertTrue(buttons.contains(output.relative), "the header carries the relative button")
+        assertTrue(buttons.contains(output.copy), "the header carries the copy button")
     }
 }

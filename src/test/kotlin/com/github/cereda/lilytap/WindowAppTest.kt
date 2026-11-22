@@ -372,7 +372,7 @@ class WindowAppTest {
     }
 
     @Test
-    fun `the Rel button lights up when the mode is on`() {
+    fun `the relative button lights up when the mode is on`() {
         val app = WindowApp()
 
         val button = lilypond(app).relative

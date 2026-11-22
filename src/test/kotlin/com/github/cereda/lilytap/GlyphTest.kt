@@ -34,6 +34,17 @@ class GlyphTest {
     }
 
     @Test
+    fun `the relative icon shows two note heads`() {
+        assertTrue(ink(Glyph.RELATIVE) > 0, "the relative icon draws nothing")
+        // The lower note head stands alone, and so does the upper one: the arrow between them
+        // joins neither of the two.
+        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.67 * BIG).toInt()), "the lower note head stands alone")
+        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.31 * BIG).toInt()), "the upper note head stands alone")
+        assertTrue(pixels(Glyph.RELATIVE) != pixels(Glyph.NOTE), "the relative icon looks like the note")
+        assertTrue(pixels(Glyph.RELATIVE) != pixels(Glyph.COPY), "the relative icon looks like the copy mark")
+    }
+
+    @Test
     fun `the score editor icons are different from each other`() {
         val drawn = EDITOR_GLYPHS.map { pixels(it) }
         for (i in drawn.indices) {

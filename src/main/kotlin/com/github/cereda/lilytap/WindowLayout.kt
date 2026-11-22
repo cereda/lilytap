@@ -57,7 +57,11 @@ internal fun buildStartColumn(
     }
 
 /**
- * The header of the LilyPond card: the name of the text, the mode picker and the copy button.
+ * The header of the LilyPond card: the name of the text and the two buttons that go with it.
+ *
+ * Both buttons are icons, the way the app switches its modes: the button of the relative
+ * octaves lights in the accent colour when it is on, and the copy button turns into a check
+ * mark when the text is on the clipboard.
  *
  * @param relative the button that writes the octaves relative to the note before.
  * @param copy the button that copies the text.

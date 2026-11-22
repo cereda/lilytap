@@ -47,6 +47,7 @@ internal enum class Glyph {
     REDO,
     TAP,
     BEATS,
+    RELATIVE,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -277,6 +278,15 @@ internal fun drawGlyph(
 
         Glyph.BEATS -> {
             drawBeats(g, x, y, s)
+        }
+
+        Glyph.RELATIVE -> {
+            // Two note heads, a step apart, and an arrow from the lower one to the upper one:
+            // the octave of the second note is read from the first.
+            g.fill(Ellipse2D.Double(px(0.05), py(0.56), 0.30 * s, 0.22 * s))
+            g.fill(Ellipse2D.Double(px(0.63), py(0.20), 0.30 * s, 0.22 * s))
+            line(0.32, 0.62, 0.47, 0.47)
+            arrowHead(0.58, 0.36, 0.7, -0.7)
         }
     }
 
