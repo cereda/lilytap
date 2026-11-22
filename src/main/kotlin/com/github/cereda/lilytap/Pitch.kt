@@ -18,7 +18,12 @@ package com.github.cereda.lilytap
 
 import kotlin.math.pow
 
-/** The seven letters of the scale, with the number of semitones they stand for. */
+/**
+ * The seven letters of the scale, with the number of semitones they stand for.
+ *
+ * The steps are in the order of the letters, C first and B last: that is how the steps of
+ * an octave are counted, which is what the relative octaves of LilyPond are made of.
+ */
 enum class PitchStep(
     /** The LilyPond letter of the step. */
     val letter: Char,
@@ -71,8 +76,8 @@ data class Pitch(
     /** The frequency in Hz, with A4 at 440 Hz. */
     val frequency: Double get() = 440.0 * 2.0.pow((midi - 69) / 12.0)
 
-    /** The LilyPond name of the pitch: `c'`, `cis'`, `ces'`, `c`, `c,`. */
-    val lilypond: String
+    /** The LilyPond name of the pitch without the octave marks: `c`, `cis`, `ces`. */
+    val lilypondName: String
         get() {
             val accidental =
                 when (alter) {
@@ -80,13 +85,19 @@ data class Pitch(
                     -1 -> "es"
                     else -> ""
                 }
+            return "${step.letter}$accidental"
+        }
+
+    /** The LilyPond name of the pitch: `c'`, `cis'`, `ces'`, `c`, `c,`. */
+    val lilypond: String
+        get() {
             val marks =
                 when {
                     octave > LILYPOND_BASE_OCTAVE -> "'".repeat(octave - LILYPOND_BASE_OCTAVE)
                     octave < LILYPOND_BASE_OCTAVE -> ",".repeat(LILYPOND_BASE_OCTAVE - octave)
                     else -> ""
                 }
-            return "${step.letter}$accidental$marks"
+            return lilypondName + marks
         }
 
     /** The scientific name of the pitch: `C4`, `C#4`, `C-3`. */

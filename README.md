@@ -24,7 +24,8 @@ build/install/lilytap/bin/lilytap
 
 A dark, custom-painted UI (no extra dependencies, icons are drawn in code):
 steppers you can click, hold, scroll or drag, a sliding option picker, a beat indicator, a glowing
-playhead over the timeline, and a Copy button that confirms with a check mark.
+playhead over the timeline, a Copy button that confirms with a check mark, and a **Rel** button
+that writes the octaves of the LilyPond text relative to the note before.
 
 The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
 carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
@@ -274,6 +275,39 @@ always had: there the click is the beat, and the accent marks the downbeat as it
 The button is greyed out in a simple meter (4/4, 3/4, 2/4): there the click is already on the
 note value, so there is nothing to change. It keeps its setting when the meter changes, so a
 compound meter that comes back is still in 3-feel.
+
+## The LilyPond text
+
+The text in the output box follows the score, one bar per line. The **Rel** button beside
+**Copy** chooses how the octaves are written.
+
+By default every note carries its own octave marks, and the first line of the text says so:
+
+```
+% absolute
+c'4 d'4 e'4 f'4 |
+```
+
+With **Rel** on, the text is a `\relative` block: every note is written relative to the note
+before it, the way LilyPond reads them. The first note of the block is still written in full,
+because there is no note before it.
+
+```
+% relative
+\relative {
+c'4 d e f |
+}
+```
+
+LilyPond puts a note in the octave that is nearest to the one before it, counting the letters of
+the scale and not the accidentals: a note that would be a fifth or more away goes the other way
+instead, and the marks (`'`, `,`) add whole octaves to the octave that was worked out. A rest
+carries no pitch and does not move the reference, so the note after a silence is still read from
+the note before the silence. The comment on the first line says which way the octaves are
+written, so a fragment that is copied into a file says what it is.
+
+The choice is yours for the session: nothing is remembered, and the app starts in absolute mode
+every time it is launched.
 
 ## Playback
 

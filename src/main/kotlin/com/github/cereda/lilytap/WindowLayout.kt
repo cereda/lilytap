@@ -13,6 +13,8 @@ import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
 import javax.swing.BorderFactory
+import javax.swing.Box
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JScrollPane
@@ -55,16 +57,31 @@ internal fun buildStartColumn(
     }
 
 /**
- * The header of the LilyPond card: the name of the text and the button that copies it.
+ * The header of the LilyPond card: the name of the text, the mode picker and the copy button.
  *
+ * @param relative the button that writes the octaves relative to the note before.
  * @param copy the button that copies the text.
  * @return the header of the card.
  */
-internal fun buildOutputHeader(copy: JComponent): JComponent =
+internal fun buildOutputHeader(
+    relative: JComponent,
+    copy: JComponent,
+): JComponent =
     JPanel(BorderLayout()).apply {
         isOpaque = false
         add(GlyphLabel(Glyph.NOTE, "LilyPond", 14f, { Theme.text }, Font.BOLD), BorderLayout.WEST)
-        add(copy, BorderLayout.EAST)
+        add(
+            JPanel().apply {
+                isOpaque = false
+                // A box, not a flow: a flow layout asks for two gaps more than it needs,
+                // and the header of the card is only 258 px wide.
+                layout = BoxLayout(this, BoxLayout.LINE_AXIS)
+                add(relative)
+                add(Box.createHorizontalStrut(8))
+                add(copy)
+            },
+            BorderLayout.EAST,
+        )
     }
 
 /**

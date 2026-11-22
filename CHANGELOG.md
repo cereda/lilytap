@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The LilyPond text can be written with the octaves relative: the **Rel** button beside **Copy**
+  writes the score as a `\relative` block, where every note is read from the note before it, the
+  way LilyPond reads them. The first note of the block is still written in full, because there is
+  no note before it, and a rest carries no pitch and does not move the reference.
+- The first line of the LilyPond text says how the octaves are written (`% absolute` or
+  `% relative`), so a fragment that is copied into a file says what it is.
+
 ### Fixed
 - The hint of the LilyPond card is no longer cut off: it is wrapped over two lines, so the whole
   sentence fits in the narrow card.

@@ -105,6 +105,14 @@ data class Score(
     val lilypond: String get() = format(layout(events, config))
 
     /**
+     * The score as LilyPond text, one bar per line, with the octaves relative.
+     *
+     * The text is wrapped in a `\relative` block: inside it, LilyPond reads the octave of a
+     * note from the note before it.
+     */
+    val lilypondRelative: String get() = formatRelative(layout(events, config))
+
+    /**
      * Turns the event at [index] into a rest, or a rest back into a note.
      *
      * Two rests in a row are one silence, so a note that becomes a rest is merged with
@@ -578,3 +586,82 @@ fun format(bars: List<List<Atom>>): String =
             name + lilyDuration(atom.units) + if (atom.tieToNext) " ~" else ""
         } + " |"
     }
+
+/**
+ * Formats bars as LilyPond text with the octaves relative, inside a `\relative` block.
+ *
+ * In a relative block LilyPond reads the octave of a note from the note before it, so the
+ * notes are written with as few marks as they can be written with. The first note of the
+ * block has no note before it and is written in full, and a rest carries no pitch and so
+ * does not move the reference.
+ *
+ * @param bars the atoms of each bar.
+ * @return the LilyPond text of the bars.
+ */
+fun formatRelative(bars: List<List<Atom>>): String {
+    val text = StringBuilder("\\relative {\n")
+    var previous: Pitch? = null
+    for (bar in bars) {
+        val pieces = mutableListOf<String>()
+        for (atom in bar) {
+            val pitch = atom.pitch
+            val name = if (pitch == null) "r" else relativeName(pitch, previous)
+            if (pitch != null) previous = pitch
+            pieces += name + lilyDuration(atom.units) + if (atom.tieToNext) " ~" else ""
+        }
+        text.append(pieces.joinToString(" ")).append(" |\n")
+    }
+    return text.append("}").toString()
+}
+
+/**
+ * The name of a note in relative mode.
+ *
+ * The octave of a note without marks is the one that puts it as close to the previous note
+ * as the letters allow: the interval is measured in letter steps, seven to an octave, and
+ * the accidentals do not count. The marks then lift or lower that pitch by whole octaves.
+ *
+ * The first note of a relative block has no note before it and is written in full.
+ *
+ * @param pitch the pitch of the note.
+ * @param previous the pitch of the note before it, or null for the first note.
+ * @return the LilyPond name of the note.
+ */
+fun relativeName(
+    pitch: Pitch,
+    previous: Pitch?,
+): String {
+    if (previous == null) return pitch.lilypond
+    val delta = pitch.octave - relativeOctave(previous, pitch.step)
+    val marks =
+        when {
+            delta > 0 -> "'".repeat(delta)
+            delta < 0 -> ",".repeat(-delta)
+            else -> ""
+        }
+    return pitch.lilypondName + marks
+}
+
+/**
+ * The octave a note would have in a relative block if it carried no octave marks.
+ *
+ * LilyPond puts the note as close to the previous one as the letters allow: the interval
+ * is measured in letter steps (seven to an octave, the accidentals do not count) and the
+ * nearer direction wins.
+ *
+ * @param previous the pitch of the note before it.
+ * @param step the letter of the note.
+ * @return the octave of the note, in scientific notation.
+ */
+private fun relativeOctave(
+    previous: Pitch,
+    step: PitchStep,
+): Int {
+    val from = previous.step.ordinal
+    val to = step.ordinal
+    val up = (to - from + 7) % 7
+    val down = (from - to + 7) % 7
+    val upOctave = previous.octave + if (from > to) 1 else 0
+    val downOctave = previous.octave - if (from < to) 1 else 0
+    return if (up < down) upOctave else downOctave
+}

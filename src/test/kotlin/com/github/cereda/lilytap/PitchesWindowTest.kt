@@ -90,6 +90,38 @@ class PitchesWindowTest {
     }
 
     @Test
+    fun `the header of the LilyPond card fits the card`() {
+        val app = WindowApp()
+
+        val bottom = bottom(app)
+        bottom.setSize(CONTENT_WIDTH, BOTTOM_HEIGHT)
+        layOut(bottom)
+
+        val cards = bottom.components.filterIsInstance<JComponent>()
+        val outputCard = cards[1]
+        val header = outputCard.components.filterIsInstance<JComponent>().first()
+        val room = outputCard.width - 36
+        assertTrue(
+            header.preferredSize.width <= room,
+            "the header asks for ${header.preferredSize.width} px, the card has $room",
+        )
+    }
+
+    @Test
+    fun `the LilyPond card shows five lines of transcription`() {
+        val app = WindowApp()
+
+        val bottom = bottom(app)
+        bottom.setSize(CONTENT_WIDTH, BOTTOM_HEIGHT)
+        layOut(bottom)
+
+        val area = output(app)
+        val fm = fontMetrics(area.font)
+        val lines = (area.height - area.margin.top - area.margin.bottom) / fm.height
+        assertTrue(lines >= 5, "the card shows $lines lines")
+    }
+
+    @Test
     fun `the hint of the LilyPond card is not cut off`() {
         val app = WindowApp()
 
@@ -778,21 +810,18 @@ class PitchesWindowTest {
     }
 
     /** The box with the LilyPond text. */
-    private fun output(app: WindowApp): CodeArea {
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == "output" }
-                ?: error("output field not found")
-        field.isAccessible = true
-        return field.get(app) as CodeArea
-    }
+    private fun output(app: WindowApp): CodeArea = lilypond(app).area
 
     /** The scroll pane that holds the LilyPond text. */
-    private fun scroll(app: WindowApp): JScrollPane {
+    private fun scroll(app: WindowApp): JScrollPane = lilypond(app).scroll
+
+    /** The card that holds the LilyPond text. */
+    private fun lilypond(app: WindowApp): LilyPondOutput {
         val field =
-            WindowApp::class.java.declaredFields.find { it.name == "scroll" }
-                ?: error("scroll field not found")
+            WindowApp::class.java.declaredFields.find { it.name == "lilypond" }
+                ?: error("lilypond field not found")
         field.isAccessible = true
-        return field.get(app) as JScrollPane
+        return field.get(app) as LilyPondOutput
     }
 
     /** A button of the window, by the name of the field that holds it. */

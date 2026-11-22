@@ -230,12 +230,7 @@ class WindowAppTest {
 
         notation.handleKey(KeyEvent.VK_S)
 
-        val outputField =
-            WindowApp::class.java.declaredFields.find { it.name == "output" }
-                ?: error("output field not found")
-        outputField.isAccessible = true
-        val output = outputField.get(app) as CodeArea
-        assertEquals("c'2 c'2 |", output.text)
+        assertEquals("% absolute\nc'2 c'2 |", output(app).text)
 
         // The header says what happened, and the split button is off for a range.
         val captionField =
@@ -302,7 +297,7 @@ class WindowAppTest {
         field.text = "cis'"
         applyPitch(app)
 
-        assertEquals("cis'1 |", output(app).text, "the LilyPond text follows the new pitch")
+        assertEquals("% absolute\ncis'1 |", output(app).text, "the LilyPond text follows the new pitch")
         assertFalse(field.invalid, "the name was read")
     }
 
@@ -320,7 +315,7 @@ class WindowAppTest {
         field.text = " cis "
         applyPitch(app)
 
-        assertEquals("cis1 |", output(app).text, "the name without a mark is the C below middle C")
+        assertEquals("% absolute\ncis1 |", output(app).text, "the name without a mark is the C below middle C")
         assertEquals("", field.text, "the field is empty: it waits for the next note of the melody")
     }
 
@@ -339,7 +334,7 @@ class WindowAppTest {
         applyPitch(app)
 
         assertTrue(field.invalid, "the name is not a note")
-        assertEquals("c'1 |", output(app).text, "the score is left alone")
+        assertEquals("% absolute\nc'1 |", output(app).text, "the score is left alone")
     }
 
     @Test
@@ -355,10 +350,55 @@ class WindowAppTest {
         val field = styledField(app, "pitchField")
         field.text = "cis'"
         applyPitch(app)
-        assertEquals("cis'1 |", output(app).text)
+        assertEquals("% absolute\ncis'1 |", output(app).text)
 
         notation(app).undo()
-        assertEquals("c'1 |", output(app).text, "the pitch comes back")
+        assertEquals("% absolute\nc'1 |", output(app).text, "the pitch comes back")
+    }
+
+    @Test
+    fun `the octaves can be written relative to the note before`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        assertEquals("% absolute\nc'1 |", output(app).text, "the octaves are written in full to begin with")
+
+        toggleRelativeOutput(app)
+
+        assertEquals("% relative\n\\relative {\nc'1 |\n}", output(app).text, "the text is a relative block")
+    }
+
+    @Test
+    fun `the Rel button lights up when the mode is on`() {
+        val app = WindowApp()
+
+        val button = lilypond(app).relative
+        assertNull(button.accentOverride, "the button is quiet to begin with")
+
+        toggleRelativeOutput(app)
+
+        assertNotNull(button.accentOverride, "the button says that the mode is on")
+    }
+
+    @Test
+    fun `an edit follows the mode that is on`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        toggleRelativeOutput(app)
+
+        selectTheOnlyBlock(app)
+        val field = styledField(app, "pitchField")
+        field.text = "cis'"
+        applyPitch(app)
+
+        assertEquals("% relative\n\\relative {\ncis'1 |\n}", output(app).text, "the text stays relative")
     }
 
     @Test
@@ -486,15 +526,15 @@ class WindowAppTest {
         notation.handleKey(KeyEvent.VK_S)
 
         val output = output(app)
-        assertEquals("c'2 c'2 |", output.text)
+        assertEquals("% absolute\nc'2 c'2 |", output.text)
 
         val revertScore = WindowApp::class.java.getDeclaredMethod("revertScore")
         revertScore.isAccessible = true
         revertScore.invoke(app)
-        assertEquals("c'1 |", output.text, "the score is back the way the take ended")
+        assertEquals("% absolute\nc'1 |", output.text, "the score is back the way the take ended")
 
         notation.undo()
-        assertEquals("c'2 c'2 |", output.text, "the split comes back")
+        assertEquals("% absolute\nc'2 c'2 |", output.text, "the split comes back")
     }
 
     @Test
@@ -1120,12 +1160,15 @@ class WindowAppTest {
     }
 
     /** The box with the LilyPond text. */
-    private fun output(app: WindowApp): CodeArea {
+    private fun output(app: WindowApp): CodeArea = lilypond(app).area
+
+    /** The card that holds the LilyPond text. */
+    private fun lilypond(app: WindowApp): LilyPondOutput {
         val field =
-            WindowApp::class.java.declaredFields.find { it.name == "output" }
-                ?: error("output field not found")
+            WindowApp::class.java.declaredFields.find { it.name == "lilypond" }
+                ?: error("lilypond field not found")
         field.isAccessible = true
-        return field.get(app) as CodeArea
+        return field.get(app) as LilyPondOutput
     }
 
     /** Clicks the only block of the score on the strip, so that it is selected. */
@@ -1207,6 +1250,13 @@ class WindowAppTest {
         val apply = WindowApp::class.java.getDeclaredMethod("applyPitchInput")
         apply.isAccessible = true
         apply.invoke(app)
+    }
+
+    /** Switches the LilyPond text between the octaves in full and the octaves relative. */
+    private fun toggleRelativeOutput(app: WindowApp) {
+        val toggle = WindowApp::class.java.getDeclaredMethod("toggleRelativeOutput")
+        toggle.isAccessible = true
+        toggle.invoke(app)
     }
 }
 

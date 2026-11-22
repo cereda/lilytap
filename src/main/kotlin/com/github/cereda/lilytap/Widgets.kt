@@ -1163,7 +1163,9 @@ internal class CodeArea : JTextArea(4, 40) {
 
     init {
         font = Theme.mono(14f)
-        margin = Insets(10, 12, 10, 12)
+        // The card is short: the text sits close to the top and the bottom of the box, so
+        // that five lines of transcription fit in it.
+        margin = Insets(6, 12, 6, 12)
         isEditable = false
         // The card that holds the text is narrow, so the text wraps at its width. The text
         // itself keeps its own line breaks: what is copied is what was written.

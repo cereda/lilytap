@@ -17,7 +17,6 @@ import java.awt.KeyEventDispatcher
 import java.awt.KeyboardFocusManager
 import java.awt.Point
 import java.awt.Toolkit
-import java.awt.datatransfer.StringSelection
 import java.awt.event.AWTEventListener
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
@@ -32,7 +31,6 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.JScrollPane
 import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import javax.swing.Timer
@@ -330,17 +328,14 @@ internal class WindowApp {
      * The button is a word in red: it throws the edits away, so it says so.
      */
     private val revert = PillButton("Revert", null, ButtonKind.SEVERE, heightPx = 32)
-    private val output = CodeArea()
 
     /** The card that holds the LilyPond text: the third of the bottom row. */
-    private val outputCard = Card()
-    private val copy = PillButton("Copy", Glyph.COPY, minW = 104, heightPx = 36)
+    private val lilypond = LilyPondOutput()
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
     private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
     private val soundButton = PillButton("", Glyph.NOTE, heightPx = 32)
     private val playButton = PillButton("", Glyph.PLAY, heightPx = 32)
     private val themeButton = IconButton(Glyph.SUN)
-    private val scroll = JScrollPane(output)
     private val stageRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
     private val stageBody = JPanel(GridBagLayout()).apply { isOpaque = false }
 
@@ -393,7 +388,6 @@ internal class WindowApp {
     private var enterGuard = false
     private val metronome = Metronome()
     private val frameTimer = Timer(15) { onFrame() }
-    private val copyReset = Timer(1500) { resetCopyButton() }.apply { isRepeats = false }
     private var session: Session? = null
 
     /** The beat the guide was last updated for, so it only changes when a new beat starts. */
@@ -663,7 +657,7 @@ internal class WindowApp {
 
         start.onClick = { if (session == null) begin() else abort() }
         start.toolTipText = "Start (Ctrl+Enter, or Cmd+Enter on macOS). Esc aborts. Press r for a rest."
-        copy.onClick = { copyOutput() }
+        lilypond.relative.onClick = { toggleRelativeOutput() }
         rawToggle.onClick = { toggleRaw() }
         scoreToggle.onClick = { toggleScoreStrip() }
         themeButton.onClick = { applyTheme(!Theme.isDark) }
@@ -697,7 +691,7 @@ internal class WindowApp {
 
         // Nothing should look selected on startup: park focus on the background, and let a click
         // on any empty area take focus away from a text field later on.
-        parkFocusOutsideScore(settings, stage, bottom, outputCard)
+        parkFocusOutsideScore(settings, stage, bottom, lilypond.card)
     }
 
     /**
@@ -1017,8 +1011,7 @@ internal class WindowApp {
         Theme.set(dark)
         applyDialogTheme()
         frame.contentPane.background = Theme.bg
-        scroll.viewport.background = Theme.code
-        output.refreshTheme()
+        lilypond.refreshTheme()
         time.refreshTheme()
         pitchField.refreshTheme()
         updateRawToggle()
@@ -1164,7 +1157,8 @@ internal class WindowApp {
     private fun setControlsEnabled(on: Boolean) {
         settingsLive = on
         settingControls.forEach { it.isEnabled = on }
-        copy.isEnabled = on
+        lilypond.copy.isEnabled = on
+        lilypond.relative.isEnabled = on
         calibrateButton.isEnabled = on
         playButton.isEnabled = on && currentScore() != null
         soundButton.isEnabled = on && currentScore() != null
@@ -1202,25 +1196,7 @@ internal class WindowApp {
      * The pitches panel takes two thirds of the row and the LilyPond card the rest. The two
      * cards ask for the width they get, so the window keeps the size it has.
      */
-    private fun buildBottom(): JComponent {
-        scroll.apply {
-            border = BorderFactory.createEmptyBorder()
-            viewport.background = Theme.code
-            verticalScrollBar.ui = ThinScrollBar()
-            verticalScrollBar.preferredSize = Dimension(10, 0)
-            horizontalScrollBar.ui = ThinScrollBar()
-            horizontalScrollBar.preferredSize = Dimension(0, 10)
-        }
-        val codeCard = buildCodeCard(scroll)
-        val outputHeader = buildOutputHeader(copy)
-        outputCard.apply {
-            layout = BorderLayout(0, 10)
-            border = BorderFactory.createEmptyBorder(14, 18, 16, 18)
-            add(outputHeader, BorderLayout.NORTH)
-            add(codeCard, BorderLayout.CENTER)
-        }
-        return buildBottom(buildPitchesCard(pitches), outputCard)
-    }
+    private fun buildBottom(): JComponent = buildBottom(buildPitchesCard(pitches), lilypond.card)
 
     /**
      * The stage: the status line, the recording timeline and the score strip below it.
@@ -1271,22 +1247,21 @@ internal class WindowApp {
         }
     }
 
-    /** Puts the LilyPond text on the clipboard. */
-    private fun copyOutput() {
-        if (output.text.isBlank()) return
-        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(output.text), null)
-        copy.text = "Copied"
-        copy.glyph = Glyph.CHECK
-        copy.accentOverride = Theme.ok
-        copyReset.restart()
+    /**
+     * Writes the octaves of the text in full, or relative to the note before.
+     *
+     * The text says in a comment which way it is written, so a fragment that is copied into
+     * a file says what it is.
+     */
+    private fun toggleRelativeOutput() {
+        lilypond.toggleRelative(currentScore())
     }
 
     /** The score was edited in the strip: the output follows, and Revert comes alive. */
     private fun scoreChanged(edited: Score) {
         if (isPlaying) stopPlayback()
         timeline.score = edited
-        output.text = edited.lilypond
-        output.caretPosition = 0
+        lilypond.show(edited)
         revert.isEnabled = edited != takeScore
         updateScoreHeader()
     }
@@ -1333,8 +1308,7 @@ internal class WindowApp {
         tracker.clear()
         notation.score = taken
         timeline.score = taken
-        output.text = taken.lilypond
-        output.caretPosition = 0
+        lilypond.show(taken)
         revert.isEnabled = false
         playButton.isEnabled = true
         soundButton.isEnabled = true
@@ -1353,12 +1327,6 @@ internal class WindowApp {
         updatePlayButton()
         updateScoreHeader()
         stopPlayback()
-    }
-
-    private fun resetCopyButton() {
-        copy.text = "Copy"
-        copy.glyph = Glyph.COPY
-        copy.accentOverride = null
     }
 
     private fun begin() {
@@ -1411,10 +1379,8 @@ internal class WindowApp {
         timeline.session = s
         updatePitchesPanel()
         lastPress = null
-        output.text = ""
+        lilypond.clear()
         clearScore()
-        resetCopyButton()
-        copyReset.stop()
         rawToggle.isEnabled = false
         beatDots.isVisible = true
         relayoutStageRight()
@@ -1475,10 +1441,8 @@ internal class WindowApp {
         // hidden, so that a visual guide that is out of sync with the audio cannot mislead the
         // user (and cannot be mistaken for the audio when the taps are measured).
         timeline.session = null
-        output.text = ""
+        lilypond.clear()
         clearScore()
-        resetCopyButton()
-        copyReset.stop()
         rawToggle.isEnabled = false
         calibrating = true
         calibrationOffsets.clear()

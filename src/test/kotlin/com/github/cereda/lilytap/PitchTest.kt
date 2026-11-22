@@ -123,6 +123,26 @@ class PitchTest {
     }
 
     @Test
+    fun `the name of a pitch without the octave marks`() {
+        assertEquals("c", Pitch(PitchStep.C, 0, 4).lilypondName)
+        assertEquals("cis", Pitch(PitchStep.C, 1, 4).lilypondName)
+        assertEquals("ces", Pitch(PitchStep.C, -1, 4).lilypondName)
+        assertEquals("f", Pitch(PitchStep.F, 0, 0).lilypondName)
+        assertEquals("bes", Pitch(PitchStep.B, -1, 8).lilypondName)
+    }
+
+    @Test
+    fun `the name without the octave marks is the name with them, less the marks`() {
+        for (pitch in listOf(Pitch.DEFAULT, Pitch(PitchStep.G, 1, 7), Pitch(PitchStep.C, -1, 1))) {
+            assertEquals(
+                pitch.lilypond.trimEnd('\'', ','),
+                pitch.lilypondName,
+                "the name of $pitch should keep its letter and its accidental",
+            )
+        }
+    }
+
+    @Test
     fun `a pitch is written in scientific notation too`() {
         assertEquals("C4", Pitch(PitchStep.C, 0, 4).scientific)
         assertEquals("C♯4", Pitch(PitchStep.C, 1, 4).scientific)
