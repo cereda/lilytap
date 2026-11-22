@@ -29,7 +29,8 @@ playhead over the timeline, and a Copy button that confirms with a check mark.
 The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
 carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
 left. A legend above the Start button says what the colours of the raw taps mean and which keys
-play the piano.
+play the piano. Until there is a transcription, the box says that it will appear there - the
+sentence is wrapped over two lines, so it fits in the narrow card.
 
 Light and dark themes (sun/moon button in the header). The theme follows your OS setting on every
 launch; the sun/moon button switches it for the session. **Ctrl+Enter** (Cmd+Enter on macOS) starts

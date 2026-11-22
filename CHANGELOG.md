@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The hint of the LilyPond card is no longer cut off: it is wrapped over two lines, so the whole
+  sentence fits in the narrow card.
+
 ## [0.13.1] - 2026-11-22
 
 ### Changed
