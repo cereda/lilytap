@@ -2,10 +2,14 @@
 package com.github.cereda.lilytap
 
 import java.awt.Container
+import java.awt.Font
+import java.awt.FontMetrics
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
+import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JScrollPane
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -83,6 +87,28 @@ class PitchesWindowTest {
         val area = output(app)
         assertTrue(area.lineWrap, "the text wraps at the width of the card")
         assertTrue(area.wrapStyleWord, "the text breaks at a space")
+    }
+
+    @Test
+    fun `the hint of the LilyPond card is not cut off`() {
+        val app = WindowApp()
+
+        val bottom = bottom(app)
+        bottom.setSize(CONTENT_WIDTH, BOTTOM_HEIGHT)
+        layOut(bottom)
+
+        val area = output(app)
+        // The scroll bar takes its room from the text when it is there, so the hint is
+        // measured in the narrowest box the text can have.
+        val bar = scroll(app).verticalScrollBar.preferredSize.width
+        val room = area.width - area.margin.left - area.margin.right - bar
+        val fm = fontMetrics(area.font)
+        val lines = wrapText(CodeArea.HINT, room) { fm.stringWidth(it) }
+
+        assertTrue(lines.size > 1, "the hint does not fit on one line, so it is wrapped")
+        for (line in lines) {
+            assertTrue(fm.stringWidth(line) <= room, "the line '$line' is cut off")
+        }
     }
 
     // -------------------------------------------------------------------------------------------
@@ -760,6 +786,15 @@ class PitchesWindowTest {
         return field.get(app) as CodeArea
     }
 
+    /** The scroll pane that holds the LilyPond text. */
+    private fun scroll(app: WindowApp): JScrollPane {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "scroll" }
+                ?: error("scroll field not found")
+        field.isAccessible = true
+        return field.get(app) as JScrollPane
+    }
+
     /** A button of the window, by the name of the field that holds it. */
     private fun button(
         app: WindowApp,
@@ -803,4 +838,13 @@ private fun layOut(container: Container) {
     for (child in container.components) {
         if (child is Container) layOut(child)
     }
+}
+
+/** The metrics of a font, measured without a screen. */
+private fun fontMetrics(font: Font): FontMetrics {
+    val image = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+    val g = image.createGraphics()
+    val metrics = g.getFontMetrics(font)
+    g.dispose()
+    return metrics
 }

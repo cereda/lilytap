@@ -1123,8 +1123,44 @@ internal class ThinScrollBar : BasicScrollBarUI() {
     }
 }
 
+/**
+ * Splits a text into the lines that fit a width.
+ *
+ * The words are kept whole: a line that is too long on its own is left as it is and hangs
+ * over the edge.
+ *
+ * @param text the text to split.
+ * @param maxWidth how wide a line may be, in pixels.
+ * @param widthOf how wide a piece of text is, in pixels.
+ * @return the lines of the text.
+ */
+internal fun wrapText(
+    text: String,
+    maxWidth: Int,
+    widthOf: (String) -> Int,
+): List<String> {
+    val lines = mutableListOf<String>()
+    var line = ""
+    for (word in text.split(" ")) {
+        val candidate = if (line.isEmpty()) word else "$line $word"
+        if (line.isNotEmpty() && widthOf(candidate) > maxWidth) {
+            lines += line
+            line = word
+        } else {
+            line = candidate
+        }
+    }
+    if (line.isNotEmpty()) lines += line
+    return lines
+}
+
 /** Text area with a ghost hint while empty. The text is generated, so it cannot be edited. */
 internal class CodeArea : JTextArea(4, 40) {
+    companion object {
+        /** The hint the empty box shows. */
+        const val HINT = "Your transcription will appear here"
+    }
+
     init {
         font = Theme.mono(14f)
         margin = Insets(10, 12, 10, 12)
@@ -1152,7 +1188,13 @@ internal class CodeArea : JTextArea(4, 40) {
             g.paint2d { g2 ->
                 g2.font = font
                 g2.color = Theme.faint
-                g2.drawString("Your transcription will appear here", margin.left, margin.top + g2.fontMetrics.ascent)
+                val fm = g2.fontMetrics
+                val room = width - margin.left - margin.right
+                var y = margin.top + fm.ascent
+                for (line in wrapText(HINT, room) { fm.stringWidth(it) }) {
+                    g2.drawString(line, margin.left, y)
+                    y += fm.height
+                }
             }
         }
     }
