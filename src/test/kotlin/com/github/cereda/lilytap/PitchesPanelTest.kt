@@ -44,6 +44,33 @@ class PitchesPanelTest {
     }
 
     @Test
+    fun `the panel says which octave the tracker plays`() {
+        val panel = PitchesPanel()
+        assertEquals("C4", panel.octaveText, "the tracker starts in the middle")
+        panel.setOctave(5, 4)
+        assertEquals("C5", panel.octaveText, "the panel says where the tracker is")
+        assertEquals(5, panel.piano.liveOctave, "the piano marks the same octave")
+    }
+
+    @Test
+    fun `the octave button says what it goes back to`() {
+        val panel = PitchesPanel()
+        panel.setOctave(5, 4)
+        val tip = panel.octave.toolTipText ?: ""
+        assertTrue(tip.contains("C5"), "the tooltip says where the tracker is")
+        assertTrue(tip.contains("C4"), "the tooltip says which note it goes back to")
+    }
+
+    @Test
+    fun `the octave button says when there is no note to go back to`() {
+        val panel = PitchesPanel()
+        panel.setOctave(5, null)
+        val tip = panel.octave.toolTipText ?: ""
+        assertTrue(tip.contains("C5"), "the tooltip says where the tracker is")
+        assertTrue(!tip.contains("C4"), "there is no note to go back to")
+    }
+
+    @Test
     fun `the counter says where the cursor is`() {
         val panel = PitchesPanel()
         assertEquals("", panel.counterText)
@@ -71,5 +98,38 @@ class PitchesPanelTest {
         assertTrue(hasColour(image, Theme.warn), "the legend shows the colour of a late tap")
         assertTrue(hasColour(image, Theme.accent2), "the legend shows the colour of an early tap")
         assertTrue(hasColour(image, Theme.dim), "the legend writes its words")
+    }
+
+    @Test
+    fun `the lines of the legend fit in its width`() {
+        val legend = LegendPanel()
+        val fm = legend.getFontMetrics(Theme.font(11f))
+        for (line in legend.trackerLines) {
+            assertTrue(
+                fm.stringWidth(line) <= legend.preferredSize.width,
+                "the line '$line' fits in the column",
+            )
+        }
+    }
+
+    @Test
+    fun `the legend says what the tracker keys do`() {
+        val legend = LegendPanel()
+        assertTrue(
+            legend.trackerLines.any { it.contains("1–7") },
+            "the legend says what the number row plays",
+        )
+        assertTrue(
+            legend.trackerLines.any { it.contains("Q W E R T") },
+            "the legend says what the top row plays",
+        )
+        assertTrue(
+            legend.trackerLines.any { it.contains("octave") },
+            "the legend says how the octave moves",
+        )
+        assertTrue(
+            legend.trackerLines.any { it.contains("0") },
+            "the legend says what the zero key does",
+        )
     }
 }

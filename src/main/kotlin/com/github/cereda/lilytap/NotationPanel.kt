@@ -34,6 +34,24 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
+ * Why the selection changed.
+ *
+ * The tracker follows the cursor: a block the user picks takes the tracker to its octave, but
+ * the walk that follows a written pitch does not, or every note of the melody would put the
+ * tracker back where it was.
+ */
+internal enum class SelectionMove {
+    /** The user picked a block, moved the selection with the keys, or undid an edit. */
+    USER,
+
+    /** The cursor moved on its own, after a pitch was written. */
+    WALK,
+
+    /** An edit kept the selection where it was. */
+    EDIT,
+}
+
+/**
  * A stretch of the score the user has selected: the units from [start] to [end].
  *
  * The selection is kept as a stretch of time and not as a pair of indices: an edit moves
@@ -170,7 +188,7 @@ internal class NotationPanel(
     var onEdit: ((Score) -> Unit)? = null
 
     /** Called whenever the selection changes, so the header can follow it. */
-    var onSelectionChange: (() -> Unit)? = null
+    var onSelectionChange: ((move: SelectionMove) -> Unit)? = null
 
     /** What the header says about the selection: what is selected, or what just happened. */
     var caption: String = NOTHING_SELECTED
@@ -442,7 +460,7 @@ internal class NotationPanel(
         }
         caption = describe(s, selection!!)
         repaint()
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.USER)
     }
 
     /** Forgets the selection. */
@@ -451,7 +469,7 @@ internal class NotationPanel(
         anchor = null
         caption = NOTHING_SELECTED
         repaint()
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.USER)
     }
 
     /**
@@ -469,7 +487,7 @@ internal class NotationPanel(
         selection = moved
         anchor = moved
         repaint()
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.WALK)
     }
 
     /**
@@ -477,11 +495,19 @@ internal class NotationPanel(
      *
      * The melody is filled in from the top: this button starts the walk, and every pitch
      * that is written moves the cursor on to the next note.
+     *
+     * @param quiet when true the cursor moves on its own, the way it moves after a pitch is
+     * written: the header keeps the message it had, and whoever watches the cursor is not
+     * told that the user moved it.
      */
-    fun fillMelody() {
+    fun fillMelody(quiet: Boolean = false) {
         val s = score ?: return
         val first = s.events.indices.firstOrNull { s.events[it].kind == TapKind.NOTE } ?: return
-        select(first, false)
+        if (quiet) {
+            selectQuietly(first)
+        } else {
+            select(first, false)
+        }
     }
 
     /**
@@ -516,7 +542,7 @@ internal class NotationPanel(
         anchor = moved
         caption = describe(s, moved)
         repaint()
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.USER)
     }
 
     /** A short description of what is selected: "c'2 selected", "3 blocks selected". */
@@ -588,7 +614,7 @@ internal class NotationPanel(
         caption = snapshot.caption
         repaint()
         onEdit?.invoke(snapshot.score)
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.USER)
     }
 
     /**
@@ -608,7 +634,7 @@ internal class NotationPanel(
         caption = REVERTED
         repaint()
         onEdit?.invoke(original)
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.EDIT)
     }
 
     // -------------------------------------------------------------------------------------------
@@ -711,7 +737,7 @@ internal class NotationPanel(
         caption = "$before → $now"
         repaint()
         onEdit?.invoke(edited)
-        onSelectionChange?.invoke()
+        onSelectionChange?.invoke(SelectionMove.EDIT)
     }
 
     /**

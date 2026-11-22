@@ -55,29 +55,40 @@ internal fun keyPitch(midi: Int): Pitch {
  * The lowest key the piano shows.
  *
  * The piano starts at middle C and reaches lower when the score does: a note below the
- * keyboard has to be somewhere.
+ * keyboard has to be somewhere. The octave the tracker plays is always on the keyboard too,
+ * or the keys that sound it would be nowhere to be seen.
  *
  * @param score the score of the take.
+ * @param liveOctave the octave the tracker plays.
  * @return the MIDI number of the lowest key.
  */
-internal fun lowestKey(score: Score?): Int {
+internal fun lowestKey(
+    score: Score?,
+    liveOctave: Int,
+): Int {
     val lowest = score?.events?.mapNotNull { it.pitch?.midi }?.minOrNull() ?: 60
-    return minOf(60, (lowest / 12) * 12)
+    val tracker = 12 * (liveOctave + 1)
+    return minOf(60, (lowest / 12) * 12, (tracker / 12) * 12)
 }
 
 /**
  * The highest key the piano shows, plus one.
  *
- * The piano always reaches the C above the highest tracker key, so every key that can be
- * played with the keyboard is also visible. A note above that grows the keyboard, and the
+ * The piano always reaches the C above the octave the tracker plays, so every key that can
+ * be played with the keyboard is also visible. A note above that grows the keyboard, and the
  * growth is always a whole octave.
  *
  * @param score the score of the take.
+ * @param liveOctave the octave the tracker plays.
  * @return the MIDI number of the highest key, plus one.
  */
-internal fun highestKey(score: Score?): Int {
+internal fun highestKey(
+    score: Score?,
+    liveOctave: Int,
+): Int {
     val highest = score?.events?.mapNotNull { it.pitch?.midi }?.maxOrNull() ?: 72
-    return maxOf(84, ((highest + 12) / 12) * 12)
+    val tracker = 12 * (liveOctave + 2) - 1
+    return maxOf(84, ((highest + 12) / 12) * 12, ((tracker + 12) / 12) * 12)
 }
 
 /**
@@ -177,6 +188,13 @@ internal class PianoPanel : JComponent() {
             repaint()
         }
 
+    /** The octave the tracker plays: its keys carry the letter of their key. */
+    var liveOctave: Int = Pitch.DEFAULT.octave
+        set(value) {
+            field = value
+            repaint()
+        }
+
     /** Where the playback is, in milliseconds; -1 when nothing is playing. */
     var playbackPositionMs: Double = -1.0
         set(value) {
@@ -200,7 +218,8 @@ internal class PianoPanel : JComponent() {
         isFocusable = false
         toolTipText =
             "Click a key to give it to the selected note. " +
-            "The keyboard plays the piano too: 1 to 0 are the white keys, Q W E R T the black ones."
+            "The keyboard plays the piano too: 1 to 7 are C to B, Q W E R T the sharps, " +
+            "8 and 9 move the octave and 0 puts it back on the note you are on."
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -215,7 +234,13 @@ internal class PianoPanel : JComponent() {
     override fun getPreferredSize(): Dimension = Dimension(420, 110)
 
     /** The keys of the piano, as they are drawn now. */
-    internal fun keys(): List<PianoKey> = pianoKeys(lowestKey(score), highestKey(score), width.toDouble(), height.toDouble())
+    internal fun keys(): List<PianoKey> =
+        pianoKeys(
+            lowestKey(score, liveOctave),
+            highestKey(score, liveOctave),
+            width.toDouble(),
+            height.toDouble(),
+        )
 
     /** The pitch that is sounding right now, when the score is playing. */
     private fun sounding(): Pitch? {
@@ -282,7 +307,7 @@ internal class PianoPanel : JComponent() {
         g2.fill(shape)
         g2.color = Theme.bg.alpha(if (interactive) 90 else 50)
         g2.draw(shape)
-        val label = TRACKER_LABELS[key.midi] ?: return
+        val label = TRACKER_LABELS[key.midi % 12] ?: return
         g2.font = Theme.font(11f, Font.BOLD)
         val fm = g2.fontMetrics
         if (fm.stringWidth(label) > key.width - 4) return
@@ -290,6 +315,7 @@ internal class PianoPanel : JComponent() {
             when {
                 key.midi == sounding()?.midi -> Theme.onAccent
                 selectedPitch?.midi == key.midi -> Theme.onAccent
+                key.midi / 12 - 1 == liveOctave -> Theme.text
                 else -> Theme.dim
             }
         val tx = (key.x + (key.width - fm.stringWidth(label)) / 2).toFloat()

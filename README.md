@@ -169,15 +169,23 @@ Below the score strip sits the **Pitches** panel: a piano that writes the pitch 
 note, and a counter that says where the cursor is among the notes of the take (`3 / 12`).
 
 - **Click a key** of the piano to give it to the selected note.
-- **Play it on the keyboard** instead: the number row carries the white keys and the top row the
-  black ones. The keys of the strip (**S**, **X**, **M**) keep their meaning, so the tracker lives
-  on the rows above them.
+- **Play it on the keyboard** instead: the number row names the notes of the scale and the top
+  row the sharps. The keys of the strip (**S**, **X**, **M**) keep their meaning, so the tracker
+  lives on the rows above them.
 
   | | |
   |---|---|
-  | `1` `2` `3` `4` `5` `6` `7` `8` `9` `0` | the white keys: middle C, D, E, F, G, A, B, C, D, E |
-  | `Q` `W` `E` `R` `T` `Y` `I` `O` `P` | the black keys: C♯, D♯, F♯, G♯, A♯, then the octave above |
+  | `1` `2` `3` `4` `5` `6` `7` | the notes of the scale: C, D, E, F, G, A, B |
+  | `Q` `W` `E` `R` `T` | the sharps of the same octave: C♯, D♯, F♯, G♯, A♯ |
+  | `8` `9` | an octave up, an octave down |
+  | `0` | back to the octave of the note you are on |
 
+- The keys play **the octave the panel shows** (`C4` at the start), not a fixed one: the same
+  `1` is a C4, a C5 or a C3, depending on where the tracker is. The piano marks that octave with
+  bright letters and the others with dim ones, and the keyboard follows your hand: clicking a
+  key of the piano puts the tracker in its octave, and clicking a block of the strip puts it in
+  the octave of that block. The walk that follows a written pitch does not move it, so an octave
+  you moved to by hand survives the melody.
 - The **cursor walks the melody**: every pitch that is written - by a click, by a tracker key or in
   the pitch field - moves it to the next note, and the silences are stepped over, because a rest
   has no pitch. The counter says where the cursor is, and the message in the header of the strip
@@ -311,12 +319,12 @@ latency starts at zero.
 itself: the notes and rests, the LilyPond text and the edits that can be made to them.
 `GridView.kt` is the grid the timeline and the score strip share, `NotationPanel.kt` the score
 strip itself. `PianoPanel.kt` is the piano of the pitches panel, `PitchesPanel.kt` the panel that
-holds it, and `Tracker.kt` the keys of the keyboard that play it. `LegendPanel.kt` is the legend
-above the Start button. `WindowApp.kt` is the window (layout + recording logic), `Timeline.kt` the
-recording timeline, `Player.kt` playback, `Metronome.kt` the count-in and calibration click,
-`Sound.kt` the click waveform, `Widgets.kt` the widget kit (buttons, steppers, etc.),
-`Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt` is the entry point and opens
-the window.
+holds it, and `Tracker.kt` the keys of the keyboard that play it and the octave they play.
+`LegendPanel.kt` is the legend above the Start button. `WindowApp.kt` is the window (layout +
+recording logic), `Timeline.kt` the recording timeline, `Player.kt` playback, `Metronome.kt` the
+count-in and calibration click, `Sound.kt` the click waveform, `Widgets.kt` the widget kit
+(buttons, steppers, etc.), `Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt` is
+the entry point and opens the window.
 
 Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/`.
 

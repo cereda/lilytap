@@ -25,6 +25,16 @@ class PitchesWindowTest {
             config,
         )
 
+    /** A score of two notes: a C4 and a C5, a quarter of the bar each. */
+    private val twoNotes =
+        Score(
+            listOf(
+                Event(TapKind.NOTE, 0, 32, Pitch(PitchStep.C, 0, 4)),
+                Event(TapKind.NOTE, 32, 32, Pitch(PitchStep.C, 0, 5)),
+            ),
+            config,
+        )
+
     // -------------------------------------------------------------------------------------------
     // The bottom row
     // -------------------------------------------------------------------------------------------
@@ -106,8 +116,27 @@ class PitchesWindowTest {
         val tip = legend(app).toolTipText ?: ""
         assertTrue(tip.contains("amber"), "the legend says that amber is late")
         assertTrue(tip.contains("teal"), "the legend says that teal is early")
-        assertTrue(tip.contains("white keys"), "the legend says what the number row plays")
-        assertTrue(tip.contains("black ones"), "the legend says what the top row plays")
+        assertTrue(tip.contains("1 to 7 are C to B"), "the legend says what the number row plays")
+        assertTrue(tip.contains("Q W E R T the sharps"), "the legend says what the top row plays")
+        assertTrue(tip.contains("8 and 9 move the octave"), "the legend says how the octave moves")
+        assertTrue(tip.contains("0 puts it back"), "the legend says what the zero key does")
+    }
+
+    @Test
+    fun `the legend says the same on the panel`() {
+        val app = WindowApp()
+
+        val legend = legend(app)
+        val tip = legend.toolTipText ?: ""
+        assertTrue(
+            tip.contains("1 to 7 are C to B"),
+            "the tooltip and the legend say the same thing",
+        )
+        assertEquals(
+            168,
+            legend.preferredSize.width,
+            "the legend fits the column beside the settings",
+        )
     }
 
     // -------------------------------------------------------------------------------------------
@@ -154,6 +183,23 @@ class PitchesWindowTest {
 
         assertEquals(1, notation(app).selectedNoteNumber, "the cursor is on the first note")
         assertEquals("1 / 1", pitches(app).counterText)
+    }
+
+    @Test
+    fun `the fill button puts the tracker in the octave of the first note`() {
+        val app = WindowApp()
+
+        showScore(app, twoNotes)
+        press(app, KeyEvent.VK_8)
+        assertEquals("C5", pitches(app).octaveText)
+
+        pitches(app).fill.onClick?.invoke()
+
+        assertEquals(
+            "C4",
+            pitches(app).octaveText,
+            "the tracker follows the note the cursor is on",
+        )
     }
 
     // -------------------------------------------------------------------------------------------
@@ -263,6 +309,30 @@ class PitchesWindowTest {
     }
 
     @Test
+    fun `a tracker key that starts the walk keeps the octave of the tracker`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_1)
+
+        assertEquals(
+            Pitch(PitchStep.C, 0, 5),
+            notation(app)
+                .score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+            "the first note of the take took the pitch of the live octave",
+        )
+        assertEquals(
+            "C5",
+            pitches(app).octaveText,
+            "the walk did not put the tracker back",
+        )
+    }
+
+    @Test
     fun `the tracker keys do nothing while the score plays`() {
         val app = WindowApp()
 
@@ -321,12 +391,12 @@ class PitchesWindowTest {
             )
 
         assertNull(
-            trackerPitch(event, JTextField()),
+            trackerAction(event, JTextField(), 4),
             "a key that is typed in a text field is text, not a pitch",
         )
         assertEquals(
-            keyPitch(67),
-            trackerPitch(event, null),
+            TrackerAction.Note(keyPitch(67)),
+            trackerAction(event, null, 4),
             "without a text field the key plays the piano",
         )
     }
@@ -351,6 +421,161 @@ class PitchesWindowTest {
             2,
             notation(app).score?.events?.size,
             "S still splits the selected block",
+        )
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // The octave of the tracker
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the tracker starts in the middle of the keyboard`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+
+        assertEquals("C4", pitches(app).octaveText, "the tracker starts in the middle")
+    }
+
+    @Test
+    fun `the octave keys move the tracker`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+
+        press(app, KeyEvent.VK_8)
+        assertEquals("C5", pitches(app).octaveText, "the tracker moved up")
+
+        press(app, KeyEvent.VK_9)
+        press(app, KeyEvent.VK_9)
+        assertEquals("C3", pitches(app).octaveText, "the tracker moved down twice")
+    }
+
+    @Test
+    fun `a tracker key plays in the live octave`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_1)
+
+        assertEquals(
+            Pitch(PitchStep.C, 0, 5),
+            notation(app)
+                .score
+                ?.events
+                ?.get(0)
+                ?.pitch,
+            "the tracker played the C of the octave above",
+        )
+    }
+
+    @Test
+    fun `the tracker follows the note that is selected`() {
+        val app = WindowApp()
+
+        showScore(app, twoNotes)
+        selectTheBlock(app, 1)
+
+        assertEquals(
+            "C5",
+            pitches(app).octaveText,
+            "the tracker is in the octave of the note",
+        )
+    }
+
+    @Test
+    fun `the walk does not move the tracker`() {
+        val app = WindowApp()
+
+        showScore(app, twoNotes)
+        selectTheBlock(app, 0)
+        press(app, KeyEvent.VK_8)
+        press(app, KeyEvent.VK_1)
+
+        assertEquals(
+            2,
+            notation(app).selectedNoteNumber,
+            "the cursor walked to the next note",
+        )
+        assertEquals(
+            "C5",
+            pitches(app).octaveText,
+            "the tracker stayed in the octave it was put in",
+        )
+    }
+
+    @Test
+    fun `the reset key goes back to the note that is selected`() {
+        val app = WindowApp()
+
+        showScore(app, twoNotes)
+        selectTheBlock(app, 1)
+        press(app, KeyEvent.VK_8)
+        assertEquals("C6", pitches(app).octaveText, "the tracker moved up")
+
+        press(app, KeyEvent.VK_0)
+        assertEquals(
+            "C5",
+            pitches(app).octaveText,
+            "the tracker is back on the octave of the note",
+        )
+    }
+
+    @Test
+    fun `the octave button goes back to the note that is selected`() {
+        val app = WindowApp()
+
+        showScore(app, twoNotes)
+        selectTheBlock(app, 1)
+        press(app, KeyEvent.VK_8)
+
+        pitches(app).octave.onClick?.invoke()
+
+        assertEquals(
+            "C5",
+            pitches(app).octaveText,
+            "the tracker is back on the octave of the note",
+        )
+    }
+
+    @Test
+    fun `the piano follows the hand that clicks it`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+        selectTheOnlyBlock(app)
+        press(app, KeyEvent.VK_8)
+        assertEquals("C5", pitches(app).octaveText)
+
+        val piano = pitches(app).piano
+        piano.setSize(300, 100)
+        // The first white key of the piano is the lowest one it shows: a C4.
+        piano.dispatchEvent(
+            MouseEvent(piano, MouseEvent.MOUSE_PRESSED, 0, 0, 4, 90, 1, false),
+        )
+
+        assertEquals(
+            "C4",
+            pitches(app).octaveText,
+            "the tracker followed the key that was clicked",
+        )
+    }
+
+    @Test
+    fun `a new take puts the tracker back in the middle`() {
+        val app = WindowApp()
+
+        showScore(app, score)
+        press(app, KeyEvent.VK_8)
+        assertEquals("C5", pitches(app).octaveText)
+
+        showScore(app, score)
+
+        assertEquals(
+            "C4",
+            pitches(app).octaveText,
+            "the tracker of a new take starts in the middle",
         )
     }
 
@@ -500,8 +725,24 @@ class PitchesWindowTest {
 
     /** Clicks the only block of the score on the strip, so that it is selected. */
     private fun selectTheOnlyBlock(app: WindowApp) {
+        selectTheBlock(app, 0)
+    }
+
+    /**
+     * Clicks a block of the score on the strip, so that it is selected.
+     *
+     * @param app the window.
+     * @param index the index of the block in the score.
+     */
+    private fun selectTheBlock(
+        app: WindowApp,
+        index: Int,
+    ) {
         val notation = notation(app)
-        val x = grid(app).xOfCell(0.5).toInt()
+        val s = notation.score ?: return
+        val event = s.events[index]
+        val cell = event.startUnits / s.config.cellUnits
+        val x = grid(app).xOfCell(cell + 0.5).toInt()
         notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_PRESSED, 0, 0, x, 28, 1, false))
         notation.dispatchEvent(MouseEvent(notation, MouseEvent.MOUSE_RELEASED, 0, 0, x, 28, 1, false))
     }

@@ -1114,6 +1114,94 @@ class NotationPanelTest {
         )
     }
 
+    // -------------------------------------------------------------------------------------------
+    // The moves of the selection
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `clicking a block is a move of the user`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        val moves = mutableListOf<SelectionMove>()
+        panel.onSelectionChange = { moves += it }
+
+        click(panel, grid.xOfCell(0.5).toInt())
+
+        assertEquals(
+            listOf(SelectionMove.USER),
+            moves,
+            "the click is the user moving the selection",
+        )
+    }
+
+    @Test
+    fun `the arrow keys are a move of the user`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        val moves = mutableListOf<SelectionMove>()
+        panel.onSelectionChange = { moves += it }
+
+        press(panel, KeyEvent.VK_RIGHT)
+
+        assertEquals(
+            listOf(SelectionMove.USER),
+            moves,
+            "the arrow key is the user moving the selection",
+        )
+    }
+
+    @Test
+    fun `the walk after a pitch is not a move of the user`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        val moves = mutableListOf<SelectionMove>()
+        panel.onSelectionChange = { moves += it }
+
+        panel.setSelectedPitch(Pitch(PitchStep.G, 0, 4))
+
+        assertEquals(
+            listOf(SelectionMove.EDIT, SelectionMove.WALK),
+            moves,
+            "the edit and the walk are not the user moving the selection",
+        )
+    }
+
+    @Test
+    fun `the fill is a move of the user`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        val moves = mutableListOf<SelectionMove>()
+        panel.onSelectionChange = { moves += it }
+
+        panel.fillMelody()
+
+        assertEquals(
+            listOf(SelectionMove.USER),
+            moves,
+            "the fill takes the cursor to the first note",
+        )
+    }
+
+    @Test
+    fun `the undo is a move of the user`() {
+        val (panel, grid) = panel()
+        panel.score = score()
+        click(panel, grid.xOfCell(0.5).toInt())
+        panel.setSelectedPitch(Pitch(PitchStep.G, 0, 4))
+        val moves = mutableListOf<SelectionMove>()
+        panel.onSelectionChange = { moves += it }
+
+        panel.undo()
+
+        assertEquals(
+            listOf(SelectionMove.USER),
+            moves,
+            "the undo puts the selection back where it was",
+        )
+    }
+
     /** Paints the strip and returns the image it drew on. */
     private fun paint(panel: NotationPanel): BufferedImage {
         val image = BufferedImage(400, 56, BufferedImage.TYPE_INT_ARGB)

@@ -321,6 +321,9 @@ internal class WindowApp {
     /** The legend of the top column: the colours of the raw taps and the tracker keys. */
     private val legend = LegendPanel()
 
+    /** The tracker: the keys of the keyboard that play the piano, and the octave they play. */
+    private val tracker = Tracker(pitches) { pitch -> fillPitch(pitch) }
+
     /**
      * The way back to the score the take ended with.
      *
@@ -739,20 +742,38 @@ internal class WindowApp {
      * only shows what is sounding.
      */
     private fun wirePitchesPanel() {
-        pitches.piano.onPitch = { pitch -> fillPitch(pitch) }
+        pitches.piano.onPitch = { pitch ->
+            // The hand is in that octave now: the tracker follows it there.
+            tracker.anchorTo(pitch.octave)
+            fillPitch(pitch)
+        }
         pitches.fill.onClick = { notation.fillMelody() }
+        pitches.octave.onClick = { tracker.reset() }
+    }
+
+    /**
+     * Puts the tracker in the octave of the selected note.
+     *
+     * The tracker follows the cursor: a block the user picks takes the tracker to its octave.
+     * The walk that follows a written pitch does not, or every note of the melody would put
+     * the tracker back where it was.
+     */
+    private fun anchorTracker() {
+        val pitch = notation.selectedPitch ?: return
+        tracker.anchorTo(pitch.octave)
     }
 
     /**
      * Puts a pitch on the selected note.
      *
      * When nothing is selected, the walk starts at the first note of the take: a pitch that is
-     * written always has a note to land on.
+     * written always has a note to land on. The walk starts quietly, so it does not put the
+     * tracker back in the octave it was put in.
      *
      * @param pitch the pitch the note sounds.
      */
     private fun fillPitch(pitch: Pitch) {
-        if (notation.selectedBlocks == 0) notation.fillMelody()
+        if (notation.selectedBlocks == 0) notation.fillMelody(quiet = true)
         notation.setSelectedPitch(pitch)
     }
 
@@ -807,7 +828,10 @@ internal class WindowApp {
      */
     private fun wireScoreEditor() {
         notation.onEdit = { edited -> scoreChanged(edited) }
-        notation.onSelectionChange = { updateScoreHeader() }
+        notation.onSelectionChange = { move ->
+            if (move == SelectionMove.USER) anchorTracker()
+            updateScoreHeader()
+        }
         splitButton.onClick = { notation.splitSelected() }
         swapButton.onClick = { notation.swapSelected() }
         mergeButton.onClick = { notation.mergeSelected() }
@@ -1293,6 +1317,7 @@ internal class WindowApp {
         pitches.piano.score = notation.score
         pitches.piano.selectedPitch = notation.selectedPitch
         pitches.piano.interactive = session == null && !isPlaying
+        tracker.sayOctave()
         pitches.setCounter(notation.cursorText)
     }
 
@@ -1305,6 +1330,8 @@ internal class WindowApp {
     /** Shows the score of a finished take in the strip. */
     private fun showScore(taken: Score) {
         takeScore = taken
+        // A new take is a fresh score: the tracker goes back to the middle of the keyboard.
+        tracker.clear()
         notation.score = taken
         timeline.score = taken
         output.text = taken.lilypond
@@ -1678,7 +1705,7 @@ internal class WindowApp {
     }
 
     /**
-     * Handles a tracker key: it writes a pitch on the selected note.
+     * Handles a tracker key: it writes a pitch, or it moves the octave the keys play.
      *
      * The tracker keys are the editor's: while a take is running every key is a tap, and
      * while the score plays they do nothing.
@@ -1688,10 +1715,7 @@ internal class WindowApp {
      */
     private fun handleTrackerKey(e: KeyEvent): Boolean {
         if (isAutoRepeat(e)) return false
-        val owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
-        val pitch = trackerPitch(e, owner) ?: return false
-        fillPitch(pitch)
-        return true
+        return tracker.handleKey(e)
     }
 
     /** Receives every key event in the window; while recording it consumes all of them. */

@@ -53,43 +53,36 @@ class PianoPanelTest {
     // -------------------------------------------------------------------------------------------
 
     @Test
-    fun `the number row plays the white keys`() {
+    fun `the number row names the notes of the scale`() {
         val expected =
             mapOf(
-                KeyEvent.VK_1 to 60,
-                KeyEvent.VK_2 to 62,
-                KeyEvent.VK_3 to 64,
-                KeyEvent.VK_4 to 65,
-                KeyEvent.VK_5 to 67,
-                KeyEvent.VK_6 to 69,
-                KeyEvent.VK_7 to 71,
-                KeyEvent.VK_8 to 72,
-                KeyEvent.VK_9 to 74,
-                KeyEvent.VK_0 to 76,
+                KeyEvent.VK_1 to 0,
+                KeyEvent.VK_2 to 2,
+                KeyEvent.VK_3 to 4,
+                KeyEvent.VK_4 to 5,
+                KeyEvent.VK_5 to 7,
+                KeyEvent.VK_6 to 9,
+                KeyEvent.VK_7 to 11,
             )
-        for ((key, midi) in expected) {
-            assertEquals(midi, TRACKER_KEYS[key], "the key $key plays the wrong note")
-            assertFalse(isBlackKey(midi), "the note $midi is a white key")
+        for ((key, pitchClass) in expected) {
+            assertEquals(pitchClass, TRACKER_KEYS[key], "the key $key names the wrong note")
+            assertFalse(isBlackKey(pitchClass), "the note $pitchClass is a white key")
         }
     }
 
     @Test
-    fun `the top row plays the black keys`() {
+    fun `the top row names the sharps`() {
         val expected =
             mapOf(
-                KeyEvent.VK_Q to 61,
-                KeyEvent.VK_W to 63,
-                KeyEvent.VK_E to 66,
-                KeyEvent.VK_R to 68,
-                KeyEvent.VK_T to 70,
-                KeyEvent.VK_Y to 73,
-                KeyEvent.VK_I to 75,
-                KeyEvent.VK_O to 78,
-                KeyEvent.VK_P to 80,
+                KeyEvent.VK_Q to 1,
+                KeyEvent.VK_W to 3,
+                KeyEvent.VK_E to 6,
+                KeyEvent.VK_R to 8,
+                KeyEvent.VK_T to 10,
             )
-        for ((key, midi) in expected) {
-            assertEquals(midi, TRACKER_KEYS[key], "the key $key plays the wrong note")
-            assertTrue(isBlackKey(midi), "the note $midi is a black key")
+        for ((key, pitchClass) in expected) {
+            assertEquals(pitchClass, TRACKER_KEYS[key], "the key $key names the wrong note")
+            assertTrue(isBlackKey(pitchClass), "the note $pitchClass is a black key")
         }
     }
 
@@ -101,11 +94,18 @@ class PianoPanelTest {
     }
 
     @Test
+    fun `the octave keys name no note`() {
+        for (key in listOf(KeyEvent.VK_8, KeyEvent.VK_9, KeyEvent.VK_0)) {
+            assertNull(TRACKER_KEYS[key], "the key $key moves the octave")
+        }
+    }
+
+    @Test
     fun `every tracker key has a letter on its key`() {
-        for ((key, midi) in TRACKER_KEYS) {
+        for ((key, pitchClass) in TRACKER_KEYS) {
             assertEquals(
                 KeyEvent.getKeyText(key),
-                TRACKER_LABELS[midi],
+                TRACKER_LABELS[pitchClass],
                 "the key $key should show its letter on the piano",
             )
         }
@@ -114,11 +114,11 @@ class PianoPanelTest {
 
     @Test
     fun `a tracker key plays the pitch of its key`() {
-        assertEquals(Pitch(PitchStep.C, 0, 4), keyPitch(TRACKER_KEYS[KeyEvent.VK_1]!!))
-        assertEquals(Pitch(PitchStep.C, 1, 4), keyPitch(TRACKER_KEYS[KeyEvent.VK_Q]!!))
-        assertEquals(Pitch(PitchStep.A, 1, 4), keyPitch(TRACKER_KEYS[KeyEvent.VK_T]!!))
-        assertEquals(Pitch(PitchStep.G, 0, 4), keyPitch(TRACKER_KEYS[KeyEvent.VK_5]!!))
-        assertEquals(Pitch(PitchStep.E, 0, 5), keyPitch(TRACKER_KEYS[KeyEvent.VK_0]!!))
+        assertEquals(Pitch(PitchStep.C, 0, 4), keyPitch(12 * 5 + TRACKER_KEYS[KeyEvent.VK_1]!!))
+        assertEquals(Pitch(PitchStep.C, 1, 4), keyPitch(12 * 5 + TRACKER_KEYS[KeyEvent.VK_Q]!!))
+        assertEquals(Pitch(PitchStep.A, 1, 4), keyPitch(12 * 5 + TRACKER_KEYS[KeyEvent.VK_T]!!))
+        assertEquals(Pitch(PitchStep.G, 0, 4), keyPitch(12 * 5 + TRACKER_KEYS[KeyEvent.VK_5]!!))
+        assertEquals(Pitch(PitchStep.E, 0, 5), keyPitch(12 * 6 + TRACKER_KEYS[KeyEvent.VK_3]!!))
     }
 
     // -------------------------------------------------------------------------------------------
@@ -144,24 +144,48 @@ class PianoPanelTest {
 
     @Test
     fun `the piano starts at two octaves`() {
-        assertEquals(60, lowestKey(null))
-        assertEquals(84, highestKey(null))
+        assertEquals(60, lowestKey(null, 4))
+        assertEquals(84, highestKey(null, 4))
     }
 
     @Test
     fun `the piano grows to cover the take`() {
         val low = scoreOf(Pitch(PitchStep.C, 0, 3))
-        assertEquals(48, lowestKey(low), "the keyboard reaches down to the lowest note")
+        assertEquals(48, lowestKey(low, 4), "the keyboard reaches down to the lowest note")
 
         val high = scoreOf(Pitch(PitchStep.C, 0, 6))
-        assertEquals(96, highestKey(high), "the keyboard reaches up to the highest note")
+        assertEquals(96, highestKey(high, 4), "the keyboard reaches up to the highest note")
     }
 
     @Test
     fun `the piano keeps two octaves when the take is small`() {
         val small = scoreOf(Pitch(PitchStep.C, 0, 4))
-        assertEquals(60, lowestKey(small))
-        assertEquals(84, highestKey(small))
+        assertEquals(60, lowestKey(small, 4))
+        assertEquals(84, highestKey(small, 4))
+    }
+
+    @Test
+    fun `the piano follows the octave of the tracker`() {
+        assertEquals(48, lowestKey(null, 3), "the keyboard reaches down to the live octave")
+        assertEquals(96, highestKey(null, 6), "the keyboard reaches up to the live octave")
+    }
+
+    @Test
+    fun `the piano keeps the octave of the tracker in sight`() {
+        for (octave in Pitch.MIN_OCTAVE..Pitch.MAX_OCTAVE) {
+            val low = lowestKey(null, octave)
+            val high = highestKey(null, octave)
+            val first = 12 * (octave + 1)
+            val last = 12 * (octave + 2) - 1
+            assertTrue(
+                first in low until high,
+                "the C of the octave $octave is not on the keyboard",
+            )
+            assertTrue(
+                last in low until high,
+                "the B of the octave $octave is not on the keyboard",
+            )
+        }
     }
 
     @Test
@@ -274,6 +298,18 @@ class PianoPanelTest {
         assertTrue(
             differingPixels(empty, withNote).isNotEmpty(),
             "the notes of the take should show on the keys",
+        )
+    }
+
+    @Test
+    fun `the letters of the live octave stand out`() {
+        val panel = piano()
+        val first = paint(panel)
+        panel.liveOctave = 5
+        val second = paint(panel)
+        assertTrue(
+            differingPixels(first, second).isNotEmpty(),
+            "the keys of the live octave should carry the letters",
         )
     }
 

@@ -22,23 +22,32 @@ import javax.swing.JComponent
  * The legend: the colours of the raw taps and the keys of the tracker.
  *
  * The raw taps are ghosts under the snapped notes: an amber one was pressed late and a teal
- * one early. The tracker keys play the piano: the number row carries the white keys and the
- * top row the black ones.
+ * one early. The tracker keys name the notes of the scale: the number row carries the white
+ * keys and the top row the sharps, and the octave they sound is the one the panel shows.
  */
 internal class LegendPanel : JComponent() {
     /** How wide the legend is, in pixels. */
     private val legendWidth = 168
+
+    /** The lines of the legend that tell what the keys of the tracker do. */
+    internal val trackerLines =
+        listOf(
+            "1–7 = C D E F G A B",
+            "Q W E R T = the sharps",
+            "8 / 9 = octave up / down",
+            "0 = back to the note",
+        )
 
     init {
         isOpaque = false
         font = Theme.font(11f)
         toolTipText =
             "Raw taps: amber = pressed late, teal = pressed early. " +
-            "Tracker keys: 1 to 0 are the white keys (middle C upwards), " +
-            "Q W E R T Y I O P are the black ones."
+            "Tracker keys: 1 to 7 are C to B, Q W E R T the sharps, " +
+            "8 and 9 move the octave and 0 puts it back on the note you are on."
     }
 
-    override fun getPreferredSize(): Dimension = Dimension(legendWidth, 46)
+    override fun getPreferredSize(): Dimension = Dimension(legendWidth, 80)
 
     override fun paintComponent(g: Graphics) {
         g.paint2d { g2 ->
@@ -51,10 +60,11 @@ internal class LegendPanel : JComponent() {
             x += 10
             x = swatch(g2, x, 8.0, Theme.accent2)
             word(g2, fm, x, 8.0, "early")
-            // The next two lines: the keys of the tracker.
+            // The next lines: the keys of the tracker.
             g2.color = Theme.dim
-            g2.drawString("1–0 = white keys", 0f, 27f)
-            g2.drawString("Q–P = black keys", 0f, 42f)
+            trackerLines.forEachIndexed { index, line ->
+                g2.drawString(line, 0f, (27 + index * 15).toFloat())
+            }
         }
     }
 

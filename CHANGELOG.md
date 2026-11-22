@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The keys of the tracker name the notes of the scale instead of fixed pitches, and the octave
+  they play is a state of its own. `1` to `7` are C to B and `Q W E R T` the sharps of the octave
+  the panel shows (`C4` at the start), `8` and `9` move that octave up and down, and `0` puts it
+  back on the octave of the note you are on. The keys `8`, `9`, `0`, `Y`, `I`, `O` and `P` of
+  0.13.0 are free now.
+- The tracker follows the cursor: clicking a block of the strip, clicking a key of the piano or
+  pressing **Fill the melody** puts it in the octave of that note. The walk that follows a
+  written pitch does not move it, so an octave you moved by hand survives the melody.
+- The piano marks the octave the tracker plays with bright letters and the other octaves with
+  dim ones, and it reaches the octave the tracker is in as well as the notes of the take.
+
 ## [0.13.0] - 2026-11-21
 
 ### Added
