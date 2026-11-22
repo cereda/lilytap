@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-22
+
 ### Changed
 - The keys of the tracker name the notes of the scale instead of fixed pitches, and the octave
   they play is a state of its own. `1` to `7` are C to B and `Q W E R T` the sharps of the octave
@@ -413,7 +415,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/cereda/lilytap/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/cereda/lilytap/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/cereda/lilytap/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/cereda/lilytap/compare/v0.11.0...v0.12.0
