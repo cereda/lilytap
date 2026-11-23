@@ -802,9 +802,7 @@ internal class WindowApp {
         val pitch = Pitch.parse(text)
         if (pitch == null) {
             pitchField.invalid = true
-            pitchField.toolTipText =
-                "Not a LilyPond note name. Write it the way LilyPond does: c' (middle C), " +
-                "cis' (sharp), ces' (flat), c (lower), c'' (higher)."
+            pitchField.toolTipText = PITCH_ERROR
             return
         }
         pitchField.invalid = false
@@ -1370,7 +1368,25 @@ internal class WindowApp {
         stopPlayback()
     }
 
+    /**
+     * Says what is wrong with the inputs of the window, when something is wrong with them.
+     *
+     * Every input the take depends on is read here: the time signature, the name of the key
+     * and the name of the pitch that is waiting in the field.
+     *
+     * @return the problem, or null when every input can be used.
+     */
+    private fun inputProblem(): Message? = InputCheck.message(time.text, keySetting.fault, pitchField.text)
+
     private fun begin() {
+        // Every input is read before the take begins: a name that cannot be read is a name
+        // that is still being typed, or a typo, and the take should not run on a setting the
+        // app does not understand.
+        val problem = inputProblem()
+        if (problem != null) {
+            showMessage(frame, problem)
+            return
+        }
         // A take has the keys to itself, so a tap round cannot still be listening.
         endTapRound(restoreStatus = false)
         val config =

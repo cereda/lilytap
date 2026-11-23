@@ -540,6 +540,49 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the take does not begin when the name of the key is wrong`() {
+        val app = WindowApp()
+
+        keyField(app).text = "Bb dorian"
+
+        val problem = inputProblem(app)
+        assertNotNull(problem, "the name of the key is not a key")
+        assertTrue(problem.headline.contains("key"), "the problem says what is wrong")
+    }
+
+    @Test
+    fun `the take does not begin when the time signature is wrong`() {
+        val app = WindowApp()
+
+        styledField(app, "time").text = "7/5"
+
+        val problem = inputProblem(app)
+        assertNotNull(problem, "the time signature is not a meter")
+        assertTrue(problem.headline.contains("time signature"), "the problem says what is wrong")
+    }
+
+    @Test
+    fun `the take does not begin when the pitch is wrong`() {
+        val app = WindowApp()
+
+        styledField(app, "pitchField").text = "h"
+
+        val problem = inputProblem(app)
+        assertNotNull(problem, "the pitch is not a note")
+        assertTrue(problem.headline.contains("pitch"), "the problem says what is wrong")
+    }
+
+    @Test
+    fun `the take begins when every input is good`() {
+        val app = WindowApp()
+
+        keyField(app).text = "Bb major"
+        applyKey(app)
+
+        assertNull(inputProblem(app), "every input can be used")
+    }
+
+    @Test
     fun `the playback clears the selection`() {
         val app = WindowApp()
 
@@ -1414,6 +1457,13 @@ class WindowAppTest {
         val apply = KeySetting::class.java.getDeclaredMethod("apply")
         apply.isAccessible = true
         apply.invoke(keySetting(app))
+    }
+
+    /** What is wrong with the inputs of the window, when something is wrong with them. */
+    private fun inputProblem(app: WindowApp): Message? {
+        val problem = WindowApp::class.java.getDeclaredMethod("inputProblem")
+        problem.isAccessible = true
+        return problem.invoke(app) as Message?
     }
 
     /** Shows a score in the strip, the way a finished take does. */

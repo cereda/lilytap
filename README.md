@@ -66,6 +66,10 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
 The **pitch** of the notes is not a setting but an edit: every note of the score carries its own
 pitch, and the strip lets you set it — see [The pitch of a note](#the-pitch-of-a-note).
 
+Every input is read before a take begins. A name that cannot be read — a time signature that is
+not a meter, a key that is not a key, a pitch that is not a note — stops the take and says what
+is wrong, instead of running the take on the last good value.
+
 After a take, the suggested latency is the configured one plus the timing error that is left.
 
 ## Tap tempo

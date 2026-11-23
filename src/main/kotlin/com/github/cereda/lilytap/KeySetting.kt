@@ -70,6 +70,14 @@ internal class KeySetting(
         }
 
     /**
+     * The fault of the name in the field, when it cannot be read.
+     *
+     * The field is the truth here: the name in it is what the user wrote, and a name that
+     * cannot be read is a problem the app has to say before it acts.
+     */
+    val fault: KeyFault? get() = KeySignature.fault(this.field.text)
+
+    /**
      * Puts a key on the score: the notes are spelled in it.
      *
      * @param key the key the piece is in.
@@ -129,17 +137,7 @@ internal class KeySetting(
      * @param fault what is wrong with the name.
      * @return the words of the tooltip.
      */
-    private fun faultText(fault: KeyFault?): String =
-        when (fault) {
-            is KeyFault.TooManyAccidentals -> {
-                "A key signature carries at most seven accidentals, and this one has " +
-                    "${fault.fifths}."
-            }
-
-            else -> {
-                KEY_ERROR_TOOLTIP
-            }
-        }
+    private fun faultText(fault: KeyFault?): String = fault?.message ?: KeyFault.Malformed.message
 
     /** Writes the name of the key in the field, unless it is being typed in. */
     private fun show() {
@@ -183,12 +181,5 @@ internal class KeySetting(
             "The key of the piece: the notes are spelled in it and the LilyPond text declares it. " +
                 "Write it as it is written in English (Bb major, F# minor) or the way LilyPond " +
                 "writes it (bes major, fis minor)."
-
-        /**
-         * What the key field says when the name in it cannot be read.
-         */
-        private const val KEY_ERROR_TOOLTIP =
-            "Not the name of a key. Write it as it is written in English (Bb major, F# minor) " +
-                "or the way LilyPond writes it (bes major, fis minor)."
     }
 }

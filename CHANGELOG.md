@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as well as the way it is written in English (`C# major`, `Bb major`), and a name that is the
   name of a key the app cannot hold says so: `G♯ major` carries eight accidentals, and a
   signature carries at most seven.
+- The app reads every input before a take begins: a name that cannot be read — a time signature
+  that is not a meter, a key that is not a key, a pitch that is not a note — stops the take and
+  says what is wrong, instead of running it on the last good value.
 
 ## [0.15.0] - 2026-11-23
 

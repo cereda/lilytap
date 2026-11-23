@@ -12,8 +12,15 @@ import kotlin.math.abs
  * What is wrong with the name of a key.
  */
 sealed interface KeyFault {
+    /** What the field says about the name that cannot be read. */
+    val message: String
+
     /** The text is not the name of a key at all. */
-    data object Malformed : KeyFault
+    data object Malformed : KeyFault {
+        override val message: String =
+            "Not the name of a key. Write it as it is written in English (Bb major, F# minor) " +
+                "or the way LilyPond writes it (bes major, fis minor)."
+    }
 
     /**
      * The key is a real one, but its signature carries more accidentals than the app holds.
@@ -22,7 +29,10 @@ sealed interface KeyFault {
      */
     data class TooManyAccidentals(
         val fifths: Int,
-    ) : KeyFault
+    ) : KeyFault {
+        override val message: String =
+            "A key signature carries at most seven accidentals, and this one has $fifths."
+    }
 }
 
 /**

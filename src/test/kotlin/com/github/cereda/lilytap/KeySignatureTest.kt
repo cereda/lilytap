@@ -182,6 +182,23 @@ class KeySignatureTest {
     }
 
     @Test
+    fun `the fault says what is wrong`() {
+        assertTrue(
+            KeyFault.Malformed.message.contains("Not the name of a key"),
+            "the fault says the name is not a key",
+        )
+        assertTrue(
+            KeyFault.TooManyAccidentals(8).message.contains("eight") ||
+                KeyFault.TooManyAccidentals(8).message.contains("8"),
+            "the fault says how many accidentals the key has",
+        )
+        assertTrue(
+            KeyFault.TooManyAccidentals(8).message.contains("seven"),
+            "the fault says what the limit is",
+        )
+    }
+
+    @Test
     fun `a key with more than seven accidentals does not exist`() {
         assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.G, 1, true) }
         assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.C, -1, false) }
