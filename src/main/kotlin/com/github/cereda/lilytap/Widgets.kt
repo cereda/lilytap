@@ -320,27 +320,14 @@ internal class PillButton(
 }
 
 /**
- * A small button that opens a list of options.
+ * A small button that shows a chevron and does something when it is clicked.
  *
- * The button itself only shows a chevron: the value it stands for lives in the field next to
- * it. The list is drawn by the app itself, so it looks the same on every OS.
- *
- * @param items the options, in the order they are listed.
- * @param onSelect called with the option the user picks.
+ * The button stands for the value that lives in the field next to it, so it says nothing but
+ * the chevron that opens the list.
  */
-internal class MenuButton(
-    private val items: List<String>,
-    private val onSelect: (String) -> Unit,
-) : JComponent() {
+internal open class ChevronButton : JComponent() {
+    /** Whether the mouse is over the button. */
     private var hover = false
-
-    /** The options the menu lists. */
-    val options: List<String> get() = items
-
-    /** Picks an option, as if the user had clicked it. */
-    fun pick(item: String) {
-        if (item in items) onSelect(item)
-    }
 
     init {
         isOpaque = false
@@ -360,25 +347,14 @@ internal class MenuButton(
                 }
 
                 override fun mousePressed(e: MouseEvent) {
-                    if (isEnabled) openMenu()
+                    if (isEnabled) onClick()
                 }
             },
         )
     }
 
-    /** Opens the list of options under the button. */
-    private fun openMenu() {
-        val popup = JPopupMenu()
-        popup.border = BorderFactory.createEmptyBorder()
-        popup.background = Theme.field
-        popup.add(
-            MenuList(items) { picked ->
-                popup.isVisible = false
-                onSelect(picked)
-            },
-        )
-        popup.show(this, 0, height)
-    }
+    /** Called when the button is clicked. */
+    protected open fun onClick() = Unit
 
     override fun paintComponent(g: Graphics) {
         g.paint2d { g2 ->
@@ -399,6 +375,42 @@ internal class MenuButton(
             chevron.closePath()
             g2.fill(chevron)
         }
+    }
+}
+
+/**
+ * A small button that opens a list of options.
+ *
+ * The button itself only shows a chevron: the value it stands for lives in the field next to
+ * it. The list is drawn by the app itself, so it looks the same on every OS.
+ *
+ * @param items the options, in the order they are listed.
+ * @param onSelect called with the option the user picks.
+ */
+internal class MenuButton(
+    private val items: List<String>,
+    private val onSelect: (String) -> Unit,
+) : ChevronButton() {
+    /** The options the menu lists. */
+    val options: List<String> get() = items
+
+    /** Picks an option, as if the user had clicked it. */
+    fun pick(item: String) {
+        if (item in items) onSelect(item)
+    }
+
+    /** Opens the list of options under the button. */
+    override fun onClick() {
+        val popup = JPopupMenu()
+        popup.border = BorderFactory.createEmptyBorder()
+        popup.background = Theme.field
+        popup.add(
+            MenuList(items) { picked ->
+                popup.isVisible = false
+                onSelect(picked)
+            },
+        )
+        popup.show(this, 0, height)
     }
 }
 

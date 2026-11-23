@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The **Key** setting opens the circle of fifths: every key of the piece around a ring, C major
+  at the top, the sharps climbing to the right and the flats coming back on the left. Outside
+  the ring are the major keys and inside them the relative minors; click the half of the
+  position you want and the field takes the name. The key the piece is in is written in the
+  middle of the circle.
+
 ### Changed
 - The button that writes the octaves of the LilyPond text relative is a step now: two dashes, the
   lower one on the left and the upper one on the right, joined by a diagonal. The two note heads

@@ -261,7 +261,7 @@ internal class WindowApp {
             time.invalid = false
         }
 
-    /** The key of the piece: the field with its name and the menu of the common keys. */
+    /** The key of the piece: the field with its name and the circle of fifths beside it. */
     private val keySetting = KeySetting { key -> setKey(key) }
 
     /**

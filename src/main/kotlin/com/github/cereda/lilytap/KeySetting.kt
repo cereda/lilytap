@@ -10,12 +10,15 @@ import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
 /**
- * The key of the piece: the field with its name, the menu of the common keys, and the key
+ * The key of the piece: the field with its name, the circle of fifths beside it, and the key
  * itself.
  *
  * The name is read when it is finished - with **Enter** or when the field loses the focus -
  * and not while it is typed: every letter of a name would spell the score again. A name that
  * cannot be read turns the border of the field red.
+ *
+ * The circle beside the field holds every key of the piece: the major keys outside the ring
+ * and their relative minors inside it.
  *
  * @param onKey called when a key is chosen: the score is put in it.
  */
@@ -25,10 +28,13 @@ internal class KeySetting(
     /** The name of the key, as it is typed. */
     val field = StyledField("C major", 7, heightPx = 38, hint = "Key")
 
-    /** The keys the app offers; the field next to it takes any other one. */
-    private val menu =
-        MenuButton(COMMON_KEYS) { name ->
-            field.text = name
+    /** The circle of fifths: every key of the piece, with its relative minor. */
+    private val circle = CircleOfFifths {}
+
+    /** The button that opens the circle of fifths. */
+    val menu =
+        CircleButton(circle) { key ->
+            field.text = key.name
             apply()
         }
 
@@ -58,7 +64,8 @@ internal class KeySetting(
     }
 
     /**
-     * The cell of the settings card: the field with the name of the key and the menu beside it.
+     * The cell of the settings card: the field with the name of the key and the circle beside
+     * it.
      *
      * @return the cell of the key.
      */
@@ -141,6 +148,7 @@ internal class KeySetting(
 
     /** Writes the name of the key in the field, unless it is being typed in. */
     private fun show() {
+        circle.key = key
         if (field.isFocusOwner) return
         field.text = key.name
         field.invalid = false
@@ -148,29 +156,6 @@ internal class KeySetting(
     }
 
     companion object {
-        /**
-         * The keys the app offers in the menu next to the field.
-         *
-         * The field takes any other one, so this is a shortcut and not a limit.
-         */
-        private val COMMON_KEYS =
-            listOf(
-                "C major",
-                "G major",
-                "F major",
-                "D major",
-                "A major",
-                "E major",
-                "Bb major",
-                "Eb major",
-                "Ab major",
-                "A minor",
-                "E minor",
-                "D minor",
-                "B minor",
-                "G minor",
-            )
-
         /**
          * What the key field says about itself.
          *

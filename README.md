@@ -100,11 +100,18 @@ The **Key** setting says the key the piece is in. The name is a letter, an optio
 the mode (`major` or `minor`, `maj` and `min` are read as well), and the accidental can be written
 in any of the ways it is written: `C# major`, `C♯ major`, `cis major`, `Bb major`, `B♭ major`,
 `bes minor`. The field writes the name back the way the app writes every other pitch, with the
-sign of the accidental: `B♭ major`. A menu beside the field offers the common keys; the field
-takes any other one, and its border turns red when the text is not the name of a key. A key whose
-signature carries more than seven accidentals is refused too, and the field says so: `G♯ major`
-has eight. The name is read when it is finished, with **Enter** or when the field loses the
-focus.
+sign of the accidental: `B♭ major`. The field takes any name at all, and its border turns red
+when the text is not the name of a key. A key whose signature carries more than seven accidentals
+is refused too, and the field says so: `G♯ major` has eight. The name is read when it is
+finished, with **Enter** or when the field loses the focus.
+
+Beside the field, a button opens the **circle of fifths**: every key of the piece around a ring,
+C major at the top, the sharps climbing to the right and the flats coming back on the left.
+Outside the ring are the major keys and inside them the minor keys that have the same signature,
+the relative minors, written with an `m` as in a circle of fifths chart (`C` outside, `Am`
+inside). Click the half of the position you want — the outer one for the major key, the inner one
+for the minor key — and the field takes the name. The key the piece is in is written in the
+middle of the circle and lit where it stands.
 
 The key has three parts:
 

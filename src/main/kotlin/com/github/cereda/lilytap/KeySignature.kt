@@ -84,6 +84,16 @@ data class KeySignature(
                     else -> ""
                 }
 
+    /** The name of the tonic as the app writes it: `B♭`. */
+    val tonicDisplay: String
+        get() =
+            tonic.letter.uppercase() +
+                when (alter) {
+                    1 -> "♯"
+                    -1 -> "♭"
+                    else -> ""
+                }
+
     /** The LilyPond line that declares the key: `\key f \major`. */
     val lilypond: String get() = "\\key $tonicName \\${if (major) "major" else "minor"}"
 
@@ -93,14 +103,7 @@ data class KeySignature(
      * The accidental is the sign the app draws everywhere else - a pitch is `C♯4`, not
      * `C#4` - and the name is read back in any of the forms it accepts.
      */
-    val name: String
-        get() =
-            "${tonic.letter.uppercase()}" +
-                when (alter) {
-                    1 -> "♯"
-                    -1 -> "♭"
-                    else -> ""
-                } + " ${if (major) "major" else "minor"}"
+    val name: String get() = "$tonicDisplay ${if (major) "major" else "minor"}"
 
     /** Whether the key is C major: the key the LilyPond text does not have to declare. */
     val isCMajor: Boolean get() = this == C_MAJOR
