@@ -103,7 +103,7 @@ internal class KeySetting(
         val parsed = KeySignature.parse(field.text)
         if (parsed == null) {
             field.invalid = true
-            field.toolTipText = KEY_ERROR_TOOLTIP
+            field.toolTipText = faultText(KeySignature.fault(field.text))
             return
         }
         field.invalid = false
@@ -120,8 +120,26 @@ internal class KeySetting(
     private fun mark() {
         val parsed = KeySignature.parse(field.text)
         field.invalid = parsed == null
-        field.toolTipText = if (parsed == null) KEY_ERROR_TOOLTIP else KEY_TOOLTIP
+        field.toolTipText = if (parsed == null) faultText(KeySignature.fault(field.text)) else KEY_TOOLTIP
     }
+
+    /**
+     * What the field says when the name in it cannot be read.
+     *
+     * @param fault what is wrong with the name.
+     * @return the words of the tooltip.
+     */
+    private fun faultText(fault: KeyFault?): String =
+        when (fault) {
+            is KeyFault.TooManyAccidentals -> {
+                "A key signature carries at most seven accidentals, and this one has " +
+                    "${fault.fifths}."
+            }
+
+            else -> {
+                KEY_ERROR_TOOLTIP
+            }
+        }
 
     /** Writes the name of the key in the field, unless it is being typed in. */
     private fun show() {
@@ -158,18 +176,19 @@ internal class KeySetting(
         /**
          * What the key field says about itself.
          *
-         * The field takes the name of the key the way it is written in English: a letter, an
-         * optional accidental (`#` for a sharp, `b` for a flat) and the mode.
+         * The field takes the name of the key the way it is written in English (`Bb major`)
+         * or the way LilyPond writes it (`bes major`).
          */
         private const val KEY_TOOLTIP =
             "The key of the piece: the notes are spelled in it and the LilyPond text declares it. " +
-                "Write it as it is written in English: Bb major, F# minor, C♭ major."
+                "Write it as it is written in English (Bb major, F# minor) or the way LilyPond " +
+                "writes it (bes major, fis minor)."
 
         /**
          * What the key field says when the name in it cannot be read.
          */
         private const val KEY_ERROR_TOOLTIP =
-            "Not the name of a key. Write it as it is written in English: " +
-                "Bb major, F# minor, C♭ major."
+            "Not the name of a key. Write it as it is written in English (Bb major, F# minor) " +
+                "or the way LilyPond writes it (bes major, fis minor)."
     }
 }

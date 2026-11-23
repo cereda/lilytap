@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The button that writes the octaves of the LilyPond text relative is a step now: two dashes, the
   lower one on the left and the upper one on the right, joined by a diagonal. The two note heads
   and the arrow were a smudge at the size the button is drawn.
+- The name of the key is written with the sign of its accidental, the way the app writes every
+  other pitch: `B♭ major`, not `Bb major`. The field still reads every form of the name.
+
+### Fixed
+- The **Key** field reads the name of the key the way LilyPond writes it (`cis major`, `bes minor`)
+  as well as the way it is written in English (`C# major`, `Bb major`), and a name that is the
+  name of a key the app cannot hold says so: `G♯ major` carries eight accidentals, and a
+  signature carries at most seven.
 
 ## [0.15.0] - 2026-11-23
 

@@ -82,8 +82,9 @@ class KeySignatureTest {
     @Test
     fun `the key says its name in English and in LilyPond`() {
         assertEquals("C major", key("C major").name)
-        assertEquals("Bb major", key("Bb major").name)
-        assertEquals("F# minor", key("F# minor").name)
+        assertEquals("B♭ major", key("Bb major").name)
+        assertEquals("F♯ minor", key("F# minor").name)
+        assertEquals("C♭ major", key("Cb major").name)
         assertEquals("\\key c \\major", key("C major").lilypond)
         assertEquals("\\key bes \\major", key("Bb major").lilypond)
         assertEquals("\\key fis \\minor", key("F# minor").lilypond)
@@ -101,6 +102,56 @@ class KeySignatureTest {
     }
 
     @Test
+    fun `the name of a key can be read the way LilyPond writes it`() {
+        assertEquals(key("C♯ major"), KeySignature.parse("cis major"))
+        assertEquals(key("B♭ minor"), KeySignature.parse("bes minor"))
+        assertEquals(key("F♯ major"), KeySignature.parse("fis major"))
+        assertEquals(key("E♭ major"), KeySignature.parse("ees major"))
+        assertEquals(key("D♭ major"), KeySignature.parse("des major"))
+        assertEquals(key("G♭ major"), KeySignature.parse("ges major"))
+        assertEquals(key("A♭ major"), KeySignature.parse("aes major"))
+    }
+
+    @Test
+    fun `the two spellings of a name say the same key`() {
+        val pairs =
+            listOf(
+                "C# major" to "cis major",
+                "F# minor" to "fis minor",
+                "Bb major" to "bes major",
+                "C♭ major" to "ces major",
+                "C♯ minor" to "cis minor",
+                "C♯ major" to "C♯ major",
+                "B♭ major" to "B♭ major",
+            )
+        for ((english, lilypond) in pairs) {
+            assertEquals(
+                KeySignature.parse(english),
+                KeySignature.parse(lilypond),
+                "$english and $lilypond are the same key",
+            )
+        }
+    }
+
+    @Test
+    fun `every form of a name says the same key`() {
+        val forms =
+            listOf(
+                "C# major",
+                "C♯ major",
+                "cis major",
+                "C♯ MAJOR",
+            )
+        for (form in forms) {
+            assertEquals(key("C# major"), KeySignature.parse(form), "$form is C sharp major")
+        }
+        val flats = listOf("Bb major", "B♭ major", "bes major", "BB major")
+        for (form in flats) {
+            assertEquals(key("Bb major"), KeySignature.parse(form), "$form is B flat major")
+        }
+    }
+
+    @Test
     fun `a name that is not a key is not read`() {
         assertNull(KeySignature.parse(""))
         assertNull(KeySignature.parse("Bb"))
@@ -108,6 +159,26 @@ class KeySignatureTest {
         assertNull(KeySignature.parse("H major"), "H is not a note")
         assertNull(KeySignature.parse("Bb dorian"), "there is no dorian here")
         assertNull(KeySignature.parse("B## major"), "two sharps is one too many")
+    }
+
+    @Test
+    fun `a name that is not a key is malformed`() {
+        assertEquals(KeyFault.Malformed, KeySignature.fault(""))
+        assertEquals(KeyFault.Malformed, KeySignature.fault("Bb"))
+        assertEquals(KeyFault.Malformed, KeySignature.fault("Bb dorian"))
+        assertEquals(KeyFault.Malformed, KeySignature.fault("H major"))
+        assertNull(KeySignature.fault("Bb major"), "a good name has no fault")
+        assertNull(KeySignature.fault("cis major"), "a good name has no fault")
+    }
+
+    @Test
+    fun `a key with more than seven accidentals has a fault of its own`() {
+        assertEquals(KeyFault.TooManyAccidentals(8), KeySignature.fault("gis major"))
+        assertEquals(KeyFault.TooManyAccidentals(8), KeySignature.fault("fes major"))
+        assertEquals(KeyFault.TooManyAccidentals(11), KeySignature.fault("eis major"))
+        assertEquals(KeyFault.TooManyAccidentals(10), KeySignature.fault("ais major"))
+        assertEquals(KeyFault.TooManyAccidentals(9), KeySignature.fault("bis minor"))
+        assertNull(KeySignature.parse("gis major"), "the app does not hold that key")
     }
 
     @Test

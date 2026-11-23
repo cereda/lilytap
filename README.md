@@ -60,7 +60,7 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
   [No rests](#no-rests).
 - **Latency** — the delay of *your taps* (reaction time), subtracted from every tap.
 - **Audio latency** — the delay of the *sound*, which shifts the metronome click earlier.
-- **Key** — the key the piece is in, e.g. `Bb major` or `F# minor`. The notes are spelled in it
+- **Key** — the key the piece is in, e.g. `B♭ major` or `F♯ minor`. The notes are spelled in it
   and the LilyPond text declares it — see [The key of the piece](#the-key-of-the-piece).
 
 The **pitch** of the notes is not a setting but an edit: every note of the score carries its own
@@ -92,12 +92,15 @@ other three options say how short a silence may be before it becomes a rest of i
 
 ## The key of the piece
 
-The **Key** setting says the key the piece is in. The name is written the way it is written in
-English: a letter, an optional accidental (`#` for a sharp, `b` for a flat — `♯` and `♭` are read
-too) and the mode (`major` or `minor`, `maj` and `min` are read as well). A menu beside the field
-offers the common keys; the field takes any other one, and its border turns red when the text is
-not the name of a key. The name is read when it is finished, with **Enter** or when the field
-loses the focus.
+The **Key** setting says the key the piece is in. The name is a letter, an optional accidental and
+the mode (`major` or `minor`, `maj` and `min` are read as well), and the accidental can be written
+in any of the ways it is written: `C# major`, `C♯ major`, `cis major`, `Bb major`, `B♭ major`,
+`bes minor`. The field writes the name back the way the app writes every other pitch, with the
+sign of the accidental: `B♭ major`. A menu beside the field offers the common keys; the field
+takes any other one, and its border turns red when the text is not the name of a key. A key whose
+signature carries more than seven accidentals is refused too, and the field says so: `G♯ major`
+has eight. The name is read when it is finished, with **Enter** or when the field loses the
+focus.
 
 The key has three parts:
 

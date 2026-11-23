@@ -9,6 +9,23 @@ package com.github.cereda.lilytap
 import kotlin.math.abs
 
 /**
+ * What is wrong with the name of a key.
+ */
+sealed interface KeyFault {
+    /** The text is not the name of a key at all. */
+    data object Malformed : KeyFault
+
+    /**
+     * The key is a real one, but its signature carries more accidentals than the app holds.
+     *
+     * @property fifths the number of accidentals the signature would carry.
+     */
+    data class TooManyAccidentals(
+        val fifths: Int,
+    ) : KeyFault
+}
+
+/**
  * A key signature: the tonic of the key and the mode it is in.
  *
  * The key does two things. It says which accidentals the score carries - `\key f \major`
@@ -60,13 +77,18 @@ data class KeySignature(
     /** The LilyPond line that declares the key: `\key f \major`. */
     val lilypond: String get() = "\\key $tonicName \\${if (major) "major" else "minor"}"
 
-    /** The name of the key as the app writes it: `Bb major`. */
+    /**
+     * The name of the key as the app writes it: `B♭ major`.
+     *
+     * The accidental is the sign the app draws everywhere else - a pitch is `C♯4`, not
+     * `C#4` - and the name is read back in any of the forms it accepts.
+     */
     val name: String
         get() =
             "${tonic.letter.uppercase()}" +
                 when (alter) {
-                    1 -> "#"
-                    -1 -> "b"
+                    1 -> "♯"
+                    -1 -> "♭"
                     else -> ""
                 } + " ${if (major) "major" else "minor"}"
 
@@ -226,37 +248,73 @@ data class KeySignature(
         val A_MINOR = KeySignature(PitchStep.A, 0, false)
 
         /**
-         * Reads the name of a key: `Bb major`, `F# minor`, `C♭ major`.
+         * Reads the name of a key: `Bb major`, `F# minor`, `C♭ major`, `bes minor`.
          *
-         * The tonic is a letter with an optional accidental - a sharp is `#` or `♯`, a flat
-         * is `b` or `♭` - and the mode is `major` or `minor`.
+         * The tonic is a letter with an optional accidental, and the accidental can be written
+         * the way it is written in English (`#`, `♯`, `b`, `♭`) or the way LilyPond writes it
+         * (`is` for a sharp, `es` for a flat). The mode is `major` or `minor`.
          *
          * @param text the name to read.
          * @return the key, or null when the text is not the name of a key.
          */
-        fun parse(text: String): KeySignature? {
+        fun parse(text: String): KeySignature? = read(text).key
+
+        /**
+         * Says what is wrong with the name of a key.
+         *
+         * A text that is not the name of a key at all is one thing; the name of a key that
+         * carries more accidentals than the app holds is another, and the second one deserves
+         * its own words.
+         *
+         * @param text the name to read.
+         * @return the fault, or null when the text is the name of a key the app can hold.
+         */
+        fun fault(text: String): KeyFault? = read(text).fault
+
+        /**
+         * Reads the name of a key and says what is wrong with it, when something is.
+         *
+         * @param text the name to read.
+         * @return the key and the fault: one of them is always there.
+         */
+        private fun read(text: String): Reading {
             val parts = text.trim().lowercase().split(WHITESPACE)
-            if (parts.size != 2) return null
+            if (parts.size != 2) return Reading(null, KeyFault.Malformed)
             val major =
                 when (parts[1]) {
                     "major", "maj" -> true
                     "minor", "min" -> false
-                    else -> return null
+                    else -> return Reading(null, KeyFault.Malformed)
                 }
-            val step = PitchStep.of(parts[0].firstOrNull() ?: return null) ?: return null
+            val step =
+                PitchStep.of(parts[0].firstOrNull() ?: return Reading(null, KeyFault.Malformed))
+                    ?: return Reading(null, KeyFault.Malformed)
             val alter =
                 when (parts[0].drop(1)) {
                     "" -> 0
                     "#", "♯" -> 1
                     "b", "♭" -> -1
-                    else -> return null
+                    "is" -> 1
+                    "es" -> -1
+                    else -> return Reading(null, KeyFault.Malformed)
                 }
-            return try {
-                KeySignature(step, alter, major)
-            } catch (_: IllegalArgumentException) {
-                null
+            val fifths = MAJOR_FIFTHS.getValue(step) + 7 * alter - (if (major) 0 else 3)
+            if (fifths !in -7..7) {
+                return Reading(null, KeyFault.TooManyAccidentals(abs(fifths)))
             }
+            return Reading(KeySignature(step, alter, major), null)
         }
+
+        /**
+         * The name of a key read: the key, or what is wrong with the name.
+         *
+         * @property key the key, when the name is one the app can hold.
+         * @property fault what is wrong with the name, when there is something wrong.
+         */
+        private class Reading(
+            val key: KeySignature?,
+            val fault: KeyFault?,
+        )
     }
 }
 

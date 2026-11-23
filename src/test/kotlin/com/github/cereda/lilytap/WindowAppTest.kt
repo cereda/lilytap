@@ -497,6 +497,37 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the key can be written the way LilyPond writes it`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        keyField(app).text = "cis major"
+        applyKey(app)
+
+        // The middle C of the score is the leading tone of C sharp major, and it is written
+        // B sharp: the same note, spelled the way the key wants it.
+        assertEquals(
+            "% absolute\n\\key cis \\major\nbis1 |",
+            output(app).text,
+            "the text declares the key",
+        )
+        assertEquals("C♯ major", keyField(app).text, "the field writes the name back with its sign")
+    }
+
+    @Test
+    fun `a key with too many accidentals says what the limit is`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        keyField(app).text = "gis major"
+        applyKey(app)
+
+        val tip = keyField(app).toolTipText ?: ""
+        assertTrue(tip.contains("seven accidentals"), "the field says what the limit is")
+        assertEquals("% absolute\nc'1 |", output(app).text, "the score did not change")
+    }
+
+    @Test
     fun `the name of the key is written back in its own spelling`() {
         val app = WindowApp()
         showScore(app, score)
@@ -504,7 +535,7 @@ class WindowAppTest {
         keyField(app).text = "bb MAJOR"
         applyKey(app)
 
-        assertEquals("Bb major", keyField(app).text, "the field says the name of the key")
+        assertEquals("B♭ major", keyField(app).text, "the field says the name of the key")
         assertFalse(keyField(app).invalid, "the name is good")
     }
 

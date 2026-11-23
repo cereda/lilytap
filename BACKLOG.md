@@ -28,3 +28,20 @@ file side.
 The count-in is one bar of clicks. Two bars would give a runner more room to settle in,
 at the cost of two more seconds before every take. A small change, if it is ever
 wanted.
+
+## The spelling of the notes comes from the signature, not from the scale
+
+The key signature says which letters the key alters, and the app spells a note from that
+map: the letter the signature alters comes first, then the natural note, then the sharp or
+the flat the key points at. Inside the seven accidentals the app holds, that is the same
+thing as the diatonic spelling of the scale - but not at the edges:
+
+- in C♭ major the seventh degree is B𝄫, and the app writes B♭ (`bes`);
+- the raised seventh of G♯, D♯ and A♯ minor is a double sharp (F𝄪, C𝄪, G𝄪), and the app
+  skips the raising instead of writing a double accidental.
+
+Spelling the notes from the **scale** of the key - the seven degrees, with the alterations
+they carry - would fix both. It is also what a key with more than seven accidentals needs:
+`\key gis \major` is eight sharps, and the app refuses it because a signature is capped at
+seven. Going past the cap would also need `Pitch` to carry a double accidental (`fisis`,
+`beses`), and the pitch field to read it.
