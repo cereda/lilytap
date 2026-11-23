@@ -24,8 +24,8 @@ build/install/lilytap/bin/lilytap
 
 A dark, custom-painted UI (no extra dependencies, icons are drawn in code):
 steppers you can click, hold, scroll or drag, a sliding option picker, a beat indicator, a glowing
-playhead over the timeline, a copy button that confirms with a check mark, and a button with two
-note heads that writes the octaves of the LilyPond text relative to the note before.
+playhead over the timeline, a copy button that confirms with a check mark, and a button with a step
+that writes the octaves of the LilyPond text relative to the note before.
 
 The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
 carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
@@ -312,9 +312,9 @@ compound meter that comes back is still in 3-feel.
 
 ## The LilyPond text
 
-The text in the output box follows the score, one bar per line. The button with the two note heads
-beside the copy button chooses how the octaves are written; it lights up in the accent colour when
-the relative mode is on.
+The text in the output box follows the score, one bar per line. The button with the step beside
+the copy button chooses how the octaves are written; it lights up in the accent colour when the
+relative mode is on.
 
 By default every note carries its own octave marks, and the first line of the text says so:
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The button that writes the octaves of the LilyPond text relative is a step now: two dashes, the
+  lower one on the left and the upper one on the right, joined by a diagonal. The two note heads
+  and the arrow were a smudge at the size the button is drawn.
+
 ## [0.15.0] - 2026-11-23
 
 ### Added

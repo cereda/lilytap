@@ -34,12 +34,16 @@ class GlyphTest {
     }
 
     @Test
-    fun `the relative icon shows two note heads`() {
+    fun `the relative icon is a step from the lower note to the upper one`() {
         assertTrue(ink(Glyph.RELATIVE) > 0, "the relative icon draws nothing")
-        // The lower note head stands alone, and so does the upper one: the arrow between them
-        // joins neither of the two.
-        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.67 * BIG).toInt()), "the lower note head stands alone")
-        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.31 * BIG).toInt()), "the upper note head stands alone")
+        // The two dashes stand alone on their rows, and the diagonal stands alone between them.
+        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.72 * BIG).toInt()), "the lower dash stands alone")
+        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.28 * BIG).toInt()), "the upper dash stands alone")
+        assertEquals(1, groupsInRow(Glyph.RELATIVE, (0.50 * BIG).toInt()), "the diagonal stands alone")
+        // The lower note is on the left and the upper one on the right: the two do not overlap.
+        val lower = inkBoundsInRow(Glyph.RELATIVE, (0.72 * BIG).toInt())
+        val upper = inkBoundsInRow(Glyph.RELATIVE, (0.28 * BIG).toInt())
+        assertTrue(lower.second < upper.first, "the step goes from the lower left to the upper right")
         assertTrue(pixels(Glyph.RELATIVE) != pixels(Glyph.NOTE), "the relative icon looks like the note")
         assertTrue(pixels(Glyph.RELATIVE) != pixels(Glyph.COPY), "the relative icon looks like the copy mark")
     }
@@ -96,6 +100,32 @@ class GlyphTest {
                     first = minOf(first, x)
                     last = maxOf(last, x)
                 }
+            }
+        }
+        return first to last
+    }
+
+    /**
+     * The leftmost and the rightmost pixel a glyph draws on one row.
+     *
+     * @param glyph the glyph to draw.
+     * @param row the row to look at.
+     * @return the first and the last column of the row that carry ink.
+     */
+    private fun inkBoundsInRow(
+        glyph: Glyph,
+        row: Int,
+    ): Pair<Int, Int> {
+        val image = BufferedImage(BIG, BIG, BufferedImage.TYPE_INT_ARGB)
+        val g = image.createGraphics()
+        drawGlyph(g, glyph, 0.0, 0.0, BIG.toDouble(), Color.BLACK)
+        g.dispose()
+        var first = BIG
+        var last = -1
+        for (x in 0 until BIG) {
+            if (image.getRGB(x, row) != 0) {
+                first = minOf(first, x)
+                last = maxOf(last, x)
             }
         }
         return first to last

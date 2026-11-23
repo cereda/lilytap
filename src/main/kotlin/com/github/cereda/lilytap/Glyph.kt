@@ -282,12 +282,13 @@ internal fun drawGlyph(
         }
 
         Glyph.RELATIVE -> {
-            // Two note heads, a step apart, and an arrow from the lower one to the upper one:
-            // the octave of the second note is read from the first.
-            g.fill(Ellipse2D.Double(px(0.05), py(0.56), 0.30 * s, 0.22 * s))
-            g.fill(Ellipse2D.Double(px(0.63), py(0.20), 0.30 * s, 0.22 * s))
-            line(0.32, 0.62, 0.47, 0.47)
-            arrowHead(0.58, 0.36, 0.7, -0.7)
+            // A step: two dashes, the lower one on the left and the upper one on the right,
+            // joined by a diagonal. The two dashes are the two notes, and the diagonal is the
+            // step from the first to the second - the octave of the second is read from the
+            // first.
+            line(0.06, 0.72, 0.36, 0.72)
+            line(0.36, 0.72, 0.64, 0.28)
+            line(0.64, 0.28, 0.94, 0.28)
         }
 
         Glyph.KEY -> {
