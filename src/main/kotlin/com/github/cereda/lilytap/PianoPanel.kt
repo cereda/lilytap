@@ -30,26 +30,18 @@ internal fun isBlackKey(midi: Int): Boolean = midi % 12 in BLACK_SEMITONES
  *
  * A piano has twelve keys in the octave: the seven of the scale and the five that are a
  * semitone above them. The black key is the sharp of the note below it, the way a real
- * keyboard is built: D♭4 and C♯4 are the same key.
+ * keyboard is built: D♭4 and C♯4 are the same key. Which of the two names the key gets
+ * depends on the key of the piece: in F major the black key between the C and the D is a
+ * D♭, and in E major it is a D♯.
  *
  * @param midi the MIDI number of the key.
+ * @param key the key of the piece.
  * @return the pitch of the key.
  */
-internal fun keyPitch(midi: Int): Pitch {
-    val semitone = midi % 12
-    val step =
-        when (semitone) {
-            0, 1 -> PitchStep.C
-            2, 3 -> PitchStep.D
-            4 -> PitchStep.E
-            5, 6 -> PitchStep.F
-            7, 8 -> PitchStep.G
-            9, 10 -> PitchStep.A
-            else -> PitchStep.B
-        }
-    val alter = if (semitone in BLACK_SEMITONES) 1 else 0
-    return Pitch(step, alter, midi / 12 - 1)
-}
+internal fun keyPitch(
+    midi: Int,
+    key: KeySignature = KeySignature.C_MAJOR,
+): Pitch = key.spell(midi)
 
 /**
  * The lowest key the piano shows.
@@ -153,18 +145,20 @@ internal fun pianoKeys(
  * @param keys the keys as they are drawn.
  * @param x the horizontal position of the point.
  * @param y the vertical position of the point.
+ * @param key the key of the piece: it says how the notes are spelled.
  * @return the pitch under the point, or null when the point is not on a key.
  */
 internal fun pitchAt(
     keys: List<PianoKey>,
     x: Double,
     y: Double,
+    key: KeySignature = KeySignature.C_MAJOR,
 ): Pitch? {
     val black =
         keys.firstOrNull { it.black && y < it.height && x >= it.x && x < it.x + it.width }
     val white = keys.firstOrNull { !it.black && x >= it.x && x < it.x + it.width }
-    val key = black ?: white ?: return null
-    return keyPitch(key.midi)
+    val found = black ?: white ?: return null
+    return keyPitch(found.midi, key)
 }
 
 /**
@@ -195,6 +189,13 @@ internal class PianoPanel : JComponent() {
             repaint()
         }
 
+    /** The key of the piece: it says how the notes of the keyboard are spelled. */
+    var key: KeySignature = KeySignature.C_MAJOR
+        set(value) {
+            field = value
+            repaint()
+        }
+
     /** Where the playback is, in milliseconds; -1 when nothing is playing. */
     var playbackPositionMs: Double = -1.0
         set(value) {
@@ -218,13 +219,13 @@ internal class PianoPanel : JComponent() {
         isFocusable = false
         toolTipText =
             "Click a key to give it to the selected note. " +
-            "The keyboard plays the piano too: 1 to 7 are C to B, Q W E R T the sharps, " +
+            "The keyboard plays the piano too: 1 to 7 are C to B, Q W E R T the accidentals, " +
             "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on."
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
                     if (!interactive) return
-                    val pitch = pitchAt(keys(), e.x.toDouble(), e.y.toDouble()) ?: return
+                    val pitch = pitchAt(keys(), e.x.toDouble(), e.y.toDouble(), key) ?: return
                     onPitch?.invoke(pitch)
                 }
             }

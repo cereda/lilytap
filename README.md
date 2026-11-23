@@ -60,6 +60,8 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
   [No rests](#no-rests).
 - **Latency** — the delay of *your taps* (reaction time), subtracted from every tap.
 - **Audio latency** — the delay of the *sound*, which shifts the metronome click earlier.
+- **Key** — the key the piece is in, e.g. `Bb major` or `F# minor`. The notes are spelled in it
+  and the LilyPond text declares it — see [The key of the piece](#the-key-of-the-piece).
 
 The **pitch** of the notes is not a setting but an edit: every note of the score carries its own
 pitch, and the strip lets you set it — see [The pitch of a note](#the-pitch-of-a-note).
@@ -87,6 +89,38 @@ The last option of the **Smallest rest** control — **No rests** — turns ever
 time for the note before it, so the transcription never contains a rest: `c'4 r4 c'4 c'4` becomes
 `c'2 c'4 c'4`. A silence before the very first note has no note to join, so it stays a rest. The
 other three options say how short a silence may be before it becomes a rest of its own.
+
+## The key of the piece
+
+The **Key** setting says the key the piece is in. The name is written the way it is written in
+English: a letter, an optional accidental (`#` for a sharp, `b` for a flat — `♯` and `♭` are read
+too) and the mode (`major` or `minor`, `maj` and `min` are read as well). A menu beside the field
+offers the common keys; the field takes any other one, and its border turns red when the text is
+not the name of a key. The name is read when it is finished, with **Enter** or when the field
+loses the focus.
+
+The key has three parts:
+
+- **The notes are spelled in it.** In F major the black key between the C and the D is a D♭ and
+  the text writes `des`, not `cis`; in E major the same key is a D♯, and the text writes `dis`. A
+  note keeps its sound when it is respelled: only its name changes, and a name that crosses the C
+  takes its octave with it (a B♯4 is a C5).
+- **The LilyPond text declares it.** A key other than C major adds a line to the text
+  (`\key f \major`), at the top of the text or inside the `\relative` block. C major says nothing,
+  the way it always did.
+- **The tracker and the piano play it.** The top row of the keyboard (`Q W E R T`) plays the
+  accidentals of the key: the sharps in a sharp key and the flats in a flat one, and the legend
+  above the Start button says which of the two it is.
+
+The seventh of a minor key is the one exception to the spelling: it is raised, so in D minor the
+C is a C♯ and not a D♭.
+
+Changing the key is an edit like any other: **Ctrl+Z** takes it back, the message in the header
+of the score strip says what changed (`C major → F major`), and **Revert** puts the take back the
+way it was recorded. The **Pitch** field is not touched by it: a name that is typed there is the
+name you wrote.
+
+Nothing is persisted: the key is C major on every launch.
 
 ## The score strip
 
@@ -172,13 +206,13 @@ note, and a counter that says where the cursor is among the notes of the take (`
 
 - **Click a key** of the piano to give it to the selected note.
 - **Play it on the keyboard** instead: the number row names the notes of the scale and the top
-  row the sharps. The keys of the strip (**S**, **X**, **M**) keep their meaning, so the tracker
-  lives on the rows above them.
+  row the accidentals of the key. The keys of the strip (**S**, **X**, **M**) keep their meaning,
+  so the tracker lives on the rows above them.
 
   | | |
   |---|---|
   | `1` `2` `3` `4` `5` `6` `7` | the notes of the scale: C, D, E, F, G, A, B |
-  | `Q` `W` `E` `R` `T` | the sharps of the same octave: C♯, D♯, F♯, G♯, A♯ |
+  | `Q` `W` `E` `R` `T` | the accidentals of the same octave: the sharps in a sharp key, the flats in a flat one |
   | `8` `9` | an octave down, an octave up |
   | `0` | back to the octave of the note you are on |
 
@@ -309,6 +343,16 @@ written, so a fragment that is copied into a file says what it is.
 
 The choice is yours for the session: nothing is remembered, and the app starts in absolute mode
 every time it is launched.
+
+The key of the piece is declared in the text, at the top of it or inside the `\relative` block:
+
+```
+% absolute
+\key bes \major
+c'4 des'4 ees'4 f'4 |
+```
+
+C major says nothing: the text of a piece in C major is the text it always was.
 
 ## Playback
 

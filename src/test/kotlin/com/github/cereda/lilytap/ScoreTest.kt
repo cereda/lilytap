@@ -80,6 +80,52 @@ class ScoreTest {
     }
 
     // -------------------------------------------------------------------------------------------
+    // The key of the piece
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the text of C major says nothing about the key`() {
+        assertEquals("c'2 c'2 |", score(note(0, 4), note(4, 4)).lilypond)
+    }
+
+    @Test
+    fun `the text declares the key of the piece`() {
+        val config = cfg().copy(key = KeySignature.parse("F major")!!)
+        val s = score(note(0, 4), note(4, 4), config = config)
+        assertEquals("\\key f \\major\nc'2 c'2 |", s.lilypond)
+    }
+
+    @Test
+    fun `the relative text declares the key inside the block`() {
+        val config = cfg().copy(key = KeySignature.parse("Bb major")!!)
+        val s = score(note(0, 4), note(4, 4), config = config)
+        assertEquals("\\relative {\n\\key bes \\major\nc'2 c2 |\n}", s.lilypondRelative)
+    }
+
+    @Test
+    fun `a score in a key spells its notes in it`() {
+        val s = score(note(0, 4, Pitch(PitchStep.C, 1, 4)), note(4, 4))
+        val flat = s.inKey(KeySignature.parse("F major")!!)
+        assertEquals("\\key f \\major\ndes'2 c'2 |", flat.lilypond, "the C sharp is a D flat")
+        assertEquals(s.events[0].pitch?.midi, flat.events[0].pitch?.midi, "the note sounds the same")
+    }
+
+    @Test
+    fun `a score in a key keeps its key in the settings`() {
+        val s = score(note(0, 8))
+        val flat = s.inKey(KeySignature.parse("F major")!!)
+        assertEquals(KeySignature.parse("F major"), flat.config.key)
+        assertEquals(KeySignature.C_MAJOR, s.config.key, "the original score did not change")
+    }
+
+    @Test
+    fun `a score in a key keeps the rests as they are`() {
+        val s = score(note(0, 4), rest(4, 4))
+        val flat = s.inKey(KeySignature.parse("Bb major")!!)
+        assertEquals("\\key bes \\major\nc'2 r2 |", flat.lilypond)
+    }
+
+    // -------------------------------------------------------------------------------------------
     // Turning a note into a rest
     // -------------------------------------------------------------------------------------------
 

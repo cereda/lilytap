@@ -402,6 +402,113 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the key is declared in the LilyPond text`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        keyField(app).text = "F major"
+        applyKey(app)
+
+        assertEquals("% absolute\n\\key f \\major\nc'1 |", output(app).text, "the text declares the key")
+    }
+
+    @Test
+    fun `the text of C major says nothing about the key`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        assertEquals("% absolute\nc'1 |", output(app).text, "there is no key to declare")
+    }
+
+    @Test
+    fun `the notes are spelled in the key`() {
+        val app = WindowApp()
+        val sharp =
+            Score(
+                listOf(Event(TapKind.NOTE, 0, 64, Pitch(PitchStep.C, 1, 4))),
+                config,
+            )
+        showScore(app, sharp)
+
+        keyField(app).text = "F major"
+        applyKey(app)
+
+        assertEquals(
+            "% absolute\n\\key f \\major\ndes'1 |",
+            output(app).text,
+            "the C sharp of the score is a D flat in F major",
+        )
+    }
+
+    @Test
+    fun `the relative text declares the key inside the block`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        keyField(app).text = "Bb major"
+        applyKey(app)
+        toggleRelativeOutput(app)
+
+        assertEquals(
+            "% relative\n\\relative {\n\\key bes \\major\nc'1 |\n}",
+            output(app).text,
+            "the block says everything it needs on its own",
+        )
+    }
+
+    @Test
+    fun `the change of the key can be undone`() {
+        val app = WindowApp()
+        val sharp =
+            Score(
+                listOf(Event(TapKind.NOTE, 0, 64, Pitch(PitchStep.C, 1, 4))),
+                config,
+            )
+        showScore(app, sharp)
+
+        keyField(app).text = "F major"
+        applyKey(app)
+        notation(app).undo()
+
+        assertEquals("% absolute\ncis'1 |", output(app).text, "the note comes back as it was")
+    }
+
+    @Test
+    fun `a name that is not a key is refused`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        keyField(app).text = "Bb dorian"
+        applyKey(app)
+
+        assertTrue(keyField(app).invalid, "the field says that the name is wrong")
+        assertEquals("% absolute\nc'1 |", output(app).text, "the score did not change")
+    }
+
+    @Test
+    fun `the key field says when the name is wrong while it is typed`() {
+        val app = WindowApp()
+
+        keyField(app).text = "Bb dorian"
+        assertTrue(keyField(app).invalid, "the field says that the name is wrong")
+
+        keyField(app).text = "Bb major"
+        assertFalse(keyField(app).invalid, "the name is good")
+    }
+
+    @Test
+    fun `the name of the key is written back in its own spelling`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        keyField(app).text = "bb MAJOR"
+        applyKey(app)
+
+        assertEquals("Bb major", keyField(app).text, "the field says the name of the key")
+        assertFalse(keyField(app).invalid, "the name is good")
+    }
+
+    @Test
     fun `the playback clears the selection`() {
         val app = WindowApp()
 
@@ -1257,6 +1364,35 @@ class WindowAppTest {
         val toggle = WindowApp::class.java.getDeclaredMethod("toggleRelativeOutput")
         toggle.isAccessible = true
         toggle.invoke(app)
+    }
+
+    /** The key setting of the window: the field with the name of the key and the menu. */
+    private fun keySetting(app: WindowApp): KeySetting {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "keySetting" }
+                ?: error("keySetting field not found")
+        field.isAccessible = true
+        return field.get(app) as KeySetting
+    }
+
+    /** The field of the key of the piece. */
+    private fun keyField(app: WindowApp): StyledField = keySetting(app).field
+
+    /** Puts the key that is written in the field on the score. */
+    private fun applyKey(app: WindowApp) {
+        val apply = KeySetting::class.java.getDeclaredMethod("apply")
+        apply.isAccessible = true
+        apply.invoke(keySetting(app))
+    }
+
+    /** Shows a score in the strip, the way a finished take does. */
+    private fun showScore(
+        app: WindowApp,
+        score: Score,
+    ) {
+        val show = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        show.isAccessible = true
+        show.invoke(app, score)
     }
 }
 

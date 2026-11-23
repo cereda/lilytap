@@ -23,27 +23,36 @@ import javax.swing.JComponent
  *
  * The raw taps are ghosts under the snapped notes: an amber one was pressed late and a teal
  * one early. The tracker keys name the notes of the scale: the number row carries the white
- * keys and the top row the sharps, and the octave they sound is the one the panel shows.
+ * keys and the top row the black ones, which are the sharps of a sharp key and the flats of
+ * a flat one. The octave they sound is the one the panel shows.
  */
 internal class LegendPanel : JComponent() {
     /** How wide the legend is, in pixels. */
     private val legendWidth = 168
 
+    /** The key of the piece: it says whether the tracker plays sharps or flats. */
+    var key: KeySignature = KeySignature.C_MAJOR
+        set(value) {
+            field = value
+            repaint()
+        }
+
     /** The lines of the legend that tell what the keys of the tracker do. */
-    internal val trackerLines =
-        listOf(
-            "1–7 = C D E F G A B",
-            "Q W E R T = the sharps",
-            "8 / 9 = octave down / up",
-            "0 = back to the note",
-        )
+    internal val trackerLines: List<String>
+        get() =
+            listOf(
+                "1–7 = C D E F G A B",
+                "Q W E R T = the ${if (key.fifths < 0) "flats" else "sharps"}",
+                "8 / 9 = octave down / up",
+                "0 = back to the note",
+            )
 
     init {
         isOpaque = false
         font = Theme.font(11f)
         toolTipText =
             "Raw taps: amber = pressed late, teal = pressed early. " +
-            "Tracker keys: 1 to 7 are C to B, Q W E R T the sharps, " +
+            "Tracker keys: 1 to 7 are C to B, Q W E R T the accidentals of the key, " +
             "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on."
     }
 

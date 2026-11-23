@@ -48,6 +48,7 @@ internal enum class Glyph {
     TAP,
     BEATS,
     RELATIVE,
+    KEY,
 }
 
 /** Draws [glyph] inside the square with top-left (x, y) and side [s]. */
@@ -287,6 +288,14 @@ internal fun drawGlyph(
             g.fill(Ellipse2D.Double(px(0.63), py(0.20), 0.30 * s, 0.22 * s))
             line(0.32, 0.62, 0.47, 0.47)
             arrowHead(0.58, 0.36, 0.7, -0.7)
+        }
+
+        Glyph.KEY -> {
+            // The sharp sign: two upright strokes and two strokes that lean.
+            line(0.34, 0.20, 0.30, 0.80)
+            line(0.60, 0.14, 0.56, 0.74)
+            line(0.16, 0.44, 0.72, 0.32)
+            line(0.14, 0.64, 0.70, 0.52)
         }
     }
 

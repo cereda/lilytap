@@ -78,6 +78,24 @@ class TrackerTest {
     }
 
     @Test
+    fun `the top row follows the key of the piece`() {
+        val flat = KeySignature.parse("F major")!!
+        val note = trackerAction(event(KeyEvent.VK_Q), null, 4, flat) as TrackerAction.Note
+        assertEquals(Pitch(PitchStep.D, -1, 4), note.pitch, "the C sharp is a D flat in F major")
+
+        val sharp = KeySignature.parse("G major")!!
+        val other = trackerAction(event(KeyEvent.VK_Q), null, 4, sharp) as TrackerAction.Note
+        assertEquals(Pitch(PitchStep.C, 1, 4), other.pitch, "in G major it is a C sharp")
+    }
+
+    @Test
+    fun `the number row keeps the notes of the scale`() {
+        val flat = KeySignature.parse("F major")!!
+        val note = trackerAction(event(KeyEvent.VK_7), null, 4, flat) as TrackerAction.Note
+        assertEquals(Pitch(PitchStep.B, 0, 4), note.pitch, "the white key is a B natural")
+    }
+
+    @Test
     fun `a tracker key plays its note in the live octave`() {
         assertEquals(Pitch(PitchStep.C, 0, 4), pitch(KeyEvent.VK_1, 4))
         assertEquals(Pitch(PitchStep.G, 0, 4), pitch(KeyEvent.VK_5, 4))

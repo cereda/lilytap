@@ -69,6 +69,7 @@ val koverCoreClasses =
         "com.github.cereda.lilytap.Rhythm*",
         "com.github.cereda.lilytap.Score*",
         "com.github.cereda.lilytap.Pitch*",
+        "com.github.cereda.lilytap.KeySignature*",
         "com.github.cereda.lilytap.GridView",
         "com.github.cereda.lilytap.Config",
         "com.github.cereda.lilytap.TimeSignature*",

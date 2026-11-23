@@ -102,7 +102,7 @@ data class Score(
     val totalUnits: Int get() = config.totalUnits
 
     /** The score as LilyPond text, one bar per line. */
-    val lilypond: String get() = format(layout(events, config))
+    val lilypond: String get() = format(layout(events, config), config.key)
 
     /**
      * The score as LilyPond text, one bar per line, with the octaves relative.
@@ -110,7 +110,25 @@ data class Score(
      * The text is wrapped in a `\relative` block: inside it, LilyPond reads the octave of a
      * note from the note before it.
      */
-    val lilypondRelative: String get() = formatRelative(layout(events, config))
+    val lilypondRelative: String get() = formatRelative(layout(events, config), config.key)
+
+    /**
+     * The score in a key: every note is spelled the way the key wants it.
+     *
+     * The notes sound the same: only their names change, and a name that crosses the C or
+     * the B takes its octave with it (a B♯4 is a C5).
+     *
+     * @param key the key the score is in.
+     * @return the score in the key.
+     */
+    fun inKey(key: KeySignature): Score {
+        val spelled =
+            events.map { event ->
+                val pitch = event.pitch ?: return@map event
+                event.copy(pitch = key.spell(pitch.midi))
+            }
+        return copy(events = spelled, config = config.copy(key = key))
+    }
 
     /**
      * Turns the event at [index] into a rest, or a rest back into a note.
@@ -575,17 +593,25 @@ private fun splitAtGroups(
 /**
  * Formats bars as LilyPond text, one bar per line, each terminated by a bar check `|`.
  *
- * Every note is written with its own pitch; rests use "r".
+ * Every note is written with its own pitch; rests use "r". The key of the piece is declared
+ * on the first line, unless it is C major: there the text says nothing, as it always did.
  *
  * @param bars the atoms of each bar.
+ * @param key the key of the piece.
  */
-fun format(bars: List<List<Atom>>): String =
-    bars.joinToString("\n") { bar ->
-        bar.joinToString(" ") { atom ->
-            val name = atom.pitch?.lilypond ?: "r"
-            name + lilyDuration(atom.units) + if (atom.tieToNext) " ~" else ""
-        } + " |"
-    }
+fun format(
+    bars: List<List<Atom>>,
+    key: KeySignature = KeySignature.C_MAJOR,
+): String {
+    val text =
+        bars.joinToString("\n") { bar ->
+            bar.joinToString(" ") { atom ->
+                val name = atom.pitch?.lilypond ?: "r"
+                name + lilyDuration(atom.units) + if (atom.tieToNext) " ~" else ""
+            } + " |"
+        }
+    return if (key.isCMajor) text else "${key.lilypond}\n$text"
+}
 
 /**
  * Formats bars as LilyPond text with the octaves relative, inside a `\relative` block.
@@ -595,11 +621,19 @@ fun format(bars: List<List<Atom>>): String =
  * block has no note before it and is written in full, and a rest carries no pitch and so
  * does not move the reference.
  *
+ * The key of the piece is declared inside the block, so the block says everything it needs
+ * on its own.
+ *
  * @param bars the atoms of each bar.
+ * @param key the key of the piece.
  * @return the LilyPond text of the bars.
  */
-fun formatRelative(bars: List<List<Atom>>): String {
+fun formatRelative(
+    bars: List<List<Atom>>,
+    key: KeySignature = KeySignature.C_MAJOR,
+): String {
     val text = StringBuilder("\\relative {\n")
+    if (!key.isCMajor) text.append(key.lilypond).append("\n")
     var previous: Pitch? = null
     for (bar in bars) {
         val pieces = mutableListOf<String>()

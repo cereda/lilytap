@@ -261,6 +261,9 @@ internal class WindowApp {
             time.invalid = false
         }
 
+    /** The key of the piece: the field with its name and the menu of the common keys. */
+    private val keySetting = KeySetting { key -> setKey(key) }
+
     /**
      * The caption of the grid setting.
      *
@@ -529,10 +532,15 @@ internal class WindowApp {
             "Silences shorter than this are absorbed into the previous note."
         }
 
-    fun show() {
-        status.text = IDLE_STATUS
-        setToolTips()
-
+    /**
+     * The rows of the settings card: three rows of cells, each with a caption above it.
+     *
+     * The rows are built apart from the card that holds them, so the layout can be looked at
+     * without opening the window.
+     *
+     * @return the column of the settings.
+     */
+    private fun buildSettingsRows(): JComponent {
         /**
          * Reserves the same caption strip as [labeled] without drawing one, so a control placed in
          * it lines up vertically with the fields in the other cells of the row.
@@ -577,30 +585,37 @@ internal class WindowApp {
                 )
             }
 
-        val rows =
-            JPanel(GridLayout(3, 1, 0, 16)).apply {
-                isOpaque = false
-                add(
-                    row(
-                        labeled(Glyph.METRONOME, "Tempo (BPM)", withReset(bpm, tapButton)),
-                        labeled(Glyph.CLOCK, "Time", timeCell()),
-                        labeled(Glyph.BARS, "Bars", bars),
-                        captioned(gridCaption, subdivisions),
-                    ),
-                )
-                add(
-                    row(
-                        labeled(Glyph.PAUSE, "Smallest rest", minRest),
-                        labeled(Glyph.BOLT, "Latency", withReset(latency, latencyReset)),
-                    ),
-                )
-                add(
-                    row(
-                        labeled(Glyph.BOLT, "Audio latency", withReset(audioLatency, audioLatencyReset)),
-                        slot(calibrateButton),
-                    ),
-                )
-            }
+        return JPanel(GridLayout(3, 1, 0, 16)).apply {
+            isOpaque = false
+            add(
+                row(
+                    labeled(Glyph.METRONOME, "Tempo (BPM)", withReset(bpm, tapButton)),
+                    labeled(Glyph.CLOCK, "Time", timeCell()),
+                    labeled(Glyph.BARS, "Bars", bars),
+                    captioned(gridCaption, subdivisions),
+                ),
+            )
+            add(
+                row(
+                    labeled(Glyph.PAUSE, "Smallest rest", minRest),
+                    labeled(Glyph.BOLT, "Latency", withReset(latency, latencyReset)),
+                ),
+            )
+            add(
+                row(
+                    labeled(Glyph.BOLT, "Audio latency", withReset(audioLatency, audioLatencyReset)),
+                    slot(calibrateButton),
+                    labeled(Glyph.KEY, "Key", keySetting.cell()),
+                ),
+            )
+        }
+    }
+
+    fun show() {
+        status.text = IDLE_STATUS
+        setToolTips()
+
+        val rows = buildSettingsRows()
         val startColumn = buildStartColumn()
         val settings =
             Card().apply {
@@ -1257,9 +1272,33 @@ internal class WindowApp {
         lilypond.toggleRelative(currentScore())
     }
 
+    /**
+     * Puts the score in a key.
+     *
+     * The notes are spelled the way the key wants them, and that is an edit like any other:
+     * it can be undone, and Revert puts the take back the way it was recorded.
+     *
+     * @param key the key the piece is in.
+     */
+    private fun setKey(key: KeySignature) {
+        // The score is respelled in the strip, and that is an edit like any other.
+        notation.setKey(key)
+        updateKeyViews()
+    }
+
+    /** The parts of the window that follow the key: the piano, the tracker and the legend. */
+    private fun updateKeyViews() {
+        val key = keySetting.key
+        pitches.piano.key = key
+        tracker.key = key
+        legend.key = key
+    }
+
     /** The score was edited in the strip: the output follows, and Revert comes alive. */
     private fun scoreChanged(edited: Score) {
         if (isPlaying) stopPlayback()
+        keySetting.tell(edited.config.key)
+        updateKeyViews()
         timeline.score = edited
         lilypond.show(edited)
         revert.isEnabled = edited != takeScore
@@ -1306,6 +1345,8 @@ internal class WindowApp {
         takeScore = taken
         // A new take is a fresh score: the tracker goes back to the middle of the keyboard.
         tracker.clear()
+        keySetting.tell(taken.config.key)
+        updateKeyViews()
         notation.score = taken
         timeline.score = taken
         lilypond.show(taken)
@@ -1342,6 +1383,7 @@ internal class WindowApp {
                     latencyMs = latency.value,
                     noRests = minRest.selectedIndex == NO_RESTS,
                     threeFeel = threeFeel,
+                    key = keySetting.key,
                 )
             } catch (e: IllegalArgumentException) {
                 showMessage(

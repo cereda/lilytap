@@ -143,6 +143,29 @@ class PianoPanelTest {
     }
 
     @Test
+    fun `the keys of the piano follow the key of the piece`() {
+        val flat = KeySignature.parse("F major")!!
+        assertEquals(Pitch(PitchStep.D, -1, 4), keyPitch(61, flat), "the C sharp is a D flat")
+        assertEquals(Pitch(PitchStep.B, -1, 4), keyPitch(70, flat), "the A sharp is a B flat")
+        assertEquals(Pitch(PitchStep.B, 0, 4), keyPitch(71, flat), "the white key is a B natural")
+
+        val sharp = KeySignature.parse("D major")!!
+        assertEquals(Pitch(PitchStep.C, 1, 4), keyPitch(61, sharp), "the C sharp is a C sharp")
+        assertEquals(Pitch(PitchStep.F, 1, 4), keyPitch(66, sharp), "the F sharp is a F sharp")
+    }
+
+    @Test
+    fun `clicking a key gives the note of the key`() {
+        val panel = piano()
+        panel.key = KeySignature.parse("F major")!!
+        var heard: Pitch? = null
+        panel.onPitch = { heard = it }
+        val black = panel.keys().first { it.black }
+        click(panel, (black.x + black.width / 2).toInt(), 10)
+        assertEquals(Pitch(PitchStep.D, -1, 4), heard, "the first black key is a D flat in F major")
+    }
+
+    @Test
     fun `the piano starts at two octaves`() {
         assertEquals(60, lowestKey(null, 4))
         assertEquals(84, highestKey(null, 4))

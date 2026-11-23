@@ -81,6 +81,35 @@ class PitchesWindowTest {
     }
 
     @Test
+    fun `the settings fit the card`() {
+        val app = WindowApp()
+
+        val rows = settingsRows(app)
+        val column = startColumn(app)
+        val room = CONTENT_WIDTH - 40 // the borders of the card
+        val asked = rows.preferredSize.width + column.preferredSize.width
+        assertTrue(
+            asked <= room,
+            "the settings ask for $asked px, the card has $room",
+        )
+    }
+
+    @Test
+    fun `every row of the settings fits the column`() {
+        val app = WindowApp()
+
+        val rows = settingsRows(app)
+        val column = startColumn(app)
+        val room = CONTENT_WIDTH - 40 - column.preferredSize.width
+        for (row in rows.components.filterIsInstance<JComponent>()) {
+            assertTrue(
+                row.preferredSize.width <= room,
+                "a row of the settings asks for ${row.preferredSize.width} px, it has $room",
+            )
+        }
+    }
+
+    @Test
     fun `the LilyPond text wraps in the narrow card`() {
         val app = WindowApp()
 
@@ -175,7 +204,7 @@ class PitchesWindowTest {
         assertTrue(tip.contains("amber"), "the legend says that amber is late")
         assertTrue(tip.contains("teal"), "the legend says that teal is early")
         assertTrue(tip.contains("1 to 7 are C to B"), "the legend says what the number row plays")
-        assertTrue(tip.contains("Q W E R T the sharps"), "the legend says what the top row plays")
+        assertTrue(tip.contains("Q W E R T the accidentals"), "the legend says what the top row plays")
         assertTrue(tip.contains("8 moves the octave down"), "the legend says how the octave moves")
         assertTrue(tip.contains("9 moves it up"), "the legend says how the octave moves")
         assertTrue(tip.contains("0 puts it back"), "the legend says what the zero key does")
@@ -787,6 +816,13 @@ class PitchesWindowTest {
     /** The column of the settings card that holds the legend and the Start button. */
     private fun startColumn(app: WindowApp): JComponent {
         val build = WindowApp::class.java.getDeclaredMethod("buildStartColumn")
+        build.isAccessible = true
+        return build.invoke(app) as JComponent
+    }
+
+    /** The rows of the settings card. */
+    private fun settingsRows(app: WindowApp): JComponent {
+        val build = WindowApp::class.java.getDeclaredMethod("buildSettingsRows")
         build.isAccessible = true
         return build.invoke(app) as JComponent
     }

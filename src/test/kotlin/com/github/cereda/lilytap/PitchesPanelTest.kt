@@ -158,4 +158,23 @@ class PitchesPanelTest {
             "the legend says what the zero key does",
         )
     }
+
+    @Test
+    fun `the legend says whether the tracker plays sharps or flats`() {
+        val legend = LegendPanel()
+        assertTrue(
+            legend.trackerLines.any { it.contains("sharps") },
+            "a sharp key plays the sharps",
+        )
+        legend.key = KeySignature.parse("F major")!!
+        assertTrue(
+            legend.trackerLines.any { it.contains("flats") },
+            "a flat key plays the flats",
+        )
+        legend.key = KeySignature.parse("A minor")!!
+        assertTrue(
+            legend.trackerLines.any { it.contains("sharps") },
+            "a minor key with no accidentals plays the sharps of the scale",
+        )
+    }
 }

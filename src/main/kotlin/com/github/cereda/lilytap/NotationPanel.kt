@@ -637,6 +637,21 @@ internal class NotationPanel(
         onSelectionChange?.invoke(SelectionMove.EDIT)
     }
 
+    /**
+     * Puts the score in a key: every note is spelled the way the key wants it.
+     *
+     * The change is an edit like any other, so it can be undone: a key that was chosen by
+     * mistake does not cost the work that came before it.
+     *
+     * @param key the key the score is in.
+     */
+    fun setKey(key: KeySignature) {
+        val s = score ?: return
+        val edited = s.inKey(key)
+        if (edited == s) return
+        applyEdit(edited, s.config.key.name, key.name)
+    }
+
     // -------------------------------------------------------------------------------------------
     // The edits
     // -------------------------------------------------------------------------------------------

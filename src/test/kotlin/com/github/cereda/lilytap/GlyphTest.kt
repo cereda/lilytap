@@ -45,6 +45,17 @@ class GlyphTest {
     }
 
     @Test
+    fun `the key icon is a sharp sign`() {
+        assertTrue(ink(Glyph.KEY) > 0, "the key icon draws nothing")
+        // Two upright strokes: the row near the top shows them apart.
+        assertEquals(2, groupsInRow(Glyph.KEY, (0.24 * BIG).toInt()), "the two upright strokes")
+        // The two leaning strokes reach out on both sides of the upright ones.
+        val bounds = inkBounds(Glyph.KEY)
+        assertTrue(bounds.first < 0.20 * BIG, "the leaning stroke reaches to the left")
+        assertTrue(bounds.second > 0.70 * BIG, "the leaning stroke reaches to the right")
+    }
+
+    @Test
     fun `the score editor icons are different from each other`() {
         val drawn = EDITOR_GLYPHS.map { pixels(it) }
         for (i in drawn.indices) {
@@ -65,6 +76,30 @@ class GlyphTest {
 
     /** How many pixels a glyph draws. */
     private fun ink(glyph: Glyph): Int = pixels(glyph).count { it != 0 }
+
+    /**
+     * The leftmost and the rightmost pixel a glyph draws.
+     *
+     * @param glyph the glyph to draw.
+     * @return the first and the last column that carry ink.
+     */
+    private fun inkBounds(glyph: Glyph): Pair<Int, Int> {
+        val image = BufferedImage(BIG, BIG, BufferedImage.TYPE_INT_ARGB)
+        val g = image.createGraphics()
+        drawGlyph(g, glyph, 0.0, 0.0, BIG.toDouble(), Color.BLACK)
+        g.dispose()
+        var first = BIG
+        var last = -1
+        for (x in 0 until BIG) {
+            for (y in 0 until BIG) {
+                if (image.getRGB(x, y) != 0) {
+                    first = minOf(first, x)
+                    last = maxOf(last, x)
+                }
+            }
+        }
+        return first to last
+    }
 
     /**
      * How many separate strokes a glyph draws on a row.

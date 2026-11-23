@@ -117,6 +117,8 @@ data class TimeSignature(
  * @property threeFeel when true, the metronome clicks every note value of a compound meter
  * (the eighth in 6/8) instead of the musical beat, so the subdivision is audible. The beat,
  * the tempo and the score stay what they are.
+ * @property key the key of the piece: the notes are spelled in it and the LilyPond text
+ * declares it.
  */
 data class Config(
     val bpm: Double,
@@ -126,6 +128,7 @@ data class Config(
     val latencyMs: Double = 0.0,
     val noRests: Boolean = false,
     val threeFeel: Boolean = false,
+    val key: KeySignature = KeySignature.C_MAJOR,
 ) {
     init {
         require(bpm.isFinite() && bpm > 0) { "BPM must be positive" }

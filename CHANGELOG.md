@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The score knows the key it is in: the **Key** setting of the settings card takes the name of the
+  key the way it is written in English (`Bb major`, `F# minor`, `C♭ major`), and a menu beside the
+  field offers the common ones. The notes are spelled in that key (`ees` and `dis` instead of `f`
+  and `e♯`), the LilyPond text declares it (`\key f \major`), and the tracker and the piano play
+  the sharps or the flats of the key. Changing the key is an edit like any other, so **Ctrl+Z**
+  takes it back, and a note keeps its sound when it is respelled: only its name changes.
+
 ### Changed
 - The buttons of the LilyPond card are icons, the way the app switches its modes: the button of
   the relative octaves shows two note heads and lights up in the accent colour when it is on, and

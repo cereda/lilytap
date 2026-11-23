@@ -5,9 +5,11 @@ package com.github.cereda.lilytap
  * The tracker: the keys of the keyboard that play the piano of the pitches panel.
  *
  * The keys name the notes of the scale instead of fixed pitches: the number row carries the
- * white keys (1 is C, 2 is D, and so on up to 7, which is B) and the top row the sharps (Q is
- * C♯, W is D♯, E is F♯, R is G♯ and T is A♯). The octave they sound is the live one: 8 moves
- * it down, 9 moves it up and 0 puts it back on the note that is selected.
+ * white keys (1 is C, 2 is D, and so on up to 7, which is B) and the top row the black ones
+ * (Q, W, E, R and T). The black keys are spelled the way the key of the piece wants them:
+ * they are the sharps in a sharp key and the flats in a flat one. The octave they sound is
+ * the live one: 8 moves it down, 9 moves it up and 0 puts it back on the note that is
+ * selected.
  *
  * The number row climbs to the right, so the smaller of the two numbers is the lower octave:
  * the keyboard reads like the piano, where the low keys are on the left.
@@ -87,12 +89,14 @@ internal sealed interface TrackerAction {
  * @param e the key event.
  * @param focusOwner the component that has the keyboard, if any.
  * @param octave the octave the tracker plays.
+ * @param key the key of the piece: it says how the notes are spelled.
  * @return the action of the key, or null when the key is not a tracker key.
  */
 internal fun trackerAction(
     e: KeyEvent,
     focusOwner: Component?,
     octave: Int,
+    key: KeySignature = KeySignature.C_MAJOR,
 ): TrackerAction? {
     if (e.id != KeyEvent.KEY_PRESSED) return null
     if (e.isControlDown || e.isMetaDown || e.isAltDown) return null
@@ -107,7 +111,7 @@ internal fun trackerAction(
     if (move != null) return move
     val pitchClass = TRACKER_KEYS[e.keyCode] ?: return null
     if (octave !in Pitch.MIN_OCTAVE..Pitch.MAX_OCTAVE) return null
-    return TrackerAction.Note(keyPitch(12 * (octave + 1) + pitchClass))
+    return TrackerAction.Note(keyPitch(12 * (octave + 1) + pitchClass, key))
 }
 
 /**
@@ -196,6 +200,9 @@ internal class Tracker(
     /** The state of the tracker: the octave it plays and the one it goes back to. */
     private val state = TrackerState()
 
+    /** The key of the piece: it says how the notes of the tracker are spelled. */
+    var key: KeySignature = KeySignature.C_MAJOR
+
     init {
         // The stepper of the panel is the octave of the tracker, seen from the mouse.
         panel.octave.onChange = { value -> moveTo(value.toInt()) }
@@ -216,7 +223,7 @@ internal class Tracker(
      */
     fun handleKey(e: KeyEvent): Boolean {
         val owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
-        return when (val action = trackerAction(e, owner, state.octave)) {
+        return when (val action = trackerAction(e, owner, state.octave, key)) {
             null -> {
                 false
             }
