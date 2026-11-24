@@ -125,6 +125,22 @@ class ScoreTest {
     }
 
     @Test
+    fun `every pitch is written with its own accidental`() {
+        // LilyPond reads a note name as a pitch: the key signature only says what may be
+        // left implicit, so a note that the signature alters still carries its accidental.
+        // A natural is the plain letter - there is no suffix for it.
+        val config = cfg().copy(key = KeySignature.parse("F major")!!)
+        val s =
+            score(
+                note(0, 4, Pitch(PitchStep.B, 0, 4)),
+                note(4, 4, Pitch(PitchStep.B, -1, 4)),
+                config = config,
+            )
+        assertEquals("\\key f \\major\nb'2 bes'2 |", s.lilypond)
+        assertEquals("\\relative {\n\\key f \\major\nb'2 bes2 |\n}", s.lilypondRelative)
+    }
+
+    @Test
     fun `a score in a key keeps its key in the settings`() {
         val s = score(note(0, 8))
         val flat = s.inKey(KeySignature.parse("F major")!!)

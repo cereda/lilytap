@@ -130,6 +130,10 @@ The key has three parts:
   accidentals of the key: the sharps in a sharp key and the flats in a flat one, and the legend
   above the Start button says which of the two it is.
 
+Every pitch in the text carries its own accidental (`b'`, `bes'`, `cis'`), the way LilyPond reads
+a note name: the `\key` line says what may be left implicit, it does not change a note. LilyPond
+prints the signs that are needed, so a B♭ in F major gets none and a B natural gets one.
+
 The seventh of a minor key is the one exception to the spelling: it is raised, so in D minor the
 C is a C♯ and not a D♭. When the seventh of the key is already a sharp, the raising needs a double
 sharp: in G♯ minor the F is an F𝄪 (`fisis`), in D♯ minor the C is a C𝄪 (`cisis`) and in A♯ minor
