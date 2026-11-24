@@ -22,13 +22,13 @@ class CircleOfFifthsTest {
             val angle = Math.toRadians(-90.0 + index * 24.0)
             val major =
                 circle.pickAt(
-                    (CENTER + 110 * cos(angle)).toInt(),
-                    (CENTER + 110 * sin(angle)).toInt(),
+                    (CENTER + 120 * cos(angle)).toInt(),
+                    (CENTER + 120 * sin(angle)).toInt(),
                 )
             val minor =
                 circle.pickAt(
-                    (CENTER + 60 * cos(angle)).toInt(),
-                    (CENTER + 60 * sin(angle)).toInt(),
+                    (CENTER + 85 * cos(angle)).toInt(),
+                    (CENTER + 85 * sin(angle)).toInt(),
                 )
             assertNotNull(major, "the position $index has a major key")
             assertNotNull(minor, "the position $index has a minor key")
@@ -43,15 +43,15 @@ class CircleOfFifthsTest {
     @Test
     fun `the circle starts at C major and climbs to the right`() {
         val circle = CircleOfFifths {}
-        assertEquals(KeySignature.C_MAJOR, circle.pickAt(CENTER, CENTER - 110), "C major is at the top")
+        assertEquals(KeySignature.C_MAJOR, circle.pickAt(CENTER, CENTER - 120), "C major is at the top")
         assertEquals(
             KeySignature(PitchStep.G, 0, true),
-            circle.pickAt((CENTER + 110 * cos(Math.toRadians(-66.0))).toInt(), (CENTER + 110 * sin(Math.toRadians(-66.0))).toInt()),
+            circle.pickAt((CENTER + 120 * cos(Math.toRadians(-66.0))).toInt(), (CENTER + 120 * sin(Math.toRadians(-66.0))).toInt()),
             "G major is a step to the right",
         )
         assertEquals(
             KeySignature(PitchStep.F, 0, true),
-            circle.pickAt((CENTER + 110 * cos(Math.toRadians(102.0))).toInt(), (CENTER + 110 * sin(Math.toRadians(102.0))).toInt()),
+            circle.pickAt((CENTER + 120 * cos(Math.toRadians(102.0))).toInt(), (CENTER + 120 * sin(Math.toRadians(102.0))).toInt()),
             "F major is a step to the left",
         )
     }
@@ -65,21 +65,30 @@ class CircleOfFifthsTest {
         val angle = Math.toRadians(126.0)
         assertEquals(
             major,
-            circle.pickAt((CENTER + 110 * cos(angle)).toInt(), (CENTER + 110 * sin(angle)).toInt()),
+            circle.pickAt((CENTER + 120 * cos(angle)).toInt(), (CENTER + 120 * sin(angle)).toInt()),
             "the outer half is the major key",
         )
         assertEquals(
             minor,
-            circle.pickAt((CENTER + 60 * cos(angle)).toInt(), (CENTER + 60 * sin(angle)).toInt()),
+            circle.pickAt((CENTER + 85 * cos(angle)).toInt(), (CENTER + 85 * sin(angle)).toInt()),
             "the inner half is its relative minor",
         )
     }
 
     @Test
-    fun `nothing is picked in the middle of the circle nor outside it`() {
+    fun `the middle of the circle keeps the key of the piece`() {
         val circle = CircleOfFifths {}
-        assertNull(circle.pickAt(CENTER, CENTER), "the middle of the circle picks nothing")
-        assertNull(circle.pickAt(CENTER + 150, CENTER), "the outside of the circle picks nothing")
+        val key = KeySignature.parse("E♭ major")!!
+        circle.key = key
+
+        assertEquals(key, circle.pickAt(CENTER, CENTER), "the middle picks the key of the piece")
+        assertEquals(key, circle.pickAt(CENTER + 20, CENTER - 20), "the middle picks the key of the piece")
+    }
+
+    @Test
+    fun `nothing is picked outside the circle`() {
+        val circle = CircleOfFifths {}
+        assertNull(circle.pickAt(CENTER + 160, CENTER), "the outside of the circle picks nothing")
         assertNull(circle.pickAt(0, 0), "the corner of the circle picks nothing")
     }
 
@@ -106,6 +115,31 @@ class CircleOfFifthsTest {
     }
 
     @Test
+    fun `every key sits in the middle of its band`() {
+        val image = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+        val g: Graphics2D = image.createGraphics()
+        val major = g.getFontMetrics(Theme.font(CircleOfFifths.MAJOR_FONT, Font.BOLD))
+        val minor = g.getFontMetrics(Theme.font(CircleOfFifths.MINOR_FONT))
+        g.dispose()
+        // The band of a key is the ring of the circle on one side and the edge of the band on
+        // the other: the label has the same room above it and below it.
+        assertBalanced(
+            "the major keys",
+            CircleOfFifths.R_MAJOR,
+            CircleOfFifths.R_RING,
+            CircleOfFifths.R_OUTER,
+            major.ascent / 2.0,
+        )
+        assertBalanced(
+            "the minor keys",
+            CircleOfFifths.R_MINOR,
+            CircleOfFifths.R_HOLE,
+            CircleOfFifths.R_RING,
+            minor.ascent / 2.0,
+        )
+    }
+
+    @Test
     fun `the circle is drawn`() {
         val circle = CircleOfFifths {}
         circle.key = KeySignature.parse("E♭ major")!!
@@ -123,11 +157,11 @@ class CircleOfFifthsTest {
     @Test
     fun `the wedge of a position is under the label of the position`() {
         val circle = CircleOfFifths {}
-        val wedge = circle.sector(0, 46.0, 146.0)
+        val wedge = circle.sector(0, CircleOfFifths.R_HOLE, CircleOfFifths.R_OUTER)
         val bounds = wedge.bounds2D
         assertEquals(true, bounds.centerY < CENTER, "the wedge of the first position is at the top")
         assertEquals(true, bounds.centerX > CENTER - 20, "the wedge of the first position is at the top")
-        val last = circle.sector(7, 46.0, 146.0)
+        val last = circle.sector(7, CircleOfFifths.R_HOLE, CircleOfFifths.R_OUTER)
         val lastBounds = last.bounds2D
         assertEquals(true, lastBounds.centerY > CENTER, "the wedge of the eighth position is at the bottom")
     }
@@ -143,6 +177,32 @@ class CircleOfFifthsTest {
          * @return the distance between the centres of two neighbouring labels.
          */
         private fun room(radius: Double): Double = 2 * radius * sin(Math.toRadians(CircleOfFifths.STEP) / 2)
+
+        /**
+         * Says that a label has the same room above it and below it.
+         *
+         * @param what the labels, for the message.
+         * @param radius the distance of the label from the centre.
+         * @param inner the radius of the inner edge of the band.
+         * @param outer the radius of the outer edge of the band.
+         * @param halfHeight the half of the height of the label.
+         */
+        private fun assertBalanced(
+            what: String,
+            radius: Double,
+            inner: Double,
+            outer: Double,
+            halfHeight: Double,
+        ) {
+            val above = radius - halfHeight - inner
+            val below = outer - radius - halfHeight
+            assertTrue(above >= 4.0, "$what have room above them: $above")
+            assertTrue(below >= 4.0, "$what have room below them: $below")
+            assertTrue(
+                kotlin.math.abs(above - below) <= 1.0,
+                "$what sit in the middle of their band: $above above, $below below",
+            )
+        }
 
         /** The cosine of an angle, in radians. */
         private fun cos(angle: Double): Double = kotlin.math.cos(angle)

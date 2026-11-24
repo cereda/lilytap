@@ -111,7 +111,7 @@ Outside the ring are the major keys and inside them the minor keys that have the
 the relative minors, written with an `m` as in a circle of fifths chart (`C` outside, `Am`
 inside). Click the half of the position you want — the outer one for the major key, the inner one
 for the minor key — and the field takes the name. The key the piece is in is written in the
-middle of the circle and lit where it stands.
+middle of the circle and lit where it stands; clicking the middle keeps that key.
 
 The key has three parts:
 

@@ -16,6 +16,7 @@ import java.awt.GradientPaint
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Point
 import java.awt.Rectangle
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
@@ -379,6 +380,40 @@ internal open class ChevronButton : JComponent() {
 }
 
 /**
+ * A popup that shows only the shape its content draws.
+ *
+ * Swing opens a popup as a native window, and a native window has square corners: the rounded
+ * border the content draws would have the four corners of the window sticking out behind it.
+ * A lightweight popup is drawn inside the app's own window, and a popup that is not opaque is
+ * not painted over, so the only thing seen is the rounded shape the content draws.
+ */
+internal fun menuPopup(): JPopupMenu =
+    JPopupMenu().apply {
+        isLightWeightPopupEnabled = true
+        isOpaque = false
+        border = BorderFactory.createEmptyBorder()
+        background = Theme.field
+    }
+
+/** The space between a button and the popup it opens. */
+internal const val POPUP_GAP = 8
+
+/**
+ * Where a popup opens: under the button, with a space between them, and lined up with the
+ * right edge of the button.
+ *
+ * @param buttonWidth the width of the button.
+ * @param buttonHeight the height of the button.
+ * @param popupWidth the width of the popup.
+ * @return the place of the popup, in the coordinates of the button.
+ */
+internal fun popupSpot(
+    buttonWidth: Int,
+    buttonHeight: Int,
+    popupWidth: Int,
+): Point = Point(buttonWidth - popupWidth, buttonHeight + POPUP_GAP)
+
+/**
  * A small button that opens a list of options.
  *
  * The button itself only shows a chevron: the value it stands for lives in the field next to
@@ -401,16 +436,15 @@ internal class MenuButton(
 
     /** Opens the list of options under the button. */
     override fun onClick() {
-        val popup = JPopupMenu()
-        popup.border = BorderFactory.createEmptyBorder()
-        popup.background = Theme.field
+        val popup = menuPopup()
         popup.add(
             MenuList(items) { picked ->
                 popup.isVisible = false
                 onSelect(picked)
             },
         )
-        popup.show(this, 0, height)
+        val spot = popupSpot(width, height, popup.preferredSize.width)
+        popup.show(this, spot.x, spot.y)
     }
 }
 
@@ -428,6 +462,9 @@ private class MenuList(
 
     init {
         isOpaque = false
+        // The list is a picker, not a field: it never takes the keyboard away from the field
+        // of the setting.
+        isFocusable = false
         font = Theme.font(14f)
         addMouseListener(
             object : MouseAdapter() {

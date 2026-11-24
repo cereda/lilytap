@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The middle of the circle of fifths picks the key the piece is in: the hole in the middle of
+  the circle is not a dead zone.
+
+### Fixed
+- The menus of the **Time** and **Key** settings open with a little space under the button and
+  are lined up with its right edge, and their corners are really round: the popup is drawn by
+  the app itself, so the square corner of the native window is gone.
+- The highlight of the circle of fifths is balanced: every key sits in the middle of its band,
+  so the room above and below a key is the same. The circle grew a little to keep the minor
+  keys apart.
+
 ## [0.16.0] - 2026-11-24
 
 ### Added

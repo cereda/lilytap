@@ -16,9 +16,7 @@ import java.awt.event.MouseEvent
 import java.awt.geom.Arc2D
 import java.awt.geom.Area
 import java.awt.geom.Ellipse2D
-import javax.swing.BorderFactory
 import javax.swing.JComponent
-import javax.swing.JPopupMenu
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -38,9 +36,7 @@ internal class CircleButton(
 ) : ChevronButton() {
     /** Opens the circle under the button. */
     override fun onClick() {
-        val popup = JPopupMenu()
-        popup.border = BorderFactory.createEmptyBorder()
-        popup.background = Theme.field
+        val popup = menuPopup()
         circle.onPick = { key ->
             popup.isVisible = false
             onPick(key)
@@ -49,7 +45,8 @@ internal class CircleButton(
         // The circle hangs under the button, with its right edge on the button's right edge:
         // the button sits at the right end of the key cell, and a circle that starts there
         // would fall off the edge of the window.
-        popup.show(this, width - CircleOfFifths.SIZE, height)
+        val spot = popupSpot(width, height, CircleOfFifths.SIZE)
+        popup.show(this, spot.x, spot.y)
     }
 }
 
@@ -87,6 +84,9 @@ internal class CircleOfFifths(
 
     init {
         isOpaque = false
+        // The circle is a picker, not a field: it never takes the keyboard away from the
+        // field of the key.
+        isFocusable = false
         font = Theme.font(12f)
         toolTipText = TOOLTIP
         addMouseListener(
@@ -120,6 +120,8 @@ internal class CircleOfFifths(
     /**
      * The key under a point of the circle.
      *
+     * The middle of the circle is the key the piece is in: clicking it keeps the key.
+     *
      * @param x the place of the point.
      * @param y the place of the point.
      * @return the key under the point, or null when the point is not on one.
@@ -128,6 +130,11 @@ internal class CircleOfFifths(
         x: Int,
         y: Int,
     ): KeySignature? {
+        val dx = x - CENTER
+        val dy = y - CENTER
+        val distance = hypot(dx.toDouble(), dy.toDouble())
+        if (distance > R_OUTER) return null
+        if (distance < R_HOLE) return key
         val (index, half) = positionAt(x, y) ?: return null
         val (major, minor) = KEYS[index]
         return if (half) minor else major
@@ -335,25 +342,25 @@ internal class CircleOfFifths(
 
     companion object {
         /** The size of the circle, in pixels. */
-        const val SIZE = 360
+        const val SIZE = 380
 
         /** The centre of the circle, in pixels. */
         private const val CENTER = SIZE / 2
 
         /** The radius of the ring: the circle of fifths itself. */
-        const val R_RING = 104.0
+        const val R_RING = 110.0
 
         /** The radius of the labels of the major keys, outside the ring. */
-        const val R_MAJOR = 126.0
+        const val R_MAJOR = 129.0
 
         /** The radius of the labels of the minor keys, inside the ring. */
-        const val R_MINOR = 86.0
+        const val R_MINOR = 87.0
 
-        /** The radius of the hole in the middle: nothing is picked there. */
-        const val R_HOLE = 46.0
+        /** The radius of the hole in the middle: it keeps the key of the piece. */
+        const val R_HOLE = 64.0
 
         /** The radius of the outer edge of the circle: nothing is picked beyond it. */
-        const val R_OUTER = 140.0
+        const val R_OUTER = 148.0
 
         /** The angle between two positions, in degrees. */
         const val STEP = 24.0
