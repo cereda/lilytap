@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-24
+
 ### Fixed
 - The leading tone of the sharp-side minor keys is spelled with a double sharp: in G♯ minor
   the F is an F𝄪 (`fisis`), in D♯ minor the C is a C𝄪 (`cisis`) and in A♯ minor the G is a
@@ -505,7 +507,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/cereda/lilytap/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/cereda/lilytap/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cereda/lilytap/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cereda/lilytap/compare/v0.14.0...v0.15.0
