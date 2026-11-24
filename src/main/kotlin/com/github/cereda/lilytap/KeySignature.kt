@@ -114,7 +114,8 @@ data class KeySignature(
      * The note of the key comes first: in F major the B is a B♭, and it is written `bes`.
      * The notes that are not in the key follow the direction of the key: a flat key spells
      * them with flats, a sharp key with sharps. The seventh of a minor key is the one
-     * exception: it is raised, so in D minor the C is a C♯ and not a D♭.
+     * exception: it is raised, so in D minor the C is a C♯ and not a D♭, and in G♯ minor
+     * the F is an F𝄪 and not an F♯.
      *
      * A note keeps the sound it has and only changes its name: a B♯4 is a C5, and a C♭5 is
      * a B4.
@@ -165,7 +166,8 @@ data class KeySignature(
      * The raised seventh of a minor key: the note a semitone above the seventh of the scale.
      *
      * In D minor it is a C♯, and in A♭ minor it is a G natural. A key whose seventh is
-     * already a sharp cannot raise it any further, and has no raised seventh.
+     * already a sharp cannot raise it any further without a double sharp, and in G♯, D♯ and
+     * A♯ minor it does: the leading tone of G♯ minor is an F𝄪.
      *
      * @return the letter and the accidental of the raised seventh, or null when there is none.
      */
@@ -173,7 +175,7 @@ data class KeySignature(
         if (major) return null
         val letter = PitchStep.entries[(tonic.ordinal + 6) % 7]
         val alter = (altered[letter] ?: 0) + 1
-        if (alter !in -1..1) return null
+        if (alter !in -2..2) return null
         return letter to alter
     }
 

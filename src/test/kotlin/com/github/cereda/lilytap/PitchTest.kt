@@ -39,6 +39,14 @@ class PitchTest {
     }
 
     @Test
+    fun `the accidental can be doubled`() {
+        assertEquals(Pitch(PitchStep.F, 2, 3), Pitch.parse("fisis"))
+        assertEquals(Pitch(PitchStep.B, -2, 3), Pitch.parse("beses"))
+        assertEquals(Pitch(PitchStep.F, 2, 4), Pitch.parse("fisis'"))
+        assertEquals(Pitch(PitchStep.B, -2, 2), Pitch.parse("beses,"))
+    }
+
+    @Test
     fun `an apostrophe goes up and a comma goes down`() {
         assertEquals(Pitch(PitchStep.C, 0, 4), Pitch.parse("c'"))
         assertEquals(Pitch(PitchStep.C, 0, 5), Pitch.parse("c''"))
@@ -132,6 +140,14 @@ class PitchTest {
     }
 
     @Test
+    fun `a double accidental is written with the sign twice`() {
+        assertEquals("fisis", Pitch(PitchStep.F, 2, 4).lilypondName)
+        assertEquals("beses", Pitch(PitchStep.B, -2, 4).lilypondName)
+        assertEquals("fisis'", Pitch(PitchStep.F, 2, 4).lilypond)
+        assertEquals("beses,", Pitch(PitchStep.B, -2, 2).lilypond)
+    }
+
+    @Test
     fun `the name without the octave marks is the name with them, less the marks`() {
         for (pitch in listOf(Pitch.DEFAULT, Pitch(PitchStep.G, 1, 7), Pitch(PitchStep.C, -1, 1))) {
             assertEquals(
@@ -154,6 +170,20 @@ class PitchTest {
     }
 
     @Test
+    fun `a double accidental has a sign of its own`() {
+        assertEquals("F${Theme.doubleSharp}4", Pitch(PitchStep.F, 2, 4).scientific)
+        assertEquals("B${Theme.doubleFlat}4", Pitch(PitchStep.B, -2, 4).scientific)
+    }
+
+    @Test
+    fun `the sign of a double accidental is one character, or two signs`() {
+        assertTrue(Theme.doubleSharp.length in 1..2, "the double sharp is short")
+        assertTrue(Theme.doubleFlat.length in 1..2, "the double flat is short")
+        assertTrue(Theme.doubleSharp != "♯", "the double sharp is not a single sharp")
+        assertTrue(Theme.doubleFlat != "♭", "the double flat is not a single flat")
+    }
+
+    @Test
     fun `a name survives the round trip`() {
         val pitches =
             listOf(
@@ -168,6 +198,8 @@ class PitchTest {
                 Pitch(PitchStep.G, 1, 0),
                 Pitch(PitchStep.A, -1, 0),
                 Pitch(PitchStep.B, 0, 4),
+                Pitch(PitchStep.F, 2, 4),
+                Pitch(PitchStep.B, -2, 3),
             )
         for (pitch in pitches) {
             assertEquals(pitch, Pitch.parse(pitch.lilypond), "the name of $pitch should read back")
@@ -209,9 +241,12 @@ class PitchTest {
     // -------------------------------------------------------------------------------------------
 
     @Test
-    fun `a pitch has at most one sharp or one flat`() {
-        assertNull(Pitch.parse("cisis"))
-        assertNull(Pitch.parse("ceses"))
+    fun `a pitch has at most two sharps or two flats`() {
+        assertEquals(Pitch(PitchStep.C, 2, 3), Pitch.parse("cisis"))
+        assertEquals(Pitch(PitchStep.C, -2, 3), Pitch.parse("ceses"))
+        assertNull(Pitch.parse("cisisis"))
+        assertNull(Pitch.parse("ceseses"))
+        assertNull(Pitch.parse("cises"))
     }
 
     @Test

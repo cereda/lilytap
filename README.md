@@ -131,7 +131,9 @@ The key has three parts:
   above the Start button says which of the two it is.
 
 The seventh of a minor key is the one exception to the spelling: it is raised, so in D minor the
-C is a C♯ and not a D♭.
+C is a C♯ and not a D♭. When the seventh of the key is already a sharp, the raising needs a double
+sharp: in G♯ minor the F is an F𝄪 (`fisis`), in D♯ minor the C is a C𝄪 (`cisis`) and in A♯ minor
+the G is a G𝄪 (`gisis`). The strip shows the sign of the double accidental.
 
 Changing the key is an edit like any other: **Ctrl+Z** takes it back, the message in the header
 of the score strip says what changed (`C major → F major`), and **Revert** puts the take back the
@@ -205,8 +207,8 @@ they are, so they all start on middle C; the pitch is set afterwards, on the sco
 
 - **Click a block** to select it, then type its pitch in the **Pitch** field of the header and
   press **Enter**. The field takes the name the way LilyPond writes it: `c'` (middle C), `cis'`
-  (a sharp), `ces'` (a flat), `c''` (an octave up), `c` (an octave down). A name that cannot be
-  read turns the border of the field red.
+  (a sharp), `ces'` (a flat), `cisis'` (a double sharp), `c''` (an octave up), `c` (an octave
+  down). A name that cannot be read turns the border of the field red.
 - The strip shows the pitch in scientific notation (`C4`, `C♯5`, `C♭3`), where the digit is
   always the octave. The LilyPond text and the field keep LilyPond's own spelling (`cis'`), which
   puts `c` in the octave *below* middle C: LilyPond's middle C is `c'`.

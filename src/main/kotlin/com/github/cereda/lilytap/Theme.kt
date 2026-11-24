@@ -135,6 +135,45 @@ internal object Theme {
     ): Font = Font("SansSerif", style, 12).deriveFont(size)
 
     fun mono(size: Float): Font = Font(Font.MONOSPACED, Font.PLAIN, 12).deriveFont(size)
+
+    /**
+     * The sign of a double sharp.
+     *
+     * The proper sign is one character, so it fits a narrow block of the strip, but it lives
+     * outside the Basic Multilingual Plane and a font need not have it. A font that cannot
+     * draw it gets two sharp signs instead.
+     */
+    val doubleSharp: String = sign(DOUBLE_SHARP, "♯♯")
+
+    /**
+     * The sign of a double flat.
+     *
+     * The proper sign is one character, so it fits a narrow block of the strip, but it lives
+     * outside the Basic Multilingual Plane and a font need not have it. A font that cannot
+     * draw it gets two flat signs instead.
+     */
+    val doubleFlat: String = sign(DOUBLE_FLAT, "♭♭")
+
+    /**
+     * The sign of a double accidental, or the signs that stand in for it.
+     *
+     * @param code the code point of the proper sign.
+     * @param fallback the signs to use when the font has no proper sign.
+     * @return the sign to draw.
+     */
+    private fun sign(
+        code: Int,
+        fallback: String,
+    ): String {
+        val font = Font("SansSerif", Font.PLAIN, 12)
+        return if (font.canDisplay(code)) String(Character.toChars(code)) else fallback
+    }
+
+    /** The code point of the double sharp sign: 𝄪. */
+    private const val DOUBLE_SHARP = 0x1D12A
+
+    /** The code point of the double flat sign: 𝄫. */
+    private const val DOUBLE_FLAT = 0x1D12B
 }
 
 internal fun Color.alpha(a: Int): Color = Color(red, green, blue, a.coerceIn(0, 255))

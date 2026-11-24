@@ -284,6 +284,29 @@ class KeySignatureTest {
     }
 
     @Test
+    fun `the leading tone of a sharp minor key can be a double sharp`() {
+        assertEquals("fisis", key("G# minor").spell(67).lilypondName, "the leading tone of G sharp minor")
+        assertEquals("cisis", key("D# minor").spell(62).lilypondName, "the leading tone of D sharp minor")
+        assertEquals("gisis", key("A# minor").spell(69).lilypondName, "the leading tone of A sharp minor")
+    }
+
+    @Test
+    fun `the double sharp of the leading tone keeps its sound`() {
+        val sharp = key("G# minor").spell(67)
+        assertEquals(67, sharp.midi, "the note sounds the same")
+        assertEquals(Pitch(PitchStep.F, 2, 4), sharp, "the leading tone of G sharp minor")
+    }
+
+    @Test
+    fun `the other notes of a sharp minor key follow the key`() {
+        // The F of the key is an F sharp, and the E keeps its natural sign.
+        assertEquals(
+            listOf("c", "cis", "d", "dis", "e", "f", "fis", "fisis", "gis", "a", "ais", "b"),
+            spellings(key("G# minor")),
+        )
+    }
+
+    @Test
     fun `the other notes of a minor key follow the key`() {
         assertEquals(
             listOf("c", "cis", "d", "dis", "e", "f", "fis", "g", "gis", "a", "ais", "b"),

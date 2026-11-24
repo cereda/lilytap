@@ -16,6 +16,7 @@ package com.github.cereda.lilytap
  * the app always puts the right one in.
  */
 
+import kotlin.math.abs
 import kotlin.math.pow
 
 /**
@@ -54,7 +55,8 @@ enum class PitchStep(
  * A pitch: the step of the scale, the accidental and the octave.
  *
  * @property step the letter of the note (C, D, E...).
- * @property alter the accidental: -1 for a flat, 0 for a natural, 1 for a sharp.
+ * @property alter the accidental: -2 for a double flat, -1 for a flat, 0 for a natural, 1 for
+ * a sharp, 2 for a double sharp.
  * @property octave the octave in scientific notation: middle C is C4.
  */
 data class Pitch(
@@ -63,7 +65,7 @@ data class Pitch(
     val octave: Int = 4,
 ) {
     init {
-        require(alter in -1..1) { "A pitch carries at most one sharp or one flat" }
+        require(alter in -2..2) { "A pitch carries at most two sharps or two flats" }
         require(octave in MIN_OCTAVE..MAX_OCTAVE) {
             "The octave of a pitch is between $MIN_OCTAVE and $MAX_OCTAVE"
         }
@@ -80,9 +82,9 @@ data class Pitch(
     val lilypondName: String
         get() {
             val accidental =
-                when (alter) {
-                    1 -> "is"
-                    -1 -> "es"
+                when {
+                    alter > 0 -> "is".repeat(alter)
+                    alter < 0 -> "es".repeat(-alter)
                     else -> ""
                 }
             return "${step.letter}$accidental"
@@ -104,9 +106,11 @@ data class Pitch(
     val scientific: String
         get() {
             val accidental =
-                when (alter) {
-                    1 -> "♯"
-                    -1 -> "♭"
+                when {
+                    alter >= 2 -> Theme.doubleSharp
+                    alter == 1 -> "♯"
+                    alter <= -2 -> Theme.doubleFlat
+                    alter == -1 -> "♭"
                     else -> ""
                 }
             return "${step.letter.uppercase()}$accidental$octave"
@@ -142,6 +146,9 @@ data class Pitch(
          * any number of octave marks: `'` goes up and `,` goes down. A name without marks is
          * the octave below middle C, so `c` is C3 and `c'` is middle C.
          *
+         * The accidental can be doubled: LilyPond writes a double sharp `fisis` and a double
+         * flat `beses`, and the app reads them the same way.
+         *
          * The name has to be lowercase: in LilyPond an uppercase letter is the absolute
          * octave, and the app does not write absolute names.
          *
@@ -153,13 +160,8 @@ data class Pitch(
             if (name.isEmpty()) return null
             val step = PitchStep.of(name[0]) ?: return null
             val rest = name.substring(1)
-            val alter =
-                when {
-                    rest.startsWith("is") -> 1
-                    rest.startsWith("es") -> -1
-                    else -> 0
-                }
-            val marks = if (alter == 0) rest else rest.substring(2)
+            val alter = accidentalOf(rest)
+            val marks = rest.substring(2 * abs(alter))
             var octave = LILYPOND_BASE_OCTAVE
             for (mark in marks) {
                 when (mark) {
@@ -173,6 +175,33 @@ data class Pitch(
             } catch (_: IllegalArgumentException) {
                 null
             }
+        }
+
+        /**
+         * The accidental a name begins with.
+         *
+         * The accidental is written as a run of `is` (a sharp) or `es` (a flat) pairs: one
+         * pair is a single accidental, two pairs are a double one. A run that changes its
+         * mind in the middle is not a name.
+         *
+         * @param rest the name without its letter.
+         * @return the accidental: -2, -1, 0, 1 or 2.
+         */
+        private fun accidentalOf(rest: String): Int {
+            var alter = 0
+            var index = 0
+            while (index + 1 < rest.length) {
+                val pair = rest.substring(index, index + 2)
+                if (pair == "is" && alter >= 0) {
+                    alter++
+                } else if (pair == "es" && alter <= 0) {
+                    alter--
+                } else {
+                    break
+                }
+                index += 2
+            }
+            return alter
         }
     }
 }

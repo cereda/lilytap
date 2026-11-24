@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The leading tone of the sharp-side minor keys is spelled with a double sharp: in G♯ minor
+  the F is an F𝄪 (`fisis`), in D♯ minor the C is a C𝄪 (`cisis`) and in A♯ minor the G is a
+  G𝄪 (`gisis`). The app used to drop the raising and write the note with a natural sign
+  (`g`, `d` and `a`).
+
+### Added
+- A pitch can carry a double sharp or a double flat now. The LilyPond text writes it the way
+  LilyPond writes it (`fisis`, `beses`), the pitch field reads it back, and the strip shows the
+  sign of the double accidental.
+
 ## [0.17.0] - 2026-11-24
 
 ### Added

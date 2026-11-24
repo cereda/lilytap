@@ -111,6 +111,20 @@ class ScoreTest {
     }
 
     @Test
+    fun `a score in a sharp minor key spells its leading tone`() {
+        val config = cfg().copy(key = KeySignature.parse("G# minor")!!)
+        val s = score(note(0, 4, Pitch(PitchStep.F, 2, 4)), note(4, 4), config = config)
+        assertEquals("\\key gis \\minor\nfisis'2 c'2 |", s.lilypond)
+    }
+
+    @Test
+    fun `the relative text keeps the double accidental`() {
+        val config = cfg().copy(key = KeySignature.parse("G# minor")!!)
+        val s = score(note(0, 4, Pitch(PitchStep.F, 2, 4)), note(4, 4), config = config)
+        assertEquals("\\relative {\n\\key gis \\minor\nfisis'2 c2 |\n}", s.lilypondRelative)
+    }
+
+    @Test
     fun `a score in a key keeps its key in the settings`() {
         val s = score(note(0, 8))
         val flat = s.inKey(KeySignature.parse("F major")!!)

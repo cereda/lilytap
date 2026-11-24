@@ -81,7 +81,8 @@ private const val IDLE_STATUS = "Set the tempo, press Start, then play with any 
  */
 private const val PITCH_TOOLTIP =
     "The pitch of the selected note, written the way LilyPond writes it: " +
-        "c' (middle C), cis' (sharp), ces' (flat), c (lower), c'' (higher). Press Enter to apply it."
+        "c' (middle C), cis' (sharp), ces' (flat), cisis' (double sharp), c (lower), c'' (higher). " +
+        "Press Enter to apply it."
 
 /** What the status line says while a tap round is listening. */
 private const val TAP_STATUS = "Keep tapping - the tempo follows the taps"

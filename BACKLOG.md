@@ -34,14 +34,22 @@ wanted.
 The key signature says which letters the key alters, and the app spells a note from that
 map: the letter the signature alters comes first, then the natural note, then the sharp or
 the flat the key points at. Inside the seven accidentals the app holds, that is the same
-thing as the diatonic spelling of the scale - but not at the edges:
+thing as the diatonic spelling of the scale - the signature and the scale agree on every
+degree of every key the app can hold.
 
-- in C♭ major the seventh degree is B𝄫, and the app writes B♭ (`bes`);
-- the raised seventh of G♯, D♯ and A♯ minor is a double sharp (F𝄪, C𝄪, G𝄪), and the app
-  skips the raising instead of writing a double accidental.
+Past the cap they part company, and the scale is what a key needs:
 
-Spelling the notes from the **scale** of the key - the seven degrees, with the alterations
-they carry - would fix both. It is also what a key with more than seven accidentals needs:
-`\key gis \major` is eight sharps, and the app refuses it because a signature is capped at
-seven. Going past the cap would also need `Pitch` to carry a double accidental (`fisis`,
-`beses`), and the pitch field to read it.
+- the fourth degree of F♭ major (eight flats) is a B𝄫, and the signature says B♭;
+- the natural seventh of a minor key whose tonic is a double flat is a double flat too.
+
+So spelling the notes from the **scale** of the key - the seven degrees, with the alterations
+they carry - is what a key with more than seven accidentals needs: `\key gis \major` is eight
+sharps, and the app refuses it because a signature is capped at seven. Going past the cap
+would also need the pitch field to read a double accidental on its own (`fisis`, `beses`) -
+that part is done now, the pitch model carries a double accidental - and the circle of fifths
+to show the keys that lie beyond the seven.
+
+**The cap stays at seven accidentals**, so this stays parked with the cap. The one place
+where the scale and the signature part company inside the cap was the leading tone of the
+sharp-side minor keys, and that is fixed: G♯, D♯ and A♯ minor spell it F𝄪, C𝄪 and G𝄪.
+

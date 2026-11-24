@@ -338,6 +338,24 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the pitch field takes a double accidental`() {
+        val app = WindowApp()
+
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+
+        selectTheOnlyBlock(app)
+
+        val field = styledField(app, "pitchField")
+        field.text = "fisis'"
+        applyPitch(app)
+
+        assertEquals("% absolute\nfisis'1 |", output(app).text, "the LilyPond text follows the new pitch")
+        assertFalse(field.invalid, "the name was read")
+    }
+
+    @Test
     fun `the pitch edit can be undone`() {
         val app = WindowApp()
 
