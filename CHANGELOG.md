@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-24
+
 ### Added
 - The middle of the circle of fifths picks the key the piece is in: the hole in the middle of
   the circle is not a dead zone.
@@ -488,7 +490,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/cereda/lilytap/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cereda/lilytap/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cereda/lilytap/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/cereda/lilytap/compare/v0.13.1...v0.14.0
