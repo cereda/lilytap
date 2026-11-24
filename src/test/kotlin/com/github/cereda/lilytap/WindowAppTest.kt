@@ -834,7 +834,7 @@ class WindowAppTest {
     }
 
     @Test
-    fun `the time signature menu offers the common meters`() {
+    fun `the time signature menu offers the common meters in two groups`() {
         val app = WindowApp()
 
         val field =
@@ -844,9 +844,40 @@ class WindowAppTest {
         val menu = field.get(app) as MenuButton
 
         assertEquals(
-            listOf("4/4", "3/4", "2/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4", "6/4", "7/8", "5/8"),
+            listOf(
+                MenuGroup("Simple", listOf("4/4", "3/4", "2/4", "2/2", "3/8", "5/4", "7/8", "5/8")),
+                MenuGroup("Compound", listOf("6/8", "9/8", "12/8", "6/4")),
+            ),
+            menu.groups,
+        )
+        assertEquals(
+            listOf("4/4", "3/4", "2/4", "2/2", "3/8", "5/4", "7/8", "5/8", "6/8", "9/8", "12/8", "6/4"),
             menu.options,
         )
+    }
+
+    @Test
+    fun `the groups of the time menu are the simple and the compound meters`() {
+        val app = WindowApp()
+
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "timeMenu" }
+                ?: error("timeMenu field not found")
+        field.isAccessible = true
+        val menu = field.get(app) as MenuButton
+
+        menu.groups.forEach { group ->
+            group.options.forEach { meter ->
+                val signature = runCatching { TimeSignature.parse(meter) }.getOrNull()
+                assertNotNull(signature, "$meter is a time signature")
+                val compound = signature.isCompound
+                assertEquals(
+                    compound,
+                    group.name == "Compound",
+                    "$meter belongs to the ${group.name} group",
+                )
+            }
+        }
     }
 
     @Test

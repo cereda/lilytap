@@ -48,9 +48,9 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
   meter, the dotted quarter in a compound one. The round button next to it sets the tempo by
   tapping — see [Tap tempo](#tap-tempo).
 - **Time** — the time signature, e.g. `4/4` or `6/8`. A menu beside the field offers the common
-  meters; the field takes any other one, and its border turns red when the text is not a meter.
-  The round button with the three dots beside the menu is the 3-feel — see
-  [The 3-feel](#the-3-feel).
+  meters in two groups, **Simple** and **Compound**, two to a row; the field takes any other
+  meter, and its border turns red when the text is not one. The round button with the three dots
+  beside the menu is the 3-feel — see [The 3-feel](#the-3-feel).
 - **Bars** — how many bars to record after the one-bar count-in.
 - **Cells / beat** — the grid resolution: 1, 2 or 4 cells per beat. In a compound meter the
   caption names the note the cells cut instead (e.g. `Cells / eighth` in 6/8), because there the

@@ -414,31 +414,48 @@ internal fun popupSpot(
 ): Point = Point(buttonWidth - popupWidth, buttonHeight + POPUP_GAP)
 
 /**
+ * A group of the menu: a name and the options under it.
+ *
+ * The name is written at the head of the rows of the group, so that a long list can be read
+ * in blocks instead of in one long column.
+ *
+ * @property name the name of the group.
+ * @property options the options of the group, in the order they are listed.
+ */
+internal data class MenuGroup(
+    val name: String,
+    val options: List<String>,
+)
+
+/**
  * A small button that opens a list of options.
  *
  * The button itself only shows a chevron: the value it stands for lives in the field next to
  * it. The list is drawn by the app itself, so it looks the same on every OS.
  *
- * @param items the options, in the order they are listed.
+ * @param groups the groups of the list, in the order they are listed.
  * @param onSelect called with the option the user picks.
  */
 internal class MenuButton(
-    private val items: List<String>,
+    groups: List<MenuGroup>,
     private val onSelect: (String) -> Unit,
 ) : ChevronButton() {
-    /** The options the menu lists. */
-    val options: List<String> get() = items
+    /** The groups the menu lists. */
+    val groups: List<MenuGroup> = groups
+
+    /** The options the menu lists, in the order they are listed. */
+    val options: List<String> get() = groups.flatMap { it.options }
 
     /** Picks an option, as if the user had clicked it. */
     fun pick(item: String) {
-        if (item in items) onSelect(item)
+        if (item in options) onSelect(item)
     }
 
     /** Opens the list of options under the button. */
     override fun onClick() {
         val popup = menuPopup()
         popup.add(
-            MenuList(items) { picked ->
+            MenuList(groups) { picked ->
                 popup.isVisible = false
                 onSelect(picked)
             },
@@ -451,14 +468,21 @@ internal class MenuButton(
 /**
  * The list of options of a [MenuButton], drawn by the app itself.
  *
- * @param items the options, in the order they are listed.
+ * The options come in groups: every group has its name at the head of its rows, and its
+ * options sit two to a row, so the list is half as tall as a column of them.
+ *
+ * @param groups the groups of the list, in the order they are listed.
  * @param onSelect called with the option the user picks.
  */
-private class MenuList(
-    private val items: List<String>,
+internal class MenuList(
+    private val groups: List<MenuGroup>,
     private val onSelect: (String) -> Unit,
 ) : JComponent() {
-    private var hover = -1
+    /** The lines of the list: a name for every group and a row for every pair of options. */
+    private val lines: List<Line> = buildLines()
+
+    /** The option under the mouse, or null. */
+    private var hover: String? = null
 
     init {
         isOpaque = false
@@ -469,39 +493,92 @@ private class MenuList(
         addMouseListener(
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
-                    val index = rowAt(e.y)
-                    if (index >= 0) onSelect(items[index])
+                    val picked = pickAt(e.x, e.y) ?: return
+                    onSelect(picked)
                 }
             },
         )
         addMouseMotionListener(
             object : MouseAdapter() {
                 override fun mouseMoved(e: MouseEvent) {
-                    val index = rowAt(e.y)
-                    if (index != hover) {
-                        hover = index
+                    val found = pickAt(e.x, e.y)
+                    if (found != hover) {
+                        hover = found
                         repaint()
                     }
                 }
 
                 override fun mouseExited(e: MouseEvent) {
-                    hover = -1
-                    repaint()
+                    if (hover != null) {
+                        hover = null
+                        repaint()
+                    }
                 }
             },
         )
     }
 
-    /** The row under the y pixel, or -1. */
-    private fun rowAt(y: Int): Int {
-        val index = (y - PAD) / ROW_HEIGHT
-        return if (index in items.indices) index else -1
+    /**
+     * The option under a point of the list.
+     *
+     * @param x the place of the point.
+     * @param y the place of the point.
+     * @return the option under the point, or null when the point is not on one.
+     */
+    fun pickAt(
+        x: Int,
+        y: Int,
+    ): String? {
+        val line = lines.firstOrNull { y >= it.top && y < it.top + it.height } ?: return null
+        val options = line.options ?: return null
+        val column = columnAt(x) ?: return null
+        return options.getOrNull(column)
+    }
+
+    /**
+     * The column under a point of the list.
+     *
+     * @param x the place of the point.
+     * @return the index of the column, or null when the point is not on one.
+     */
+    private fun columnAt(x: Int): Int? {
+        val width = columnWidth()
+        var left = PAD
+        for (index in 0 until COLUMNS) {
+            if (x in left until left + width) return index
+            left += width + GAP
+        }
+        return null
+    }
+
+    /** The width of a column of the list. */
+    private fun columnWidth(): Int {
+        val fm = getFontMetrics(font)
+        val widest = groups.flatMap { it.options }.maxOfOrNull { fm.stringWidth(it) } ?: 0
+        return widest + 2 * CELL_PAD
+    }
+
+    /** The lines of the list: the name of every group and a row for every pair of options. */
+    private fun buildLines(): List<Line> {
+        val lines = mutableListOf<Line>()
+        var top = PAD
+        groups.forEach { group ->
+            lines += Line(group.name, null, top, HEADER_HEIGHT)
+            top += HEADER_HEIGHT
+            group.options.chunked(COLUMNS).forEach { row ->
+                lines += Line(null, row, top, ROW_HEIGHT)
+                top += ROW_HEIGHT
+            }
+        }
+        return lines
     }
 
     override fun getPreferredSize(): Dimension {
-        val fm = getFontMetrics(font)
-        val w = items.maxOf { fm.stringWidth(it) } + 28
-        return Dimension(w, items.size * ROW_HEIGHT + 2 * PAD)
+        val rows = groups.sumOf { (it.options.size + COLUMNS - 1) / COLUMNS }
+        return Dimension(
+            2 * PAD + COLUMNS * columnWidth() + (COLUMNS - 1) * GAP,
+            2 * PAD + groups.size * HEADER_HEIGHT + rows * ROW_HEIGHT,
+        )
     }
 
     override fun paintComponent(g: Graphics) {
@@ -512,26 +589,74 @@ private class MenuList(
             g2.draw(rr(0.5, 0.5, width - 1.0, height - 1.0, 10.0))
             g2.font = font
             val fm = g2.fontMetrics
-            items.forEachIndexed { index, item ->
-                val top = PAD + index * ROW_HEIGHT
-                if (index == hover) {
-                    g2.color = Theme.fieldHover
-                    g2.fill(rr(4.0, top.toDouble(), width - 8.0, ROW_HEIGHT.toDouble(), 7.0))
+            lines.forEach { line ->
+                val name = line.name
+                if (name != null) {
+                    // The name of the group, at the head of its rows.
+                    g2.font = Theme.font(11f)
+                    g2.color = Theme.dim
+                    g2.drawString(name, (PAD + 2).toFloat(), (line.top + HEADER_HEIGHT - 7).toFloat())
+                    g2.font = font
+                    return@forEach
                 }
-                g2.color = Theme.text
-                val tx = 14.0
-                val ty = top + (ROW_HEIGHT + fm.ascent - fm.descent) / 2.0
-                g2.drawString(item, tx.toFloat(), ty.toFloat())
+                val options = line.options ?: return@forEach
+                val column = columnWidth()
+                options.forEachIndexed { index, option ->
+                    val left = PAD + index * (column + GAP)
+                    if (option == hover) {
+                        g2.color = Theme.fieldHover
+                        g2.fill(
+                            rr(
+                                left.toDouble(),
+                                (line.top + 2).toDouble(),
+                                column.toDouble(),
+                                (ROW_HEIGHT - 4).toDouble(),
+                                7.0,
+                            ),
+                        )
+                    }
+                    g2.color = Theme.text
+                    val x = left + (column - fm.stringWidth(option)) / 2
+                    val y = line.top + (ROW_HEIGHT + fm.ascent - fm.descent) / 2
+                    g2.drawString(option, x.toFloat(), y.toFloat())
+                }
             }
         }
     }
 
+    /**
+     * A line of the list: the name of a group, or a row of options.
+     *
+     * @property name the name of the group, when the line is one.
+     * @property options the options of the row, when the line is one.
+     * @property top the place of the top of the line.
+     * @property height the height of the line.
+     */
+    private data class Line(
+        val name: String?,
+        val options: List<String>?,
+        val top: Int,
+        val height: Int,
+    )
+
     companion object {
-        /** The height of a row of the list, in pixels. */
+        /** The height of a row of options, in pixels. */
         private const val ROW_HEIGHT = 28
+
+        /** The height of the name of a group, in pixels. */
+        private const val HEADER_HEIGHT = 22
 
         /** The space above and below the rows, in pixels. */
         private const val PAD = 6
+
+        /** The number of options in a row. */
+        private const val COLUMNS = 2
+
+        /** The space between two columns, in pixels. */
+        private const val GAP = 10
+
+        /** The space around the text of an option, in pixels. */
+        private const val CELL_PAD = 8
     }
 }
 

@@ -96,10 +96,19 @@ private const val NO_RESTS = 3
 /**
  * The time signatures the app offers in the menu next to the field.
  *
+ * The meters come in two groups: the simple ones, whose beat divides in two, and the compound
+ * ones, whose beat divides in three. The compound group is where the 3-feel lives.
+ *
  * The field takes any other one, so this is a shortcut and not a limit.
  */
-private val COMMON_METERS =
-    listOf("4/4", "3/4", "2/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4", "6/4", "7/8", "5/8")
+private val METER_GROUPS =
+    listOf(
+        MenuGroup(
+            "Simple",
+            listOf("4/4", "3/4", "2/4", "2/2", "3/8", "5/4", "7/8", "5/8"),
+        ),
+        MenuGroup("Compound", listOf("6/8", "9/8", "12/8", "6/4")),
+    )
 
 /**
  * The names of the note values a time signature can name.
@@ -256,7 +265,7 @@ internal class WindowApp {
 
     /** The time signatures the app offers; the field next to it takes any other one. */
     private val timeMenu =
-        MenuButton(COMMON_METERS) { meter ->
+        MenuButton(METER_GROUPS) { meter ->
             time.text = meter
             time.invalid = false
         }

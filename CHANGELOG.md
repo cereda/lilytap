@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The middle of the circle of fifths picks the key the piece is in: the hole in the middle of
   the circle is not a dead zone.
 
+### Changed
+- The menu of the **Time** setting is in two groups, **Simple** and **Compound**, two meters to
+  a row, so the list is half as tall as a column of them.
+
 ### Fixed
 - The menus of the **Time** and **Key** settings open with a little space under the button and
   are lined up with its right edge, and their corners are really round: the popup is drawn by
