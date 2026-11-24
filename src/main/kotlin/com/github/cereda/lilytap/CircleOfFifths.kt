@@ -17,6 +17,7 @@ import java.awt.geom.Arc2D
 import java.awt.geom.Area
 import java.awt.geom.Ellipse2D
 import javax.swing.JComponent
+import javax.swing.JPopupMenu
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -33,20 +34,22 @@ import kotlin.math.sin
 internal class CircleButton(
     private val circle: CircleOfFifths,
     private val onPick: (KeySignature) -> Unit,
-) : ChevronButton() {
-    /** Opens the circle under the button. */
-    override fun onClick() {
-        val popup = menuPopup()
+) : PopupButton() {
+    /**
+     * Builds the circle of the button.
+     *
+     * The circle hangs under the button, with its right edge on the button's right edge: the
+     * button sits at the right end of the key cell, and a circle that starts there would
+     * fall off the edge of the window.
+     */
+    override fun buildPopup(): JPopupMenu {
+        val made = menuPopup()
         circle.onPick = { key ->
-            popup.isVisible = false
+            made.isVisible = false
             onPick(key)
         }
-        popup.add(circle)
-        // The circle hangs under the button, with its right edge on the button's right edge:
-        // the button sits at the right end of the key cell, and a circle that starts there
-        // would fall off the edge of the window.
-        val spot = popupSpot(width, height, CircleOfFifths.SIZE)
-        popup.show(this, spot.x, spot.y)
+        made.add(circle)
+        return made
     }
 }
 

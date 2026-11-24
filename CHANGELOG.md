@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - The middle of the circle of fifths picks the key the piece is in: the hole in the middle of
   the circle is not a dead zone.
+- The buttons that open a menu have two states: the chevron points down while the menu is
+  closed and up while it is open, and a click on the button closes the menu again.
 
 ### Changed
 - The menu of the **Time** setting is in two groups, **Simple** and **Compound**, two meters to

@@ -113,6 +113,10 @@ inside). Click the half of the position you want — the outer one for the major
 for the minor key — and the field takes the name. The key the piece is in is written in the
 middle of the circle and lit where it stands; clicking the middle keeps that key.
 
+The buttons that open a menu — the one of the **Time** setting and the one of the **Key** setting
+— have two states. The chevron points down while the menu is closed and up while it is open, and
+a click on the button closes the menu again, so a look at the list costs nothing.
+
 The key has three parts:
 
 - **The notes are spelled in it.** In F major the black key between the C and the D is a D♭ and

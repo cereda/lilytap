@@ -27,12 +27,15 @@ import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
 import javax.swing.BorderFactory
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import javax.swing.Timer
+import javax.swing.event.PopupMenuEvent
+import javax.swing.event.PopupMenuListener
 import javax.swing.plaf.basic.BasicScrollBarUI
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -330,6 +333,15 @@ internal open class ChevronButton : JComponent() {
     /** Whether the mouse is over the button. */
     private var hover = false
 
+    /**
+     * Whether the chevron points up.
+     *
+     * The chevron says which way the button goes: down when what the button opens is closed,
+     * up when it is open.
+     */
+    var up: Boolean = false
+        protected set
+
     init {
         isOpaque = false
         isFocusable = false
@@ -365,17 +377,113 @@ internal open class ChevronButton : JComponent() {
             g2.fill(shape)
             g2.color = Theme.line
             g2.draw(shape)
-            // A small chevron pointing down.
+            // A small chevron pointing down, or up when what it opens is open.
             g2.color = Theme.dim
             val cx = width / 2.0
             val cy = height / 2.0
             val chevron = Path2D.Double()
-            chevron.moveTo(cx - 5.0, cy - 2.0)
-            chevron.lineTo(cx + 5.0, cy - 2.0)
-            chevron.lineTo(cx, cy + 3.0)
+            if (up) {
+                chevron.moveTo(cx - 5.0, cy + 2.0)
+                chevron.lineTo(cx + 5.0, cy + 2.0)
+                chevron.lineTo(cx, cy - 3.0)
+            } else {
+                chevron.moveTo(cx - 5.0, cy - 2.0)
+                chevron.lineTo(cx + 5.0, cy - 2.0)
+                chevron.lineTo(cx, cy + 3.0)
+            }
             chevron.closePath()
             g2.fill(chevron)
         }
+    }
+}
+
+/**
+ * A button that opens a popup, and closes it when it is clicked again.
+ *
+ * The chevron of the button says which of the two it is: it points down when the popup is
+ * closed and up when the popup is open. The popup that is open is closed by the click on the
+ * button, so a look at the list costs nothing.
+ */
+internal abstract class PopupButton : ChevronButton() {
+    /** The popup that is open, or null when there is none. */
+    private var popup: JPopupMenu? = null
+
+    /** Whether the popup of the button is open. */
+    var open: Boolean = false
+        private set
+
+    init {
+        // A press on the button must not cancel the popup: the button closes it itself.
+        // Swing lets a component have a say over the matter, and the key it uses for it is
+        // not public, so it is read from a combo box, which has the same problem and the
+        // same answer.
+        val key = DONT_CANCEL_POPUP
+        if (key != null) putClientProperty("doNotCancelPopup", key)
+    }
+
+    /**
+     * The popup the button opens, with its content.
+     *
+     * @return the popup.
+     */
+    protected abstract fun buildPopup(): JPopupMenu
+
+    /** Called when the button is clicked: the popup opens, or closes when it is open. */
+    final override fun onClick() {
+        if (open) {
+            closePopup()
+            return
+        }
+        val made = buildPopup()
+        popup = made
+        made.addPopupMenuListener(
+            object : PopupMenuListener {
+                override fun popupMenuWillBecomeVisible(e: PopupMenuEvent) = Unit
+
+                override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent) {
+                    closed()
+                }
+
+                override fun popupMenuCanceled(e: PopupMenuEvent) {
+                    closed()
+                }
+            },
+        )
+        open = true
+        up = true
+        repaint()
+        val spot = popupSpot(width, height, made.preferredSize.width)
+        made.show(this, spot.x, spot.y)
+    }
+
+    /**
+     * Closes the popup of the button.
+     */
+    private fun closePopup() {
+        val made = popup
+        closed()
+        made?.isVisible = false
+    }
+
+    /** Says that the popup of the button is closed. */
+    private fun closed() {
+        popup = null
+        open = false
+        up = false
+        repaint()
+    }
+
+    companion object {
+        /**
+         * The key that tells Swing not to cancel a popup when the button that opened it is
+         * pressed.
+         *
+         * Swing closes a popup when the mouse is pressed anywhere outside it, and the button
+         * that opened the popup is outside it. A combo box has the same problem, and Swing
+         * solves it with a client property whose value is a key of its own. The key is not
+         * public, so it is read from a combo box.
+         */
+        private val DONT_CANCEL_POPUP: Any? = JComboBox<Any>().getClientProperty("doNotCancelPopup")
     }
 }
 
@@ -439,7 +547,7 @@ internal data class MenuGroup(
 internal class MenuButton(
     groups: List<MenuGroup>,
     private val onSelect: (String) -> Unit,
-) : ChevronButton() {
+) : PopupButton() {
     /** The groups the menu lists. */
     val groups: List<MenuGroup> = groups
 
@@ -451,17 +559,16 @@ internal class MenuButton(
         if (item in options) onSelect(item)
     }
 
-    /** Opens the list of options under the button. */
-    override fun onClick() {
-        val popup = menuPopup()
-        popup.add(
+    /** Builds the list of options of the menu. */
+    override fun buildPopup(): JPopupMenu {
+        val made = menuPopup()
+        made.add(
             MenuList(groups) { picked ->
-                popup.isVisible = false
+                made.isVisible = false
                 onSelect(picked)
             },
         )
-        val spot = popupSpot(width, height, popup.preferredSize.width)
-        popup.show(this, spot.x, spot.y)
+        return made
     }
 }
 
