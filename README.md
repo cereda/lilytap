@@ -140,6 +140,10 @@ of the score strip says what changed (`C major → F major`), and **Revert** put
 way it was recorded. The **Pitch** field is not touched by it: a name that is typed there is the
 name you wrote.
 
+The key of a take is read when the take begins, so the field and the circle are off while a take
+runs or a score plays, like the other settings. A name that is typed in the field without **Enter**
+is still the key the take is recorded in.
+
 Nothing is persisted: the key is C major on every launch.
 
 ## The score strip

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the F is an F𝄪 (`fisis`), in D♯ minor the C is a C𝄪 (`cisis`) and in A♯ minor the G is a
   G𝄪 (`gisis`). The app used to drop the raising and write the note with a natural sign
   (`g`, `d` and `a`).
+- The key is off with the other settings while a take runs or a score plays. A key chosen in
+  the middle of a take was silently dropped, and a key chosen during a playback stopped the
+  music. A take is now recorded in the key the field says, even when the name was typed
+  without **Enter**.
 
 ### Added
 - A pitch can carry a double sharp or a double flat now. The LilyPond text writes it the way

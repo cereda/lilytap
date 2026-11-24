@@ -77,6 +77,20 @@ internal class KeySetting(
         }
 
     /**
+     * Turns the control off and on.
+     *
+     * The key of a take is read when the take begins, and a score that plays is fixed, so the
+     * control is off while either is running: the name cannot be typed and the circle cannot
+     * be opened.
+     *
+     * @param on whether the control takes a key.
+     */
+    fun setEnabled(on: Boolean) {
+        field.isEnabled = on
+        menu.isEnabled = on
+    }
+
+    /**
      * The fault of the name in the field, when it cannot be read.
      *
      * The field is the truth here: the name in it is what the user wrote, and a name that

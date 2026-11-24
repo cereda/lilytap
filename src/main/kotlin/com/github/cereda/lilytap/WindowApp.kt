@@ -1180,6 +1180,7 @@ internal class WindowApp {
     private fun setControlsEnabled(on: Boolean) {
         settingsLive = on
         settingControls.forEach { it.isEnabled = on }
+        keySetting.setEnabled(on)
         lilypond.copy.isEnabled = on
         lilypond.relative.isEnabled = on
         calibrateButton.isEnabled = on
@@ -1198,6 +1199,7 @@ internal class WindowApp {
     private fun setPlaybackControlsEnabled(playing: Boolean) {
         settingsLive = !playing
         settingControls.forEach { it.isEnabled = !playing }
+        keySetting.setEnabled(!playing)
         calibrateButton.isEnabled = !playing
         start.isEnabled = !playing
         soundButton.isEnabled = !playing && currentScore() != null
@@ -1397,6 +1399,9 @@ internal class WindowApp {
             showMessage(frame, problem)
             return
         }
+        // The name in the field is the truth: a key that is typed but not yet applied is
+        // still the key the take is recorded in.
+        keySetting.apply()
         // A take has the keys to itself, so a tap round cannot still be listening.
         endTapRound(restoreStatus = false)
         val config =
