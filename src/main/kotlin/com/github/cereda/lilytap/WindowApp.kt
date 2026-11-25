@@ -1880,6 +1880,13 @@ internal class WindowApp {
                 true
             }
 
+            now < s.originNanos -> {
+                // The count-in is not part of the take: a key pressed before the downbeat is
+                // not a note of the piece, so it is not recorded - and the timeline must not
+                // show it either.
+                true
+            }
+
             now >= s.endNanos -> {
                 finish()
                 true
