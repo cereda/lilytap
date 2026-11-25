@@ -10,14 +10,17 @@ hand, with a LilyPond of your own.
 
 ## Running it
 
-The test `LilyPondRefereeTest` writes the cases - the LilyPond text of the score and the
-pitches the app says it has - into `build/lilypond-referee`:
+The test `LilyPondRefereeTest` writes the cases - the LilyPond text of the score, the MIDI file
+the app builds and the pitches the app says it has - into `build/lilypond-referee`:
 
     ./gradlew test --tests "com.github.cereda.lilytap.LilyPondRefereeTest"
 
 The referee compiles every case with LilyPond, reads the MIDI back and compares the pitches:
 
     tools/lilypond-referee/referee.py --lilypond /path/to/lilypond
+
+It compares the MIDI file of the app with the one LilyPond wrote as well: the notes have to be
+the same, down to when they start and how long they last.
 
 The referee prints one line for every case and says how many of them agree with LilyPond.
 It fails when they do not.

@@ -6,6 +6,10 @@ script has LilyPond compile the text into a MIDI file, reads the pitches out of 
 compares them with the ones the app says. A difference means that the app and LilyPond do
 not agree about the music, which is the one thing the app must never do.
 
+The app writes a MIDI file of its own as well, next to the text. The referee reads that
+file too and holds it against the MIDI that LilyPond writes for the same text: the notes
+must be the same, down to when they start and how long they last.
+
 LilyPond is not a dependency of the build, so this script is not run by Gradle: point it at
 a LilyPond and run it by hand.
 
@@ -25,37 +29,44 @@ FOLDER = pathlib.Path("build/lilypond-referee")
 
 
 def read_midi(path):
-    """The pitches of the notes of a MIDI file, in the order they are played.
+    """The notes of a MIDI file, in the order they are played.
 
     @param path: the MIDI file.
-    @return: the list of the pitches, as MIDI numbers.
+    @return: the list of the notes, as (pitch, onset, duration) in ticks.
     """
     data = path.read_bytes()
     if data[:4] != b"MThd":
         raise ValueError(f"{path} is not a MIDI file")
     position = 8 + int.from_bytes(data[4:8], "big")
-    pitches = []
+    notes = []
     while position < len(data):
         if data[position : position + 4] != b"MTrk":
             raise ValueError(f"{path} has a track LilyPond did not write")
         length = int.from_bytes(data[position + 4 : position + 8], "big")
         track = data[position + 8 : position + 8 + length]
         position += 8 + length
-        pitches += read_track(track)
-    return pitches
+        notes += read_track(track)
+    return sorted(notes)
 
 
 def read_track(track):
-    """The pitches of the notes of one track of a MIDI file.
+    """The notes of one track of a MIDI file.
+
+    A note that starts is a note on with a velocity; a note that ends is a note on
+    without one, or a note off. The note is held until it ends, so the onset and the
+    duration are known.
 
     @param track: the bytes of the track.
-    @return: the list of the pitches, as MIDI numbers.
+    @return: the list of the notes, as (pitch, onset, duration) in ticks.
     """
-    pitches = []
+    notes = []
     position = 0
     running = 0
+    tick = 0
+    playing = {}
     while position < len(track):
-        position = skip_delta(track, position)
+        position, delta = skip_delta(track, position)
+        tick += delta
         status = track[position]
         position += 1
         if status < 0x80:
@@ -65,13 +76,18 @@ def read_track(track):
         else:
             running = status
         kind = status & 0xF0
-        if kind == 0x90:
-            note = track[position]
+        if kind == 0x90 or kind == 0x80:
+            pitch = track[position]
             velocity = track[position + 1]
             position += 2
-            if velocity > 0:
-                pitches.append(note)
-        elif kind in (0x80, 0xA0, 0xB0, 0xE0):
+            if kind == 0x80 or velocity == 0:
+                # The note ends here.
+                onset = playing.pop(pitch, None)
+                if onset is not None:
+                    notes.append((pitch, onset, tick - onset))
+            else:
+                playing[pitch] = tick
+        elif kind in (0xA0, 0xB0, 0xE0):
             position += 2
         elif kind in (0xC0, 0xD0):
             position += 1
@@ -84,7 +100,7 @@ def read_track(track):
             # A system message: it is as long as it says.
             length, position = read_length(track, position)
             position += length
-    return pitches
+    return notes
 
 
 def skip_delta(track, position):
@@ -92,11 +108,14 @@ def skip_delta(track, position):
 
     @param track: the bytes of the track.
     @param position: the place of the time gap.
-    @return: the place of the event that follows it.
+    @return: the place of the event that follows it, and the length of the gap.
     """
+    length = 0
     while track[position] & 0x80:
+        length = (length << 7) | (track[position] & 0x7F)
         position += 1
-    return position + 1
+    length = (length << 7) | (track[position] & 0x7F)
+    return position + 1, length
 
 
 def read_length(track, position):
@@ -146,8 +165,19 @@ def check(case, lilypond):
     if not midi.exists():
         return f"{case.name}: LilyPond wrote no MIDI", False
     played = read_midi(midi)
-    if played != expected:
-        return f"{case.name}: LilyPond played {played}, the app says {expected}", False
+    pitches = [pitch for pitch, _, _ in played]
+    if pitches != expected:
+        return f"{case.name}: LilyPond played {pitches}, the app says {expected}", False
+    # The MIDI file of the app must say the same thing as the one LilyPond wrote.
+    own = case.with_suffix(".mid")
+    if not own.exists():
+        return f"{case.name}: the app wrote no MIDI", False
+    mine = read_midi(own)
+    if mine != played:
+        return (
+            f"{case.name}: the app's MIDI says {mine}, LilyPond's says {played}",
+            False,
+        )
     return f"{case.name}: {len(played)} notes, as the app says", True
 
 

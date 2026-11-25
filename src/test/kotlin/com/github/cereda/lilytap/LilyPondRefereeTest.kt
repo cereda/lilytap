@@ -48,18 +48,21 @@ class LilyPondRefereeTest {
                 )
             val pitches = moved.score.events.mapNotNull { it.pitch }
             // Every case is written twice: once with the octaves in full and once with them
-            // relative, because the app saves the file in either way.
+            // relative, because the app saves the file in either way. Each case carries the
+            // MIDI file of the app as well, so the referee can hold it against the MIDI that
+            // LilyPond writes for the same text.
             for (relative in listOf(false, true)) {
                 val suffix = if (relative) "-relative" else ""
                 File(folder, "$name$suffix.ly").writeText(
                     lilyPondFile(moved.score, relative = relative, midi = true),
                 )
+                File(folder, "$name$suffix.mid").writeBytes(midiFile(moved.score))
                 File(folder, "$name$suffix.expected")
                     .writeText(pitches.joinToString("\n") { it.midi.toString() } + "\n")
             }
             assertEquals(pitches.size, 8, "the scale of the key has eight notes")
         }
-        assertEquals(cases.size * 4, folder.listFiles()?.size, "every case has its files")
+        assertEquals(cases.size * 6, folder.listFiles()?.size, "every case has its files")
     }
 
     @Test
