@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The count-in is counted down on the timeline now. While the take waits, the empty lane of the
+  timeline shows a big number with the beats that are left before the recording starts, so the
+  downbeat can be found at a glance. The number is gone the moment the take begins.
+
+### Changed
+- The count-in is never shorter than two seconds now. It is still a whole number of bars — the
+  downbeat of the take falls on a bar line of the clicks — but a bar that would pass in less than
+  that is too quick to settle into, so the count-in grows a bar at a time until it lasts long
+  enough. In 4/4 the count-in is one bar up to 120 BPM, two bars above it and three at 300 BPM;
+  in 6/8, whose bar is half as long at the same tempo number, it grows above 60 BPM. The count-in
+  of the calibration is unchanged: it runs at 60 BPM, where a bar is four seconds.
+
 ## [0.21.0] - 2026-11-25
 
 ### Added

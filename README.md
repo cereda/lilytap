@@ -24,9 +24,10 @@ build/install/lilytap/bin/lilytap
 
 A dark, custom-painted UI (no extra dependencies, icons are drawn in code):
 steppers you can click, hold, scroll or drag, a sliding option picker, a beat indicator, a glowing
-playhead over the timeline, a copy button that confirms with a check mark, a button that saves the
-LilyPond text to a file, a button that writes the score to a MIDI file, and a button with a step
-that writes the octaves of the LilyPond text relative to the note before.
+playhead over the timeline, a big count-in number while the take waits, a copy button that confirms
+with a check mark, a button that saves the LilyPond text to a file, a button that writes the score
+to a MIDI file, and a button with a step that writes the octaves of the LilyPond text relative to
+the note before.
 
 The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
 carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
@@ -52,7 +53,7 @@ On Linux/X11, if held notes come out chopped up, run `xset r off` to disable key
   meters in two groups, **Simple** and **Compound**, two to a row; the field takes any other
   meter, and its border turns red when the text is not one. The round button with the three dots
   beside the menu is the 3-feel — see [The 3-feel](#the-3-feel).
-- **Bars** — how many bars to record after the one-bar count-in.
+- **Bars** — how many bars to record after the count-in — see [The count-in](#the-count-in).
 - **Cells / beat** — the grid resolution: 1, 2 or 4 cells per beat. In a compound meter the
   caption names the note the cells cut instead (e.g. `Cells / eighth` in 6/8), because there the
   beat is the dotted quarter.
@@ -87,6 +88,21 @@ The round button next to the tempo sets the tempo by tapping, the way every DAW 
 
 The tempo stays inside the range the app can hold (20–300 BPM) and is rounded to a whole
 number. The button is greyed out while a take runs or a score plays, like the other settings.
+
+## The count-in
+
+Every take begins with a count-in: the metronome clicks before the first beat of the recording,
+so you can find the beat before you play on it. The count-in is a whole number of bars — the
+downbeat of the take falls on a bar line of the clicks — and it is never shorter than two
+seconds. A bar that would pass in less than that is too quick to settle into, so the count-in
+grows a bar at a time until it lasts long enough. In 4/4 that happens above 120 BPM: at 180 BPM
+the count-in is two bars, and at 300 BPM it is three. In 6/8, whose bar is half as long at the
+same tempo number, it happens above 60 BPM.
+
+While the count-in runs, the timeline shows the beats that are left before the take starts: a
+big number in the empty lane, counting down to the beat you play on. The status line counts the
+same beats in small letters, and the beat dots keep marking the bar, so the count-in can be read
+at a glance or followed with the corner of the eye.
 
 ## No rests
 
@@ -329,7 +345,7 @@ the time signature names. Everything that counts beats follows that beat:
 
 - the **tempo**: 60 BPM in 6/8 is 60 dotted quarters a minute, so a bar lasts two seconds;
 - the **click**: the metronome clicks the dotted quarter (twice a bar in 6/8), and the count-in is
-  one bar of those clicks;
+  a whole number of bars of those clicks (see [The count-in](#the-count-in));
 - the **beat dots** and the bar/beat counter in the status line;
 - the **LilyPond text**: a duration is written inside a group of three, so it never straddles the
   division.
@@ -356,10 +372,11 @@ The round button with the three dots beside the time signature makes the click f
 value of a compound meter instead of on the beat: in 6/8 the click is on every eighth, not on the
 dotted quarter, so the subdivision of the beat is audible.
 
-The beat itself does not move. The tempo still counts dotted quarters, the count-in is still one
-bar, the beat dots still show the two beats of the bar, and the score is written the same way.
-Only the click is finer — and the accent still falls on the beat, so the click and the beat dots
-agree: in 6/8 the click is *click click click* with the accent on the first and the fourth.
+The beat itself does not move. The tempo still counts dotted quarters, the count-in is still a
+whole number of bars, the beat dots still show the two beats of the bar, and the score is written
+the same way. Only the click is finer — and the accent still falls on the beat, so the click and
+the beat dots agree: in 6/8 the click is *click click click* with the accent on the first and the
+fourth.
 
 The downbeat has a sound of its own: a low, long click, so that the bar is audible and not only
 the grouping of three. Without it, six eighths a bar would be heard as two groups of three with
@@ -510,6 +527,9 @@ still belongs to the beat it followed. The result is the median of your tap offs
 stray tap or one missed beat cannot move it, and the status shows how many taps you have given.
 The measurement includes your own reaction time, so it reads a little higher than the raw output
 delay: lower it a few steps if the click sounds early.
+
+Its count-in is one bar, like every count-in was before the rule of the two seconds: at 60 BPM a
+bar is four seconds long, so the rule leaves it alone.
 
 Outside calibration, the beat dots and the status text follow the beat itself, so they line up
 with the playhead rather than with the moment the click is written to the sound card.

@@ -16,12 +16,6 @@ and the editor (split, swap, merge) would have to keep the two apart. **My advic
 to leave it alone** unless the strip is ever about to show rests as first-class
 blocks.
 
-## The length of the count-in
-
-The count-in is one bar of clicks. Two bars would give a runner more room to settle in,
-at the cost of two more seconds before every take. A small change, if it is ever
-wanted.
-
 ## The spelling of the notes comes from the signature, not from the scale
 
 The key signature says which letters the key alters, and the app spells a note from that
