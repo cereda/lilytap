@@ -868,6 +868,19 @@ class NotationPanelTest {
     }
 
     @Test
+    fun `the revert puts a transposed score back the way the take was`() {
+        val (panel, _) = panel()
+        val original = score()
+        panel.score = original
+
+        panel.transpose(Transposition(Interval.THIRD, true))
+        panel.revertTo(original)
+
+        assertEquals(original.events, panel.score?.events, "the notes are back")
+        assertEquals("C major", panel.score?.config?.key?.name, "the key is back")
+    }
+
+    @Test
     fun `a transposition that cannot be done changes nothing`() {
         val (panel, _) = panel()
         // The note is at the top of the keyboard: an octave up would leave it.
