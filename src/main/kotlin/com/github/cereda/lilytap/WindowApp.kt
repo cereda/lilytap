@@ -230,13 +230,6 @@ private fun osPrefersDark(): Boolean {
     }
 }
 
-/** Colours for the few stock Swing pieces we still use (tooltips). */
-private fun applyDialogTheme() {
-    UIManager.put("ToolTip.background", Theme.field)
-    UIManager.put("ToolTip.foreground", Theme.text)
-    UIManager.put("ToolTip.border", BorderFactory.createLineBorder(Theme.line))
-}
-
 internal class WindowApp {
     companion object {
         /**
@@ -342,8 +335,12 @@ internal class WindowApp {
      */
     private val revert = PillButton("Revert", null, ButtonKind.SEVERE, heightPx = 32)
 
+    /** The dialog that asks where the LilyPond file goes. */
+    private val saver = ScoreSaver(frame)
+
     /** The card that holds the LilyPond text: the third of the bottom row. */
-    private val lilypond = LilyPondOutput()
+    private val lilypond =
+        LilyPondOutput(saveTo = { score, relative -> saver.save(score, relative) })
     private val rawToggle = PillButton("Raw taps", Glyph.LAYERS, heightPx = 32)
     private val scoreToggle = PillButton("", Glyph.EYE, heightPx = 32)
     private val soundButton = PillButton("", Glyph.NOTE, heightPx = 32)
@@ -1202,7 +1199,8 @@ internal class WindowApp {
         settingsLive = on
         settingControls.forEach { it.isEnabled = on }
         keySetting.setEnabled(on)
-        lilypond.copy.isEnabled = on
+        // The copy and save buttons follow the score, and the card owns them: there is
+        // nothing to copy and nothing to save when there is no score.
         lilypond.relative.isEnabled = on
         calibrateButton.isEnabled = on
         playButton.isEnabled = on && currentScore() != null

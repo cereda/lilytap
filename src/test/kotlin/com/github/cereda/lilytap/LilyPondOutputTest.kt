@@ -4,6 +4,7 @@ package com.github.cereda.lilytap
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -102,7 +103,7 @@ class LilyPondOutputTest {
     @Test
     fun `the copy button turns into a check when the text is copied`() {
         var copied = ""
-        val output = LilyPondOutput { copied = it }
+        val output = LilyPondOutput(putOnClipboard = { copied = it })
         output.show(score)
 
         output.copyText()
@@ -118,8 +119,10 @@ class LilyPondOutputTest {
 
         assertEquals("", output.relative.text, "the relative button has no word")
         assertEquals("", output.copy.text, "the copy button has no word")
+        assertEquals("", output.save.text, "the save button has no word")
         assertEquals(Glyph.RELATIVE, output.relative.glyph, "the relative button shows its own mark")
         assertEquals(Glyph.COPY, output.copy.glyph, "the copy button shows the copy mark")
+        assertEquals(Glyph.SAVE, output.save.glyph, "the save button shows the save mark")
     }
 
     @Test
@@ -137,5 +140,113 @@ class LilyPondOutputTest {
                 .filterIsInstance<PillButton>()
         assertTrue(buttons.contains(output.relative), "the header carries the relative button")
         assertTrue(buttons.contains(output.copy), "the header carries the copy button")
+        assertTrue(buttons.contains(output.save), "the header carries the save button")
+    }
+
+    @Test
+    fun `the header of the card fits the card`() {
+        val output = LilyPondOutput()
+
+        val header =
+            output.card.components
+                .filterIsInstance<JComponent>()
+                .first()
+        val room = OUTPUT_WIDTH - 36
+        assertTrue(
+            header.preferredSize.width <= room,
+            "the header asks for ${header.preferredSize.width} px, the card has $room",
+        )
+    }
+
+    @Test
+    fun `the buttons that read the text follow the score`() {
+        val output = LilyPondOutput()
+
+        assertFalse(output.copy.isEnabled, "there is nothing to copy without a score")
+        assertFalse(output.save.isEnabled, "there is nothing to save without a score")
+
+        output.show(score)
+        assertTrue(output.copy.isEnabled, "there is a text to copy")
+        assertTrue(output.save.isEnabled, "there is a score to save")
+
+        output.show(null)
+        assertFalse(output.copy.isEnabled, "the text is gone")
+        assertFalse(output.save.isEnabled, "the score is gone")
+    }
+
+    @Test
+    fun `the save button asks to save the score and the mode`() {
+        var saved: Pair<Score, Boolean>? = null
+        val output =
+            LilyPondOutput(
+                saveTo = { score, relative ->
+                    saved = score to relative
+                    SaveResult.Saved
+                },
+            )
+        output.show(score)
+
+        output.saveFile()
+
+        assertEquals(score, saved?.first, "the score is the one the card shows")
+        assertEquals(false, saved?.second, "the octaves are written in full")
+    }
+
+    @Test
+    fun `the save button asks for the relative mode when it is on`() {
+        var relative = false
+        val output =
+            LilyPondOutput(
+                saveTo = { _, mode ->
+                    relative = mode
+                    SaveResult.Saved
+                },
+            )
+        output.show(score)
+        output.toggleRelative(score)
+
+        output.saveFile()
+
+        assertTrue(relative, "the file is written with the octaves relative")
+    }
+
+    @Test
+    fun `the save button turns into a check when the file is written`() {
+        val output = LilyPondOutput(saveTo = { _, _ -> SaveResult.Saved })
+        output.show(score)
+
+        output.saveFile()
+
+        assertEquals(Glyph.CHECK, output.save.glyph, "the button shows the check mark")
+        assertNotNull(output.save.accentOverride, "the button is lit")
+    }
+
+    @Test
+    fun `the save button stays as it is when the file was not written`() {
+        val output = LilyPondOutput(saveTo = { _, _ -> SaveResult.Failed("the disk is full") })
+        output.show(score)
+
+        output.saveFile()
+
+        assertEquals(Glyph.SAVE, output.save.glyph, "the button shows the save mark")
+        assertNull(output.save.accentOverride, "the button is quiet")
+    }
+
+    @Test
+    fun `the save button does nothing when the user gives the dialog up`() {
+        var asked = false
+        val output =
+            LilyPondOutput(
+                saveTo = { _, _ ->
+                    asked = true
+                    SaveResult.Cancelled
+                },
+            )
+        output.show(score)
+
+        output.saveFile()
+
+        assertTrue(asked, "the saver was asked")
+        assertEquals(Glyph.SAVE, output.save.glyph, "the button shows the save mark")
     }
 }

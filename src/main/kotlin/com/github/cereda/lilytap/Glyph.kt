@@ -24,6 +24,7 @@ internal enum class Glyph {
     PLAY,
     STOP,
     COPY,
+    SAVE,
     CHECK,
     MINUS,
     PLUS,
@@ -132,6 +133,13 @@ internal fun drawGlyph(
         Glyph.COPY -> {
             g.draw(rr(px(0.14), py(0.32), 0.54 * s, 0.54 * s, 0.10 * s))
             g.draw(path(false, 0.32, 0.32, 0.32, 0.16, 0.84, 0.16, 0.84, 0.68, 0.68, 0.68))
+        }
+
+        Glyph.SAVE -> {
+            // An arrow that goes down into the tray the file falls into.
+            line(0.50, 0.10, 0.50, 0.46)
+            arrowHead(0.50, 0.66, 0.0, 1.0)
+            line(0.16, 0.86, 0.84, 0.86)
         }
 
         Glyph.CHECK -> {

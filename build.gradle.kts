@@ -67,7 +67,9 @@ tapmoc {
 val koverCoreClasses =
     listOf(
         "com.github.cereda.lilytap.Rhythm*",
-        "com.github.cereda.lilytap.Score*",
+        "com.github.cereda.lilytap.Score",
+        "com.github.cereda.lilytap.ScoreKt",
+        "com.github.cereda.lilytap.ScoreSelection",
         "com.github.cereda.lilytap.Pitch*",
         "com.github.cereda.lilytap.KeySignature*",
         "com.github.cereda.lilytap.KeyFault*",

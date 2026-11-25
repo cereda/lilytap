@@ -57,19 +57,21 @@ internal fun buildStartColumn(
     }
 
 /**
- * The header of the LilyPond card: the name of the text and the two buttons that go with it.
+ * The header of the LilyPond card: the name of the text and the three buttons that go with it.
  *
- * Both buttons are icons, the way the app switches its modes: the button of the relative
+ * All three buttons are icons, the way the app switches its modes: the button of the relative
  * octaves lights in the accent colour when it is on, and the copy button turns into a check
  * mark when the text is on the clipboard.
  *
  * @param relative the button that writes the octaves relative to the note before.
  * @param copy the button that copies the text.
+ * @param save the button that writes the text to a file.
  * @return the header of the card.
  */
 internal fun buildOutputHeader(
     relative: JComponent,
     copy: JComponent,
+    save: JComponent,
 ): JComponent =
     JPanel(BorderLayout()).apply {
         isOpaque = false
@@ -83,6 +85,8 @@ internal fun buildOutputHeader(
                 add(relative)
                 add(Box.createHorizontalStrut(8))
                 add(copy)
+                add(Box.createHorizontalStrut(8))
+                add(save)
             },
             BorderLayout.EAST,
         )

@@ -60,6 +60,15 @@ class GlyphTest {
     }
 
     @Test
+    fun `the save icon is an arrow that falls into a tray`() {
+        assertTrue(ink(Glyph.SAVE) > 0, "the save icon draws nothing")
+        // The stem of the arrow stands alone on its row, and the tray is a line of its own.
+        assertEquals(1, groupsInRow(Glyph.SAVE, (0.28 * BIG).toInt()), "the stem of the arrow")
+        assertEquals(1, groupsInRow(Glyph.SAVE, (0.86 * BIG).toInt()), "the tray the file falls into")
+        assertTrue(pixels(Glyph.SAVE) != pixels(Glyph.COPY), "the save icon looks like the copy mark")
+    }
+
+    @Test
     fun `the score editor icons are different from each other`() {
         val drawn = EDITOR_GLYPHS.map { pixels(it) }
         for (i in drawn.indices) {

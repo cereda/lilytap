@@ -256,6 +256,20 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the copy and save buttons follow the score`() {
+        val app = WindowApp()
+        val card = lilypond(app)
+
+        assertFalse(card.copy.isEnabled, "there is nothing to copy without a score")
+        assertFalse(card.save.isEnabled, "there is nothing to save without a score")
+
+        showScore(app, score)
+
+        assertTrue(card.copy.isEnabled, "there is a text to copy")
+        assertTrue(card.save.isEnabled, "there is a score to save")
+    }
+
+    @Test
     fun `the pitch field is off and empty when nothing is selected`() {
         val app = WindowApp()
 
