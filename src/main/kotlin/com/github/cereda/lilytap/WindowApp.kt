@@ -519,7 +519,7 @@ internal class WindowApp {
         tapButton.toolTipText =
             "Set the tempo by tapping: click this button in time, or press any key. " +
             "The tempo follows the taps and settles on the median of the intervals."
-        bars.toolTipText = "How many bars to record after the one-bar count-in."
+        bars.toolTipText = "How many bars to record after the count-in."
         latency.toolTipText = "Delay subtracted from your taps (audio output + reaction time)."
         latencyReset.toolTipText = "Reset the tap latency to 0 ms."
         audioLatency.toolTipText = "Audio output latency: shifts the metronome click earlier so it sounds on time."
@@ -1493,7 +1493,8 @@ internal class WindowApp {
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
         val clickNanos = (config.clickMs * 1_000_000.0).roundToLong()
         val startNanos = System.nanoTime() + 800_000_000L
-        val origin = startNanos + pulses * beatNanos
+        // The take starts after the count-in, which is as long as it needs to be.
+        val origin = startNanos + config.countInBeats * beatNanos
         val end = origin + config.bars.toLong() * pulses * beatNanos
 
         val s = Session(config, minRestCells, startNanos, origin, end, beatNanos)
@@ -1554,7 +1555,7 @@ internal class WindowApp {
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
         val clickNanos = (config.clickMs * 1_000_000.0).roundToLong()
         val startNanos = System.nanoTime() + 800_000_000L
-        val origin = startNanos + pulses * beatNanos
+        val origin = startNanos + config.countInBeats * beatNanos
         val end = origin + config.bars.toLong() * pulses * beatNanos
 
         val s = Session(config, 1, startNanos, origin, end, beatNanos)
@@ -1651,20 +1652,23 @@ internal class WindowApp {
         if (index == lastBeatIndex) return
         lastBeatIndex = index
         val pulses = s.config.timeSignature.pulsesPerBar
+        val countInBeats = s.config.countInBeats
         if (index < 0) {
             status.mood = Mood.COUNT_IN
             beatDots.mood = Mood.COUNT_IN
             beatDots.active = -1
             status.text = "Get ready..."
-        } else if (index < pulses) {
+        } else if (index < countInBeats) {
             status.mood = Mood.COUNT_IN
             beatDots.mood = Mood.COUNT_IN
-            beatDots.active = index
+            // The dots keep the beat of the bar, so a count-in of several bars goes on
+            // marking the bar the way a metronome does.
+            beatDots.active = index % pulses
             // While calibrating there is no beat count: a beat number is a claim about when the
             // beat is, and while the audio is late that claim is wrong.
-            status.text = if (calibrating) "Get ready..." else "Count-in: ${pulses - index}"
+            status.text = if (calibrating) "Get ready..." else "Count-in: ${countInBeats - index}"
         } else {
-            val r = index - pulses
+            val r = index - countInBeats
             status.mood = Mood.REC
             beatDots.mood = Mood.REC
             beatDots.active = r % pulses

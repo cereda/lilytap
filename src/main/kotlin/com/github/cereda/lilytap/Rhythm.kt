@@ -9,8 +9,29 @@ package com.github.cereda.lilytap
  *            -> split at barlines (ties) -> LilyPond text
  */
 
+import kotlin.math.ceil
+import kotlin.math.max
+
 /** Resolution used internally: a whole note is 64 units (down to 64th notes). */
 const val UNITS_PER_WHOLE = 64
+
+/**
+ * The shortest count-in the app gives before a take.
+ *
+ * A count-in is there to let the player find the beat and settle into it, and a bar that
+ * passes in less than this is too quick for that at a fast tempo: the clicks are heard,
+ * but there is no time to lock on to them.
+ */
+const val MIN_COUNT_IN_MS = 2000.0
+
+/**
+ * The slack the count-in gets when it is measured in milliseconds.
+ *
+ * The count-in is a musical length - whole bars - and the milliseconds are only the way to
+ * ask whether that length is enough. A bar that is exactly two seconds long is two seconds
+ * long, even when the division that says so leaves a fraction behind.
+ */
+private const val COUNT_IN_SLACK_MS = 0.001
 
 /** The kind of a tap: a [NOTE] begins a sounding note, a [REST] begins a silence. */
 enum class TapKind { NOTE, REST }
@@ -109,7 +130,7 @@ data class TimeSignature(
  * @property timeSignature the time signature of the piece.
  * @property subdivisions how many grid cells the note value is cut into. 1 = the note value
  * itself (eighths in 6/8), 2 = half of it (sixteenths), 4 = a quarter of it (thirty-seconds).
- * @property bars number of bars to record after the one-bar count-in.
+ * @property bars number of bars to record after the count-in.
  * @property latencyMs constant delay (audio output + reaction) subtracted from every tap.
  * @property noRests when true, every silence is absorbed into the note before it, so the
  * transcription never contains a rest. A silence before the very first note has no note to join
@@ -161,6 +182,22 @@ data class Config(
     /** Milliseconds in a musical beat. */
     val pulseMs: Double get() = 60_000.0 / bpm
 
+    /** Milliseconds in a bar of the meter. */
+    val barMs: Double get() = timeSignature.pulsesPerBar * pulseMs
+
+    /**
+     * The bars of the count-in before the take.
+     *
+     * The count-in is a whole number of bars, so the downbeat of the take falls on a bar
+     * line of the clicks, and it never passes in less than [MIN_COUNT_IN_MS]: a bar that
+     * would be over before the player has found the beat grows the count-in, a bar at a
+     * time, until it lasts long enough.
+     */
+    val countInBars: Int get() = max(1, ceil((MIN_COUNT_IN_MS - COUNT_IN_SLACK_MS) / barMs).toInt())
+
+    /** The musical beats of the count-in: the beats of [countInBars] bars. */
+    val countInBeats: Int get() = timeSignature.pulsesPerBar * countInBars
+
     /**
      * Internal grid units in one click.
      *
@@ -183,8 +220,8 @@ data class Config(
     /** The clicks in a bar: four in 4/4, two in 6/8, six in a 3-feel 6/8. */
     val clicksPerBar: Int get() = unitsPerBar / clickUnits
 
-    /** The clicks of the whole round: the count-in is one bar, and then the bars themselves. */
-    val totalClicks: Int get() = clicksPerBar * (bars + 1)
+    /** The clicks of the whole round: the count-in, and then the bars themselves. */
+    val totalClicks: Int get() = clicksPerBar * (bars + countInBars)
 
     /** Milliseconds between two clicks: the beat, or its third with the 3-feel. */
     val clickMs: Double get() = unitMs * clickUnits
