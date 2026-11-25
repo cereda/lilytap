@@ -53,3 +53,18 @@ to show the keys that lie beyond the seven.
 where the scale and the signature part company inside the cap was the leading tone of the
 sharp-side minor keys, and that is fixed: G♯, D♯ and A♯ minor spell it F𝄪, C𝄪 and G𝄪.
 
+### What LilyPond itself does past the cap
+
+Checked against LilyPond 2.26.0, with the real binary:
+
+- the signatures of the keys with eight to twelve sharps (C♯ major to B♯ major) and of the
+  keys with eight to thirteen flats (C♭ major to G𝄭 major) are written and read correctly;
+- **F𝄪 major is the one that breaks**: LilyPond takes thirteen sharps and silently prints the
+  signature of F♯ major instead - six sharps - with no warning at all;
+- the ceiling of an accidental is **two**: LilyPond rejects a triple accidental outright
+  (`error: not a note name: aeseseses`), so the model of the app, which carries a double
+  sharp or a double flat and no more, is already at the limit of what LilyPond can write.
+
+So lifting the cap would be safe on both sides up to eight accidentals, and past that it is
+the scale - not the signature - that has to spell the notes, exactly as this entry says.
+

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The score can be transposed now. The **Transpose** button, between **Fill the melody** and
+  the octave stepper, moves the whole score by a second, a third, a fourth, a fifth, an octave
+  or a semitone, up or down. The key follows the notes - the tonic moves by the same interval,
+  the mode stays the same - and the notes are spelled in the new key, the way the app spells
+  them there. The transposition is an edit like any other: **Ctrl+Z** takes it back, the header
+  says what happened (`C major → E♭ major`), and **Revert** puts the take back the way it was
+  recorded. A key the app cannot hold - one whose signature carries more than seven
+  accidentals - is refused, and so is a transposition that would take a note out of the
+  keyboard.
+
 ## [0.18.0] - 2026-11-24
 
 ### Fixed

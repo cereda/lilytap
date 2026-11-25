@@ -290,6 +290,33 @@ blocks can merge two silences into one, and why splitting a silence turns its se
 note. (The LilyPond text still spells a long silence with several rests when the meter asks for
 it, e.g. `r4. r8` in 6/8.)
 
+### Transposing the score
+
+The **Transpose** button, between **Fill the melody** and the octave stepper, moves the whole
+score by an interval. The panel it opens has two columns - one for each direction - and a row
+for every interval: a second, a third, a fourth, a fifth, an octave and a semitone. Every cell
+says where it would take the piece, so the key the score would land in is written under the
+name of the interval.
+
+- The **key follows the notes**: the tonic moves by the same interval, the mode stays the
+  same and the notes are spelled in the new key. A piece in C major that goes up a major third
+  lands in E major, and its notes are written the way E major writes them (`e'`, `fis'`,
+  `gis'`). The key field says the new key, the piano and the tracker follow it, and the LilyPond
+  text declares it.
+- The **size of the interval comes from the key**: a third is a major third in a major key and
+  a minor third in a minor one, so the piece keeps its shape when it moves. The second, the
+  fourth, the fifth and the octave are the same in both scales.
+- The **semitone** is the chromatic one: the letter of a note stays where it is when it can
+  carry the sound, and moves only when it cannot. A piece in C major goes to C♯ major and not
+  to D♭ major, and a piece in E major goes to F major and not to E♯ major.
+- The transposition is an **edit like any other**: **Ctrl+Z** takes it back, the header says
+  what happened (`C major → E♭ major`), and **Revert** puts the take back the way it was
+  recorded.
+- A key the app cannot hold is **refused**: a signature carries at most seven accidentals, so
+  a transposition that would ask for more says so and changes nothing. The same happens when a
+  note would leave the keyboard.
+- The button is greyed out while a take is being recorded and while the score plays.
+
 ### Compound meters
 
 In a compound meter - 6/8, 9/8, 12/8, 6/4... - the beat is a dotted note: three of the note values
@@ -438,7 +465,8 @@ holds it, and `Tracker.kt` the keys of the keyboard that play it and the octave 
 recording logic), `Timeline.kt` the recording timeline, `Player.kt` playback, `Metronome.kt` the
 count-in and calibration click, `Sound.kt` the click waveform, `Widgets.kt` the widget kit
 (buttons, steppers, etc.), `Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt` is
-the entry point and opens the window.
+the entry point and opens the window. `Interval.kt` holds the intervals the score is transposed
+by and `TransposeSetting.kt` the button and the panel of them.
 
 Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/`.
 
@@ -448,6 +476,11 @@ Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/
 the project's static analysis and formatting gates. `./gradlew check` adds the changelog format
 check and the kover coverage floor (80% of the lines of the public API; the Swing UI and the
 audio paths are excluded because they need a display and a sound card).
+
+The **referee** is the check that needs LilyPond: it has LilyPond compile the LilyPond text of
+the transposed scores and reads the MIDI back, so the pitches the app says and the pitches
+LilyPond plays are compared. LilyPond is not a dependency of the build, so the referee is run
+by hand - see [tools/lilypond-referee](tools/lilypond-referee/README.md).
 
 ## Changelog
 
