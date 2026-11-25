@@ -351,7 +351,9 @@ internal class TimelinePanel(
                             g2.fill(Ellipse2D.Double(rx1 - 2.5, midY - 2.5, 5.0, 5.0))
                         }
                     }
-                } else {
+                } else if (nowMs >= 0.0) {
+                    // The notes belong to the take: before its first beat the lane holds the
+                    // count-in and nothing else.
                     val laneH = laneBottom - laneTop
                     val noteY = laneTop + laneH * 0.22
                     val noteH = laneH * 0.56
@@ -366,24 +368,7 @@ internal class TimelinePanel(
                 }
 
                 // Playhead
-                if (nowMs in 0.0..totalMs) {
-                    val px = x(nowMs)
-                    g2.color = Theme.rec.alpha(26)
-                    g2.stroke = BasicStroke(10f)
-                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
-                    g2.color = Theme.rec.alpha(56)
-                    g2.stroke = BasicStroke(5f)
-                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
-                    g2.color = Theme.rec
-                    g2.stroke = BasicStroke(2f)
-                    g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom + 2))
-                    val head = Path2D.Double()
-                    head.moveTo(px - 6, rulerTop)
-                    head.lineTo(px + 6, rulerTop)
-                    head.lineTo(px, rulerTop + 9)
-                    head.closePath()
-                    g2.fill(head)
-                }
+                drawPlayhead(g2, nowMs, totalMs, rulerTop, laneBottom)
                 // The count-in, in the empty lane: the beats that are left before the take.
                 drawCountIn(g2, s, laneTop, laneBottom, w)
                 if (overlay) drawLegend(g2, w, rulerTop)
@@ -426,6 +411,38 @@ internal class TimelinePanel(
                 g2.fill(rr(thumbX(), trackY, thumbW(), 5.0, 2.5))
             }
         }
+    }
+
+    /**
+     * The playhead: the line that shows where the take is.
+     *
+     * It is drawn only while the take runs, and it is gone before the take begins: the
+     * count-in is not part of the take.
+     */
+    private fun drawPlayhead(
+        g2: Graphics2D,
+        nowMs: Double,
+        totalMs: Double,
+        rulerTop: Double,
+        laneBottom: Double,
+    ) {
+        if (nowMs !in 0.0..totalMs) return
+        val px = x(nowMs)
+        g2.color = Theme.rec.alpha(26)
+        g2.stroke = BasicStroke(10f)
+        g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
+        g2.color = Theme.rec.alpha(56)
+        g2.stroke = BasicStroke(5f)
+        g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom))
+        g2.color = Theme.rec
+        g2.stroke = BasicStroke(2f)
+        g2.draw(Line2D.Double(px, rulerTop + 6, px, laneBottom + 2))
+        val head = Path2D.Double()
+        head.moveTo(px - 6, rulerTop)
+        head.lineTo(px + 6, rulerTop)
+        head.lineTo(px, rulerTop + 9)
+        head.closePath()
+        g2.fill(head)
     }
 
     /**

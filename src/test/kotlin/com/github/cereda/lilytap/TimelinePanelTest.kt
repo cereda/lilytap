@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 package com.github.cereda.lilytap
 
+import java.awt.Color
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -157,6 +158,41 @@ class TimelinePanelTest {
         )
     }
 
+    @Test
+    fun `the notes of the take wait for the downbeat`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        val now = System.nanoTime()
+        val beatNanos = 1_000_000_000L
+        val start = now - beatNanos / 2
+        val origin = start + cfg.countInBeats * beatNanos
+        val session = Session(cfg, 1, start, origin, origin + 4 * beatNanos, beatNanos)
+        session.finished += HeldNote(0.0, 500.0)
+        panel.session = session
+        assertEquals(
+            0,
+            notePixels(paint(panel)),
+            "the note should wait for the take to begin",
+        )
+    }
+
+    @Test
+    fun `the notes of the take are drawn once it begins`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        val now = System.nanoTime()
+        val beatNanos = 1_000_000_000L
+        val start = now - 10 * beatNanos
+        val origin = start + cfg.countInBeats * beatNanos
+        val session = Session(cfg, 1, start, origin, origin + 4 * beatNanos, beatNanos)
+        session.finished += HeldNote(0.0, 500.0)
+        panel.session = session
+        assertTrue(
+            notePixels(paint(panel)) > 0,
+            "the note should be drawn once the take has begun",
+        )
+    }
+
     /** Paints the panel and returns the image it drew on. */
     private fun paint(panel: TimelinePanel): BufferedImage {
         val image = BufferedImage(400, 130, BufferedImage.TYPE_INT_ARGB)
@@ -176,6 +212,19 @@ class TimelinePanelTest {
         for (y in 0 until image.height) {
             for (x in 0 until image.width) {
                 if ((image.getRGB(x, y) and 0xFFFFFF) == warn) count++
+            }
+        }
+        return count
+    }
+
+    /** How many pixels of the image carry the colour of a note. */
+    private fun notePixels(image: BufferedImage): Int {
+        var count = 0
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) {
+                val c = Color(image.getRGB(x, y))
+                // The notes are violet: much more blue than the grey of the grid.
+                if (c.blue > 180 && c.red > 60 && c.green < c.blue - 40) count++
             }
         }
         return count

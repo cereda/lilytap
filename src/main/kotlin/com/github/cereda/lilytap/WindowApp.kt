@@ -1880,13 +1880,6 @@ internal class WindowApp {
                 true
             }
 
-            now < s.originNanos -> {
-                // The count-in is not part of the take: a key pressed before the downbeat is
-                // not a note of the piece, so it is not recorded - and the timeline must not
-                // show it either.
-                true
-            }
-
             now >= s.endNanos -> {
                 finish()
                 true
@@ -1894,24 +1887,32 @@ internal class WindowApp {
 
             else -> {
                 val ms = (now - s.originNanos) / 1e6
-                when (e.id) {
-                    KeyEvent.KEY_PRESSED -> {
-                        // Auto-repeat sends the same press again; count it only once.
-                        if (!isAutoRepeat(e)) {
-                            lastPress = e
-                            if (e.keyCode == KeyEvent.VK_R) {
-                                s.rests += ms
-                            } else if (e.keyCode !in s.held) {
-                                s.held[e.keyCode] = ms
+                // The count-in is not part of the take: a key pressed before the downbeat is
+                // not a note of the piece, so it is not recorded - and the timeline must not
+                // show it either. A key that lands in the first cell of the take is the first
+                // note of the take, though: the quantizer keeps such a tap, so the window keeps
+                // it too. A tap that comes a hair early is a tap on the beat.
+                val beforeTake = ms < 0.0 && tapCell(ms, s.config) < 0
+                if (!beforeTake) {
+                    when (e.id) {
+                        KeyEvent.KEY_PRESSED -> {
+                            // Auto-repeat sends the same press again; count it only once.
+                            if (!isAutoRepeat(e)) {
+                                lastPress = e
+                                if (e.keyCode == KeyEvent.VK_R) {
+                                    s.rests += ms
+                                } else if (e.keyCode !in s.held) {
+                                    s.held[e.keyCode] = ms
+                                }
                             }
                         }
-                    }
 
-                    KeyEvent.KEY_RELEASED -> {
-                        // repeats are ignored
-                        if (!isAutoRepeat(e)) {
-                            val down = s.held.remove(e.keyCode)
-                            if (down != null) s.finished += HeldNote(down, ms)
+                        KeyEvent.KEY_RELEASED -> {
+                            // repeats are ignored
+                            if (!isAutoRepeat(e)) {
+                                val down = s.held.remove(e.keyCode)
+                                if (down != null) s.finished += HeldNote(down, ms)
+                            }
                         }
                     }
                 }

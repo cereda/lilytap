@@ -381,6 +381,22 @@ private fun keptOnsets(kinds: List<TapKind>): List<Int> {
 }
 
 /**
+ * The grid cell a tap at [ms] falls in, as the quantizer reads it.
+ *
+ * The latency is subtracted first: a tap is compensated by the reaction time it is given,
+ * and then it is looked for in the grid. A tap before the first cell is not part of the
+ * take - the count-in before it is not - and the window uses this to tell the two apart.
+ *
+ * @param ms the time of the tap, in milliseconds from the first recorded beat.
+ * @param config the session configuration.
+ * @return the cell of the tap; a negative one when the tap falls before the take.
+ */
+fun tapCell(
+    ms: Double,
+    config: Config,
+): Int = Math.round((ms - config.latencyMs) / config.cellMs).toInt()
+
+/**
  * Snaps tap times to the nearest grid cell. Anything within half a cell is "on the beat".
  *
  * @param taps the raw taps, in any order.
@@ -395,7 +411,7 @@ fun quantize(
     val offsets = mutableListOf<Double>()
     for (tap in taps.sortedBy { it.timeMs }) {
         val adjusted = tap.timeMs - config.latencyMs
-        val cell = Math.round(adjusted / config.cellMs).toInt()
+        val cell = tapCell(tap.timeMs, config)
         if (cell < 0 || cell >= config.totalCells) continue // count-in noise or after the end
         byCell[cell] = tap.kind // two taps in one cell: the later one wins
         // Measured against the *compensated* time, so this is the error that is left after the
@@ -499,9 +515,9 @@ fun quantizeHeld(
     val offsets = mutableListOf<Double>()
 
     for (note in notes.sortedBy { it.downMs }) {
-        val start = Math.round((note.downMs - config.latencyMs) / config.cellMs).toInt()
+        val start = tapCell(note.downMs, config)
         if (start < 0 || start >= config.totalCells) continue
-        val rawEnd = Math.round((note.upMs - config.latencyMs) / config.cellMs).toInt()
+        val rawEnd = tapCell(note.upMs, config)
         ends[start] = maxOf(rawEnd, start + 1) // at least one cell long
         rawByStart[start] = note
         offsets += (note.downMs - config.latencyMs) - start * config.cellMs

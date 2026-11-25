@@ -21,9 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the calibration is unchanged: it runs at 60 BPM, where a bar is four seconds.
 
 ### Fixed
-- The keys pressed during the count-in are not recorded any more. They never were part of the
-  score — the transcription drops them — but the timeline drew them as notes at the very start of
-  the take, so a take looked as if it had notes before it began.
+- The keys pressed during the count-in are not recorded any more, and the timeline waits for the
+  downbeat to show the notes of the take. They never were part of the score — the transcription
+  drops them — but the timeline drew them as notes at the very start of the take, so a take
+  looked as if it had notes before it began. A tap that lands in the first cell of the take is
+  the first note of the take, though, and it is kept: a tap that comes a hair early is a tap on
+  the beat.
 
 ## [0.21.0] - 2026-11-25
 
