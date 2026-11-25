@@ -65,16 +65,24 @@ class WindowAppControlsTest {
     }
 
     @Test
-    fun `the transpose button is off with the other settings while a take runs`() {
+    fun `the transpose button is off while a take runs`() {
         val app = WindowApp()
-        takeScoreField().set(app, score)
         val button = transposeButton(app)
 
-        setControlsEnabled(app, false)
-        assertFalse(button.isEnabled, "the score of a take is fixed")
+        begin(app)
+        assertFalse(button.isEnabled, "there is no score while the take runs")
+        abort(app)
+    }
 
-        setControlsEnabled(app, true)
-        assertTrue(button.isEnabled, "the button comes back when the take is over")
+    @Test
+    fun `the transpose button comes on when the take is over`() {
+        val app = WindowApp()
+        val button = transposeButton(app)
+
+        begin(app)
+        finish(app)
+
+        assertTrue(button.isEnabled, "the take is a score, and a score can be transposed")
     }
 
     @Test
@@ -88,6 +96,25 @@ class WindowAppControlsTest {
 
         stopPlayback(app)
         assertTrue(button.isEnabled, "the button comes back when the playback stops")
+    }
+
+    @Test
+    fun `the fill button follows the score`() {
+        val app = WindowApp()
+        val fill = fillButton(app)
+
+        assertFalse(fill.isEnabled, "there is no score to fill yet")
+
+        begin(app)
+        assertFalse(fill.isEnabled, "there is no score while the take runs")
+        finish(app)
+        assertTrue(fill.isEnabled, "the take is a score, and it can be filled")
+
+        startPlayback(app)
+        assertFalse(fill.isEnabled, "the score that plays is fixed")
+
+        stopPlayback(app)
+        assertTrue(fill.isEnabled, "the fill button comes back when the playback stops")
     }
 
     @Test
@@ -118,6 +145,16 @@ class WindowAppControlsTest {
         field.isAccessible = true
         val pitches = field.get(app) as PitchesPanel
         return pitches.transpose
+    }
+
+    /** The button that takes the cursor to the first note of the take. */
+    private fun fillButton(app: WindowApp): PillButton {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "pitches" }
+                ?: error("pitches field not found")
+        field.isAccessible = true
+        val pitches = field.get(app) as PitchesPanel
+        return pitches.fill
     }
 
     /** The score strip of the window. */
@@ -210,6 +247,13 @@ class WindowAppControlsTest {
     /** Gives up the take that runs. */
     private fun abort(app: WindowApp) {
         val method = WindowApp::class.java.getDeclaredMethod("abort")
+        method.isAccessible = true
+        method.invoke(app)
+    }
+
+    /** Ends the take that runs, as the clock does when the take is over. */
+    private fun finish(app: WindowApp) {
+        val method = WindowApp::class.java.getDeclaredMethod("finish")
         method.isAccessible = true
         method.invoke(app)
     }

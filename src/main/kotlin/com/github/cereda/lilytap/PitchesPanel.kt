@@ -84,6 +84,19 @@ internal class PitchesPanel : JPanel(BorderLayout(0, 10)) {
     }
 
     /**
+     * Says whether the controls that work on the score are live.
+     *
+     * The fill button and the transpose button act on the score, so they are off when there
+     * is none to act on: while a take is being recorded and while the score plays.
+     *
+     * @param on whether the score can be worked on.
+     */
+    fun setEditingEnabled(on: Boolean) {
+        fill.isEnabled = on
+        transpose.isEnabled = on
+    }
+
+    /**
      * Says where the cursor is among the notes of the take.
      *
      * @param text the text of the counter.

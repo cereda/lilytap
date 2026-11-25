@@ -262,6 +262,8 @@ note, and a counter that says where the cursor is among the notes of the take (`
   says what the last edit did (`C4 → C♯4`).
 - **Fill the melody** takes the cursor to the first note of the take. A tracker key with nothing
   selected starts the walk there as well, so the first pitch of the melody does not need a click.
+  The button is greyed out while a take is being recorded and while the score plays: there is no
+  score to fill then.
 - A pitch on a silence turns it into a note: the gap keeps its length and sounds the note you
   gave it.
 - The piano is an editor, not an instrument: it is greyed out while a take is being recorded and
@@ -315,7 +317,9 @@ name of the interval.
 - A key the app cannot hold is **refused**: a signature carries at most seven accidentals, so
   a transposition that would ask for more says so and changes nothing. The same happens when a
   note would leave the keyboard.
-- The button is greyed out while a take is being recorded and while the score plays.
+- The button is greyed out while a take is being recorded and while the score plays, and so is
+  **Fill the melody**: there is no score to work on then. The octave stepper and the eye stay
+  live - the tracker still plays while you record, and the strip can still be hidden.
 
 ### Compound meters
 

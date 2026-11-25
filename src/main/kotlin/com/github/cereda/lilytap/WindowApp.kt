@@ -475,6 +475,8 @@ internal class WindowApp {
         wirePitchesPanel()
         minRest.onChange = { minRest.toolTipText = restToolTip() }
         updateThreeFeel()
+        // There is no score yet, so the controls that work on one are off.
+        updateScoreControls()
     }
 
     /**
@@ -1205,7 +1207,7 @@ internal class WindowApp {
         calibrateButton.isEnabled = on
         playButton.isEnabled = on && currentScore() != null
         soundButton.isEnabled = on && currentScore() != null
-        pitches.transpose.isEnabled = on && currentScore() != null
+        updateScoreControls()
         updateThreeFeel()
     }
 
@@ -1224,8 +1226,24 @@ internal class WindowApp {
         start.isEnabled = !playing
         soundButton.isEnabled = !playing && currentScore() != null
         playButton.isEnabled = playing || currentScore() != null
-        pitches.transpose.isEnabled = !playing && currentScore() != null
+        updateScoreControls()
         updateThreeFeel()
+    }
+
+    /**
+     * The controls that work on the score follow the score.
+     *
+     * A take throws the score away and a playback fixes it, so there is nothing to edit then:
+     * the transpose button and the fill button are off until the take is over. They are also
+     * off when there is no score at all, so a click never lands on a button that would do
+     * nothing.
+     *
+     * The state is asked of the window and not remembered: a take ends by publishing the
+     * score it recorded, and the controls have to come back at that moment.
+     */
+    private fun updateScoreControls() {
+        val live = session == null && !isPlaying && currentScore() != null
+        pitches.setEditingEnabled(live)
     }
 
     /**
@@ -1386,6 +1404,7 @@ internal class WindowApp {
         playButton.isEnabled = true
         soundButton.isEnabled = true
         updatePlayButton()
+        updateScoreControls()
         updateScoreHeader()
     }
 
@@ -1398,6 +1417,7 @@ internal class WindowApp {
         playButton.isEnabled = false
         soundButton.isEnabled = false
         updatePlayButton()
+        updateScoreControls()
         updateScoreHeader()
         stopPlayback()
     }
