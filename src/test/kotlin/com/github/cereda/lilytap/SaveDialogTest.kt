@@ -13,11 +13,11 @@ import kotlin.test.assertTrue
  */
 class SaveDialogTest {
     /** The name the file takes when the path names a folder. */
-    private val default = SaveDialog.DEFAULT_NAME
+    private val format = LILYPOND_FORMAT
 
     @Test
     fun `an empty path cannot be used`() {
-        val path = resolveSavePath("   ", default)
+        val path = resolveSavePath("   ", format)
 
         val invalid = assertIs<SavePath.Invalid>(path, "an empty path is refused")
         assertTrue(invalid.reason.isNotBlank(), "the reason says something")
@@ -28,7 +28,7 @@ class SaveDialogTest {
         val folder = Files.createTempDirectory("lilytap").toFile()
         val text = File(folder, "score.ly").path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertEquals("score.ly", ready.file.name, "the file is the one the path names")
@@ -41,7 +41,7 @@ class SaveDialogTest {
         val folder = Files.createTempDirectory("lilytap").toFile()
         val text = File(folder, "score").path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertEquals("score.ly", ready.file.name, "the file is a LilyPond file")
@@ -53,7 +53,7 @@ class SaveDialogTest {
         val folder = Files.createTempDirectory("lilytap").toFile()
         val text = File(folder, "score.txt").path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertEquals("score.txt", ready.file.name, "the user asked for that name")
@@ -65,10 +65,10 @@ class SaveDialogTest {
         val folder = Files.createTempDirectory("lilytap").toFile()
         val text = folder.path + File.separator
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
-        assertEquals(default, ready.file.name, "the file takes the default name")
+        assertEquals(format.name, ready.file.name, "the file takes the default name")
         assertEquals(folder.absolutePath, ready.file.parentFile.absolutePath, "it is in the folder")
         folder.deleteRecursively()
     }
@@ -77,10 +77,10 @@ class SaveDialogTest {
     fun `a folder takes the default name inside it`() {
         val folder = Files.createTempDirectory("lilytap").toFile()
 
-        val path = resolveSavePath(folder.path, default)
+        val path = resolveSavePath(folder.path, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
-        assertEquals(default, ready.file.name, "the file takes the default name")
+        assertEquals(format.name, ready.file.name, "the file takes the default name")
         assertEquals(folder.absolutePath, ready.file.parentFile.absolutePath, "it is in the folder")
         folder.deleteRecursively()
     }
@@ -90,7 +90,7 @@ class SaveDialogTest {
         val folder = Files.createTempDirectory("lilytap").toFile()
         val text = File(folder, "nowhere/score.ly").path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val invalid = assertIs<SavePath.Invalid>(path, "the folder does not exist")
         assertTrue(invalid.reason.contains("nowhere"), "the reason names the folder: ${invalid.reason}")
@@ -103,7 +103,7 @@ class SaveDialogTest {
         val file = File(folder, "afile.txt").apply { writeText("x") }
         val text = File(file, "score.ly").path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         assertIs<SavePath.Invalid>(path, "the folder is not a folder")
         folder.deleteRecursively()
@@ -115,7 +115,7 @@ class SaveDialogTest {
         val file = File(folder, "score.ly").apply { writeText("old") }
         val text = file.path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertTrue(ready.replacing, "the file is already there")
@@ -127,7 +127,7 @@ class SaveDialogTest {
         val folder = Files.createTempDirectory("lilytap").toFile()
         val text = File(folder, "score.ly").path
 
-        val path = resolveSavePath(text, default)
+        val path = resolveSavePath(text, format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertTrue(!ready.replacing, "there is no file to replace")
@@ -136,7 +136,7 @@ class SaveDialogTest {
 
     @Test
     fun `a path that starts with the mark of the home directory is the home directory`() {
-        val path = resolveSavePath("~/score.ly", default)
+        val path = resolveSavePath("~/score.ly", format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertEquals(
@@ -148,7 +148,7 @@ class SaveDialogTest {
 
     @Test
     fun `a relative path is a path of the working folder`() {
-        val path = resolveSavePath("score.ly", default)
+        val path = resolveSavePath("score.ly", format)
 
         val ready = assertIs<SavePath.Ready>(path, "the path can be used")
         assertEquals(
@@ -156,5 +156,29 @@ class SaveDialogTest {
             ready.file.absolutePath,
             "the path is read from the working folder",
         )
+    }
+
+    @Test
+    fun `a name without an extension gets the extension of a MIDI file`() {
+        val folder = Files.createTempDirectory("lilytap").toFile()
+        val text = File(folder, "score").path
+
+        val path = resolveSavePath(text, MIDI_FORMAT)
+
+        val ready = assertIs<SavePath.Ready>(path, "the path can be used")
+        assertEquals("score.mid", ready.file.name, "the file is a MIDI file")
+        folder.deleteRecursively()
+    }
+
+    @Test
+    fun `a folder takes the MIDI name inside it`() {
+        val folder = Files.createTempDirectory("lilytap").toFile()
+
+        val path = resolveSavePath(folder.path, MIDI_FORMAT)
+
+        val ready = assertIs<SavePath.Ready>(path, "the path can be used")
+        assertEquals("lilytap.mid", ready.file.name, "the file takes the MIDI name")
+        assertEquals(folder.absolutePath, ready.file.parentFile.absolutePath, "it is in the folder")
+        folder.deleteRecursively()
     }
 }

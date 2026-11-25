@@ -20,7 +20,7 @@ class ScoreSaverTest {
 
     @Test
     fun `a name without an extension gets the extension of a LilyPond file`() {
-        val file = withExtension(File("/tmp/lilytap", "myscore"))
+        val file = withExtension(File("/tmp/lilytap", "myscore"), LILYPOND_FORMAT.extension)
 
         assertEquals("myscore.ly", file.name, "the file is a LilyPond file")
         assertEquals("/tmp/lilytap", file.parent, "the file is in the folder the user chose")
@@ -28,14 +28,14 @@ class ScoreSaverTest {
 
     @Test
     fun `a name with an extension is left alone`() {
-        val file = withExtension(File("/tmp/lilytap", "myscore.txt"))
+        val file = withExtension(File("/tmp/lilytap", "myscore.txt"), LILYPOND_FORMAT.extension)
 
         assertEquals("myscore.txt", file.name, "the user asked for that name")
     }
 
     @Test
     fun `a name that is only an extension gets the extension of a LilyPond file`() {
-        val file = withExtension(File("/tmp/lilytap", "myscore."))
+        val file = withExtension(File("/tmp/lilytap", "myscore."), LILYPOND_FORMAT.extension)
 
         assertEquals("myscore..ly", file.name, "the name is complete")
     }

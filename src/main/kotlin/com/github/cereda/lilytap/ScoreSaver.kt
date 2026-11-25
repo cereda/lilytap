@@ -41,7 +41,9 @@ internal sealed interface SaveResult {
  */
 internal class ScoreSaver(
     private val frame: JFrame,
-    private val chooseFile: (File) -> File? = { suggested -> SaveDialog(frame, suggested).choose() },
+    private val chooseFile: (File) -> File? = { suggested ->
+        SaveDialog(frame, suggested, LILYPOND_FORMAT).choose()
+    },
 ) {
     /** The folder the dialog opens in: the last one used, or the home directory. */
     private var folder: File? = null
@@ -58,8 +60,8 @@ internal class ScoreSaver(
         relative: Boolean,
     ): SaveResult {
         val start = folder ?: File(System.getProperty("user.home"))
-        val chosen = chooseFile(File(start, DEFAULT_NAME)) ?: return SaveResult.Cancelled
-        val target = withExtension(chosen)
+        val chosen = chooseFile(File(start, LILYPOND_FORMAT.name)) ?: return SaveResult.Cancelled
+        val target = withExtension(chosen, LILYPOND_FORMAT.extension)
         folder = target.parentFile
         val reason = writeLilyPondFile(target.toPath(), score, relative)
         if (reason != null) {
@@ -68,25 +70,24 @@ internal class ScoreSaver(
         }
         return SaveResult.Saved
     }
-
-    companion object {
-        /** The name the dialog suggests. */
-        private const val DEFAULT_NAME = SaveDialog.DEFAULT_NAME
-    }
 }
 
 /**
- * The file with the extension of a LilyPond file.
+ * The file with the extension of the file that is written.
  *
  * A name that already has an extension is left alone: the user may want another one.
  *
  * @param file the file the dialog gave.
+ * @param extension the extension the file takes when its name has none.
  * @return the file to write.
  */
-internal fun withExtension(file: File): File {
+internal fun withExtension(
+    file: File,
+    extension: String,
+): File {
     val name = file.name
     if (name.substringAfterLast('.', "").isNotEmpty()) return file
-    return File(file.parentFile, "$name.$LILYPOND_EXTENSION")
+    return File(file.parentFile, "$name.$extension")
 }
 
 /**
@@ -103,6 +104,3 @@ internal fun saveRefused(reason: String): Message =
         Glyph.BOLT,
         Theme.rec,
     )
-
-/** The extension of a LilyPond file. */
-private const val LILYPOND_EXTENSION = "ly"

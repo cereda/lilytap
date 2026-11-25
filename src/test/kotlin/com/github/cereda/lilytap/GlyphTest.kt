@@ -69,6 +69,17 @@ class GlyphTest {
     }
 
     @Test
+    fun `the MIDI icon is a square wave`() {
+        assertTrue(ink(Glyph.MIDI) > 0, "the MIDI icon draws nothing")
+        // The wave has two high steps and two low ones: the upper row crosses the shape
+        // twice and the lower row twice as well.
+        assertEquals(2, groupsInRow(Glyph.MIDI, (0.38 * BIG).toInt()), "the two upper steps")
+        assertEquals(2, groupsInRow(Glyph.MIDI, (0.62 * BIG).toInt()), "the two lower steps")
+        assertTrue(pixels(Glyph.MIDI) != pixels(Glyph.NOTE), "the MIDI icon looks like the note")
+        assertTrue(pixels(Glyph.MIDI) != pixels(Glyph.SAVE), "the MIDI icon looks like the save mark")
+    }
+
+    @Test
     fun `the score editor icons are different from each other`() {
         val drawn = EDITOR_GLYPHS.map { pixels(it) }
         for (i in drawn.indices) {

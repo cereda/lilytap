@@ -2,7 +2,7 @@
 package com.github.cereda.lilytap
 
 /*
- * The dialog that asks where the LilyPond file goes: a field with the path and a save button.
+ * The dialog that asks where the file goes: a field with the path and a save button.
  */
 
 import java.awt.BorderLayout
@@ -26,6 +26,43 @@ import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+
+/**
+ * What kind of file is written.
+ *
+ * @property title the headline of the window that asks for the file.
+ * @property description the line that says what the window is for.
+ * @property name the name the file takes when the path names a folder.
+ * @property extension the extension the file takes when its name has none.
+ * @property glyph the mark the window carries.
+ */
+internal data class FileFormat(
+    val title: String,
+    val description: String,
+    val name: String,
+    val extension: String,
+    val glyph: Glyph,
+)
+
+/** The LilyPond file: the text of the score, as a document LilyPond reads. */
+internal val LILYPOND_FORMAT =
+    FileFormat(
+        title = "Save the LilyPond text",
+        description = "The file the LilyPond text is written to.",
+        name = "lilytap.ly",
+        extension = "ly",
+        glyph = Glyph.SAVE,
+    )
+
+/** The MIDI file: the score, as sound. */
+internal val MIDI_FORMAT =
+    FileFormat(
+        title = "Save the MIDI file",
+        description = "The file the score is written to, as sound.",
+        name = "lilytap.mid",
+        extension = "mid",
+        glyph = Glyph.MIDI,
+    )
 
 /**
  * What the text of the dialog means: the file to write, or why there is none.
@@ -57,15 +94,15 @@ internal sealed interface SavePath {
  *
  * The text is a path, and the path may say more than the name of a file: a path that ends
  * with a separator, or that names a folder, takes the default name inside it. A name
- * without an extension gets the extension of a LilyPond file.
+ * without an extension gets the extension of the file that is written.
  *
  * @param text what the user typed.
- * @param defaultName the name the file takes when the text names a folder.
+ * @param format the kind of file that is written.
  * @return the file to write, or the reason the text cannot be used.
  */
 internal fun resolveSavePath(
     text: String,
-    defaultName: String,
+    format: FileFormat,
 ): SavePath {
     val trimmed = text.trim()
     if (trimmed.isEmpty()) return SavePath.Invalid("The file name is empty.")
@@ -74,14 +111,14 @@ internal fun resolveSavePath(
         trimmed.endsWith("/") ||
             trimmed.endsWith(File.separator) ||
             (file.exists() && file.isDirectory)
-    val target = if (namesAFolder) File(file, defaultName) else file
+    val target = if (namesAFolder) File(file, format.name) else file
     val absolute = target.absoluteFile
     val folder = absolute.parentFile ?: return SavePath.Invalid("The path has no folder.")
     if (!folder.exists()) return SavePath.Invalid("The folder ${folder.path} does not exist.")
     if (!folder.isDirectory) return SavePath.Invalid("${folder.path} is not a folder.")
     if (!folder.canWrite()) return SavePath.Invalid("The folder ${folder.path} cannot be written to.")
     if (absolute.isDirectory) return SavePath.Invalid("${absolute.name} is a folder.")
-    return SavePath.Ready(withExtension(absolute), replacing = absolute.exists())
+    return SavePath.Ready(withExtension(absolute, format.extension), replacing = absolute.exists())
 }
 
 /**
@@ -100,7 +137,7 @@ private fun expandHome(path: String): String =
     }
 
 /**
- * The dialog that asks where the LilyPond file goes.
+ * The dialog that asks where the file goes.
  *
  * The dialog is drawn like the rest of the app: it is a card with a header, a field with the
  * path and two buttons. The field is checked as it is typed: the border turns red and the
@@ -108,10 +145,12 @@ private fun expandHome(path: String): String =
  *
  * @param frame the window the dialog belongs to.
  * @param suggested the path the field starts with.
+ * @param format the kind of file that is written.
  */
 internal class SaveDialog(
     private val frame: JFrame,
     private val suggested: File,
+    private val format: FileFormat = LILYPOND_FORMAT,
 ) {
     /** The file the dialog asks for, or null when the user gave it up. */
     fun choose(): File? {
@@ -121,7 +160,7 @@ internal class SaveDialog(
         dialog.isResizable = false
 
         val field =
-            StyledField(suggested.path, 40, heightPx = 38, hint = "The file of the text").apply {
+            StyledField(suggested.path, 40, heightPx = 38, hint = "The file to write").apply {
                 horizontalAlignment = SwingConstants.LEFT
                 preferredSize = Dimension(FIELD_WIDTH, 38)
             }
@@ -132,10 +171,10 @@ internal class SaveDialog(
             }
         val save = PillButton("Save", Glyph.SAVE, ButtonKind.PRIMARY, minW = 110, heightPx = 40)
         val cancel = PillButton("Cancel", null, ButtonKind.GHOST, minW = 100, heightPx = 40)
-        val header = GlyphLabel(Glyph.SAVE, "Save the LilyPond text", 16f, { Theme.text }, Font.BOLD)
+        val header = GlyphLabel(format.glyph, format.title, 16f, { Theme.text }, Font.BOLD)
 
         fun check(): SavePath {
-            val path = resolveSavePath(field.text, DEFAULT_NAME)
+            val path = resolveSavePath(field.text, format)
             when (path) {
                 is SavePath.Ready -> {
                     field.invalid = false
@@ -143,7 +182,7 @@ internal class SaveDialog(
                         if (path.replacing) {
                             "The file is already there: it will be replaced."
                         } else {
-                            "The text is written to ${path.file.path}."
+                            "The file is written to ${path.file.path}."
                         }
                     hint.foreground = Theme.dim
                     save.isEnabled = true
@@ -187,7 +226,7 @@ internal class SaveDialog(
             JPanel(BorderLayout(0, 10)).apply {
                 isOpaque = false
                 add(
-                    JLabel("The file the LilyPond text is written to.").apply {
+                    JLabel(format.description).apply {
                         font = Theme.font(13f)
                         foreground = Theme.dim
                     },
@@ -266,9 +305,6 @@ internal class SaveDialog(
     }
 
     companion object {
-        /** The name the file takes when the path names a folder. */
-        const val DEFAULT_NAME = "lilytap.ly"
-
         /** How wide the field of the path is, in pixels. */
         private const val FIELD_WIDTH = 430
     }

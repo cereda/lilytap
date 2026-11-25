@@ -25,6 +25,7 @@ internal enum class Glyph {
     STOP,
     COPY,
     SAVE,
+    MIDI,
     CHECK,
     MINUS,
     PLUS,
@@ -140,6 +141,10 @@ internal fun drawGlyph(
             line(0.50, 0.10, 0.50, 0.46)
             arrowHead(0.50, 0.66, 0.0, 1.0)
             line(0.16, 0.86, 0.84, 0.86)
+        }
+
+        Glyph.MIDI -> {
+            squareWave(g, x, y, s)
         }
 
         Glyph.CHECK -> {
@@ -344,6 +349,41 @@ private fun drawBeats(
     for (p in listOf(middleX to topY, leftX to bottomY, rightX to bottomY)) {
         g.fill(Ellipse2D.Double(p.first - r, p.second - r, 2 * r, 2 * r))
     }
+}
+
+/**
+ * Draws the MIDI mark: a square wave, the shape of the sound itself.
+ *
+ * The wave has two high steps and two low ones, so it reads as a square wave and not as the
+ * note or the save mark, which are the other marks of the app.
+ *
+ * @param g where to draw.
+ * @param x the left edge of the square.
+ * @param y the top edge of the square.
+ * @param s the side of the square.
+ */
+private fun squareWave(
+    g: Graphics2D,
+    x: Double,
+    y: Double,
+    s: Double,
+) {
+    val wave = Path2D.Double()
+    val points =
+        listOf(
+            0.10 to 0.62,
+            0.30 to 0.62,
+            0.30 to 0.38,
+            0.52 to 0.38,
+            0.52 to 0.62,
+            0.72 to 0.62,
+            0.72 to 0.38,
+            0.90 to 0.38,
+        )
+    points.forEachIndexed { index, (px, py) ->
+        if (index == 0) wave.moveTo(x + px * s, y + py * s) else wave.lineTo(x + px * s, y + py * s)
+    }
+    g.draw(wave)
 }
 
 /**

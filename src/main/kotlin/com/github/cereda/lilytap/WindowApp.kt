@@ -338,6 +338,9 @@ internal class WindowApp {
     /** The dialog that asks where the LilyPond file goes. */
     private val saver = ScoreSaver(frame)
 
+    /** The export of the score as a MIDI file, with the button that asks for it. */
+    private val midi = MidiExport(frame, score = { currentScore() })
+
     /** The card that holds the LilyPond text: the third of the bottom row. */
     private val lilypond =
         LilyPondOutput(saveTo = { score, relative -> saver.save(score, relative) })
@@ -640,14 +643,6 @@ internal class WindowApp {
         beatDots.isVisible = false
         revert.isEnabled = false
         revert.toolTipText = "Put the score back the way it was when the take ended. Ctrl+Z undoes it."
-        stageRight.apply {
-            isOpaque = false
-            add(rawToggle)
-            add(scoreToggle)
-            add(soundButton)
-            add(playButton)
-            add(beatDots)
-        }
         val stage = buildStage()
         val bottom = buildBottom()
 
@@ -1236,12 +1231,15 @@ internal class WindowApp {
      * off when there is no score at all, so a click never lands on a button that would do
      * nothing.
      *
+     * The MIDI export only reads the score, so it stays on while the score plays.
+     *
      * The state is asked of the window and not remembered: a take ends by publishing the
      * score it recorded, and the controls have to come back at that moment.
      */
     private fun updateScoreControls() {
         val live = session == null && !isPlaying && currentScore() != null
         pitches.setEditingEnabled(live)
+        midi.button.isEnabled = currentScore() != null
     }
 
     /**
@@ -1265,6 +1263,17 @@ internal class WindowApp {
      * Both panels share one grid, so the strip lines up with the timeline.
      */
     private fun buildStage(): JComponent {
+        // The buttons of the timeline live in its header: the raw taps, the strip, the sound,
+        // the MIDI file, the playback and the beat dots.
+        stageRight.apply {
+            isOpaque = false
+            add(rawToggle)
+            add(scoreToggle)
+            add(soundButton)
+            add(midi.button)
+            add(playButton)
+            add(beatDots)
+        }
         val stageTop =
             JPanel(BorderLayout()).apply {
                 isOpaque = false
