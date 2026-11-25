@@ -877,7 +877,14 @@ class NotationPanelTest {
         panel.revertTo(original)
 
         assertEquals(original.events, panel.score?.events, "the notes are back")
-        assertEquals("C major", panel.score?.config?.key?.name, "the key is back")
+        assertEquals(
+            "C major",
+            panel.score
+                ?.config
+                ?.key
+                ?.name,
+            "the key is back",
+        )
     }
 
     @Test
