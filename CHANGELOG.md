@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-25
+
 ### Added
 - The count-in is counted down on the timeline now. While the take waits, the empty lane of the
   timeline shows a big number with the beats that are left before the recording starts, so the
@@ -570,7 +572,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/cereda/lilytap/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/cereda/lilytap/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/cereda/lilytap/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/cereda/lilytap/compare/v0.18.0...v0.19.0
