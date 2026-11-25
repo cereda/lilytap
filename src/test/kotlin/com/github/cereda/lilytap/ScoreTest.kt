@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -153,6 +154,113 @@ class ScoreTest {
         val s = score(note(0, 4), rest(4, 4))
         val flat = s.inKey(KeySignature.parse("Bb major")!!)
         assertEquals("\\key bes \\major\nc'2 r2 |", flat.lilypond)
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Transposing the score
+    // -------------------------------------------------------------------------------------------
+
+    /** The score a transposition gives, or the reason it was refused. */
+    private fun moved(
+        s: Score,
+        interval: Interval,
+        up: Boolean = true,
+    ): TransposeResult = s.transpose(Transposition(interval, up))
+
+    @Test
+    fun `the notes move up a third and the key follows`() {
+        val s = score(note(0, 4, Pitch(PitchStep.C, 0, 4)), note(4, 4, Pitch(PitchStep.E, 0, 4)))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.THIRD))
+        assertEquals("\\key e \\major\ne'2 gis'2 |", moved.score.lilypond)
+        assertEquals(KeySignature.parse("E major"), moved.score.config.key)
+    }
+
+    @Test
+    fun `a minor key moves by a minor third`() {
+        val config = cfg().copy(key = KeySignature.parse("C minor")!!)
+        val s = score(note(0, 4, Pitch(PitchStep.C, 0, 4)), note(4, 4, Pitch(PitchStep.E, -1, 4)), config = config)
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.THIRD))
+        assertEquals("\\key ees \\minor\nees'2 ges'2 |", moved.score.lilypond)
+    }
+
+    @Test
+    fun `the notes move down as well`() {
+        val s = score(note(0, 4, Pitch(PitchStep.C, 0, 4)), note(4, 4, Pitch(PitchStep.E, 0, 4)))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.THIRD, up = false))
+        assertEquals("\\key aes \\major\naes2 c'2 |", moved.score.lilypond)
+    }
+
+    @Test
+    fun `an octave moves the notes and keeps the key`() {
+        val s = score(note(0, 4, Pitch(PitchStep.C, 0, 4)), note(4, 4, Pitch(PitchStep.E, 0, 4)))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.OCTAVE))
+        assertEquals(KeySignature.C_MAJOR, moved.score.config.key)
+        assertEquals("c''2 e''2 |", moved.score.lilypond)
+    }
+
+    @Test
+    fun `the semitone moves the accidental and not the letter`() {
+        val s = score(note(0, 4, Pitch(PitchStep.C, 0, 4)), note(4, 4, Pitch(PitchStep.E, 0, 4)))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.SEMITONE))
+        assertEquals("\\key cis \\major\ncis'2 eis'2 |", moved.score.lilypond)
+    }
+
+    @Test
+    fun `the rests do not move`() {
+        val s = score(note(0, 4), rest(4, 4))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.THIRD))
+        assertEquals("\\key e \\major\ne'2 r2 |", moved.score.lilypond)
+    }
+
+    @Test
+    fun `the shape of the score does not change`() {
+        val s = score(note(0, 2), note(2, 2), note(4, 4))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.THIRD))
+        assertEquals(s.events.map { it.lengthUnits }, moved.score.events.map { it.lengthUnits })
+    }
+
+    @Test
+    fun `the notes keep the sound they had`() {
+        val s = score(note(0, 4, Pitch(PitchStep.C, 0, 4)), note(4, 4, Pitch(PitchStep.E, 0, 4)))
+        val moved = assertIs<TransposeResult.Moved>(moved(s, Interval.FIFTH))
+        assertEquals(
+            67,
+            moved.score.events[0]
+                .pitch
+                ?.midi,
+        )
+        assertEquals(
+            71,
+            moved.score.events[1]
+                .pitch
+                ?.midi,
+        )
+    }
+
+    @Test
+    fun `a key the app cannot hold is refused`() {
+        val config = cfg().copy(key = KeySignature.parse("C# major")!!)
+        val s = score(note(0, 8, Pitch(PitchStep.C, 1, 4)), config = config)
+        val refused = assertIs<TransposeResult.Refused>(moved(s, Interval.FIFTH))
+        assertEquals(
+            "A key signature carries at most seven accidentals, and this one has 8.",
+            refused.message,
+        )
+    }
+
+    @Test
+    fun `a note that would leave the keyboard is refused`() {
+        val s = score(note(0, 8, Pitch(PitchStep.C, 0, 8)))
+        val refused = assertIs<TransposeResult.Refused>(moved(s, Interval.OCTAVE))
+        assertEquals("The transposition would take a note of the score out of the keyboard.", refused.message)
+    }
+
+    @Test
+    fun `transposing a score leaves the original alone`() {
+        val s = score(note(0, 4), note(4, 4))
+        moved(s, Interval.THIRD)
+        assertEquals("c'2 c'2 |", s.lilypond)
+        assertEquals(KeySignature.C_MAJOR, s.config.key)
     }
 
     // -------------------------------------------------------------------------------------------

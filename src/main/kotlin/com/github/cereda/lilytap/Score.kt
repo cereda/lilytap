@@ -131,6 +131,42 @@ data class Score(
     }
 
     /**
+     * The score when it is transposed.
+     *
+     * Every note moves by the interval and the key follows: the piece keeps its shape and
+     * lands in another key. The notes are spelled the way the new key wants them, so the
+     * melody keeps the intervals it had.
+     *
+     * A transposition that would take the piece to a key the app cannot hold - one whose
+     * signature carries more than seven accidentals - is refused, and so is one that would
+     * take a note out of the keyboard. The rests do not move: they have no pitch.
+     *
+     * @param transposition the interval and the direction the notes move.
+     * @return the transposed score, or the reason the transposition was refused.
+     */
+    fun transpose(transposition: Transposition): TransposeResult {
+        val key = config.key
+        val newKey = key.transposed(transposition)
+        if (newKey == null) {
+            val fifths = key.fifthsAfter(transposition)
+            return TransposeResult.Refused(KeyFault.TooManyAccidentals(abs(fifths)).message)
+        }
+        val semitones = transposition.semitones(key)
+        val moved = mutableListOf<Event>()
+        for (event in events) {
+            val pitch = event.pitch
+            if (pitch == null) {
+                moved += event
+                continue
+            }
+            val spelled = newKey.spellOrNull(pitch.midi + semitones)
+            if (spelled == null) return TransposeResult.Refused(OUT_OF_RANGE)
+            moved += event.copy(pitch = spelled)
+        }
+        return TransposeResult.Moved(copy(events = moved, config = config.copy(key = newKey)))
+    }
+
+    /**
      * Turns the event at [index] into a rest, or a rest back into a note.
      *
      * Two rests in a row are one silence, so a note that becomes a rest is merged with
@@ -370,6 +406,12 @@ data class Score(
          * How close to a bar line (in cells) a dragged border has to be to stick to it.
          */
         const val BAR_LINE_MAGNET = 0.75
+
+        /**
+         * What the app says when a transposition would take a note out of the keyboard.
+         */
+        private const val OUT_OF_RANGE =
+            "The transposition would take a note of the score out of the keyboard."
     }
 }
 

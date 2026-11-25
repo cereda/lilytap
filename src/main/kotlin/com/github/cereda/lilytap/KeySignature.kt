@@ -123,13 +123,109 @@ data class KeySignature(
      * @param midi the MIDI number of the note.
      * @return the pitch of the note in this key.
      */
-    fun spell(midi: Int): Pitch {
+    fun spell(midi: Int): Pitch = spellOrNull(midi) ?: throw IllegalArgumentException("The note $midi has no spelling in $name")
+
+    /**
+     * The pitch of a MIDI note in this key, or null when the note cannot be spelled in it.
+     *
+     * The spelling is the one [spell] gives, and the only reason it can fail is the octave:
+     * a note above the top of the keyboard has no name in this key.
+     *
+     * @param midi the MIDI number of the note.
+     * @return the pitch of the note in this key, or null when there is none.
+     */
+    fun spellOrNull(midi: Int): Pitch? {
         val pitchClass = midi % 12
         for ((step, alter) in spellings(pitchClass)) {
             val octave = octaveOf(midi, step, alter)
             if (octave in Pitch.MIN_OCTAVE..Pitch.MAX_OCTAVE) return Pitch(step, alter, octave)
         }
-        throw IllegalArgumentException("The note $midi has no spelling in $name")
+        return null
+    }
+
+    /**
+     * The key the piece is in when it is transposed.
+     *
+     * The tonic moves with the notes: its letter moves by the same number of letters, and
+     * the accidental follows the sound. The mode stays the same, so a piece in a minor key
+     * stays in a minor key.
+     *
+     * The chromatic semitone is the one exception: the letter of the tonic stays where it
+     * is when it can carry the sound, and moves to the next letter when it cannot - E up a
+     * semitone is F, not E sharp.
+     *
+     * A key the app cannot hold is not a key the transposition can land in: the signature
+     * carries at most seven accidentals and the tonic at most one, so a transposition that
+     * would ask for more says so instead of moving the notes.
+     *
+     * @param transposition the interval and the direction the notes move.
+     * @return the new key, or null when its signature would carry more than seven accidentals.
+     */
+    fun transposed(transposition: Transposition): KeySignature? {
+        val target = targetOf(transposition)
+        if (target.fifths !in -7..7) return null
+        return KeySignature(target.letter, target.alter, major)
+    }
+
+    /**
+     * The number of accidentals the signature of the transposed key would carry.
+     *
+     * The number is there even when the signature is one the app cannot hold: it is what
+     * the refusal says.
+     *
+     * @param transposition the interval and the direction the notes move.
+     * @return the number of sharps (positive) or flats (negative) of the new signature.
+     */
+    fun fifthsAfter(transposition: Transposition): Int = targetOf(transposition).fifths
+
+    /**
+     * The key the piece would be in, with the number of accidentals its signature carries.
+     *
+     * The letter of the tonic moves with the interval, and the accidental follows the
+     * sound. The letter always carries the sound: the interval moves the letter and the
+     * sound together, so the two are never more than a double accidental apart.
+     *
+     * @param transposition the interval and the direction the notes move.
+     * @return the key the piece would be in.
+     */
+    private fun targetOf(transposition: Transposition): Target {
+        val semitones = transposition.semitones(this)
+        val sound = (((tonic.semitone + alter + semitones) % 12) + 12) % 12
+        val letters =
+            if (transposition.interval.chromatic) {
+                listOf(tonic, tonic.shifted(if (semitones > 0) 1 else -1))
+            } else {
+                listOf(tonic.shifted(transposition.steps))
+            }
+        val carried = letters.map { letter -> letter to accidentalFor(sound, letter) }
+        // The letter that carries the sound with the smallest accidental wins, and the
+        // first one wins a tie: a semitone above C is C sharp, not D flat.
+        var best = carried.first()
+        for (candidate in carried.drop(1)) {
+            if (abs(candidate.second) < abs(best.second)) best = candidate
+        }
+        val (letter, accidental) = best
+        val fifths = MAJOR_FIFTHS.getValue(letter) + 7 * accidental - (if (major) 0 else 3)
+        return Target(letter, accidental, fifths)
+    }
+
+    /**
+     * The accidental a letter needs to carry a sound.
+     *
+     * A letter carries the sound that is a whole accidental away from its natural one: a C
+     * is a C, a C sharp or a C flat. The letters that are further away carry the sound
+     * with a double accidental.
+     *
+     * @param sound the pitch class of the sound.
+     * @param letter the letter that carries it.
+     * @return the accidental of the letter.
+     */
+    private fun accidentalFor(
+        sound: Int,
+        letter: PitchStep,
+    ): Int {
+        val difference = (((sound - letter.semitone) % 12) + 12) % 12
+        return if (difference <= 2) difference else difference - 12
     }
 
     /**
@@ -178,6 +274,23 @@ data class KeySignature(
         if (alter !in -2..2) return null
         return letter to alter
     }
+
+    /**
+     * The key a transposition would land in.
+     *
+     * The tonic of a target can carry a double sharp or a double flat: that is a key whose
+     * signature is already outside what the app holds, and the number of accidentals is
+     * what the refusal says.
+     *
+     * @property letter the letter of the tonic.
+     * @property alter the accidental of the tonic.
+     * @property fifths the number of accidentals the signature would carry.
+     */
+    private data class Target(
+        val letter: PitchStep,
+        val alter: Int,
+        val fifths: Int,
+    )
 
     companion object {
         /**

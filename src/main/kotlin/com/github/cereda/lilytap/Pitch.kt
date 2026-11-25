@@ -205,3 +205,14 @@ data class Pitch(
         }
     }
 }
+
+/**
+ * The letter [steps] letters away.
+ *
+ * The letters are counted the way the octaves of LilyPond are counted: from C to B and on
+ * again, so seven letters are an octave.
+ *
+ * @param steps how many letters to move: a positive number moves up the scale.
+ * @return the letter.
+ */
+internal fun PitchStep.shifted(steps: Int): PitchStep = PitchStep.entries[(ordinal + steps).mod(7)]
