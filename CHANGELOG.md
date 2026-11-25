@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-25
+
 ### Added
 - The score can be transposed now. The **Transpose** button, between **Fill the melody** and
   the octave stepper, moves the whole score by a second, a third, a fourth, a fifth, an octave
@@ -518,7 +520,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/cereda/lilytap/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/cereda/lilytap/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/cereda/lilytap/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cereda/lilytap/compare/v0.15.0...v0.16.0
