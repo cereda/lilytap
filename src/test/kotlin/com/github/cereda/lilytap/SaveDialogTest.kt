@@ -110,6 +110,31 @@ class SaveDialogTest {
     }
 
     @Test
+    fun `a file that is already there is said to be replaced`() {
+        val folder = Files.createTempDirectory("lilytap").toFile()
+        val file = File(folder, "score.ly").apply { writeText("old") }
+        val text = file.path
+
+        val path = resolveSavePath(text, default)
+
+        val ready = assertIs<SavePath.Ready>(path, "the path can be used")
+        assertTrue(ready.replacing, "the file is already there")
+        folder.deleteRecursively()
+    }
+
+    @Test
+    fun `a file that is not there yet is not replaced`() {
+        val folder = Files.createTempDirectory("lilytap").toFile()
+        val text = File(folder, "score.ly").path
+
+        val path = resolveSavePath(text, default)
+
+        val ready = assertIs<SavePath.Ready>(path, "the path can be used")
+        assertTrue(!ready.replacing, "there is no file to replace")
+        folder.deleteRecursively()
+    }
+
+    @Test
     fun `a path that starts with the mark of the home directory is the home directory`() {
         val path = resolveSavePath("~/score.ly", default)
 

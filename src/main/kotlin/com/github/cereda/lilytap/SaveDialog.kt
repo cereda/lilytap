@@ -31,9 +31,15 @@ import javax.swing.event.DocumentListener
  * What the text of the dialog means: the file to write, or why there is none.
  */
 internal sealed interface SavePath {
-    /** The file the text is written to. */
+    /**
+     * The file the text is written to.
+     *
+     * @property file the file to write.
+     * @property replacing whether the file is already there and would be replaced.
+     */
     data class Ready(
         val file: File,
+        val replacing: Boolean = false,
     ) : SavePath
 
     /**
@@ -75,7 +81,7 @@ internal fun resolveSavePath(
     if (!folder.isDirectory) return SavePath.Invalid("${folder.path} is not a folder.")
     if (!folder.canWrite()) return SavePath.Invalid("The folder ${folder.path} cannot be written to.")
     if (absolute.isDirectory) return SavePath.Invalid("${absolute.name} is a folder.")
-    return SavePath.Ready(withExtension(absolute))
+    return SavePath.Ready(withExtension(absolute), replacing = absolute.exists())
 }
 
 /**
@@ -133,7 +139,12 @@ internal class SaveDialog(
             when (path) {
                 is SavePath.Ready -> {
                     field.invalid = false
-                    hint.text = "The text is written to ${path.file.path}."
+                    hint.text =
+                        if (path.replacing) {
+                            "The file is already there: it will be replaced."
+                        } else {
+                            "The text is written to ${path.file.path}."
+                        }
                     hint.foreground = Theme.dim
                     save.isEnabled = true
                 }

@@ -425,7 +425,8 @@ The field is checked as it is typed: the border turns red and the **Save** butto
 the path cannot be used - when it is empty, when the folder does not exist, or when the folder
 cannot be written to. A path that names a folder (or that ends with a separator) takes the
 default name inside it, a name without an extension gets `.ly`, and a name with one is left
-alone. A `~` at the front of the path stands for your home folder.
+alone. A `~` at the front of the path stands for your home folder. When the file is already
+there, the window says that it will be replaced.
 
 The file is a whole document - the version, the score block, the staff and the bars - so that
 LilyPond reads it on its own:

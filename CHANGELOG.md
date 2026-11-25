@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   beside the copy button, asks where the file goes and writes a whole document there - the
   version, the score block, the staff and the bars - so that LilyPond reads it on its own. The
   window that asks is the app's own: a field with the path and two buttons, drawn like the rest
-  of the app. The field is checked as it is typed, and the file is written in the mode the card
-  is in: with the relative mode on, the bars go into a `\relative` block. A name without an
-  extension gets `.ly`, the button confirms with a check mark when the file is written, and the
-  app says what went wrong when it cannot be written.
+  of the app. The field is checked as it is typed, and the window says when the file is already
+  there and will be replaced. The file is written in the mode the card is in: with the relative
+  mode on, the bars go into a `\relative` block. A name without an extension gets `.ly`, the
+  button confirms with a check mark when the file is written, and the app says what went wrong
+  when it cannot be written.
 - The copy and save buttons follow the score: with no score there is nothing to copy and
   nothing to save, so both are off and a click never lands on a button that would do nothing.
 
