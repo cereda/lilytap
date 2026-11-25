@@ -652,6 +652,28 @@ internal class NotationPanel(
         applyEdit(edited, s.config.key.name, key.name)
     }
 
+    /**
+     * Transposes the score: every note moves by the interval and the key follows.
+     *
+     * The change is an edit like any other, so it can be undone: a transposition that was
+     * a mistake does not cost the work that came before it. The caption says what the key
+     * was and what it is now.
+     *
+     * @param transposition the interval and the direction the notes move.
+     * @return the transposed score, or the reason the transposition was refused.
+     */
+    fun transpose(transposition: Transposition): TransposeResult {
+        val s = score ?: return TransposeResult.Refused(NO_SCORE)
+        val result = s.transpose(transposition)
+        val edited =
+            when (result) {
+                is TransposeResult.Moved -> result.score
+                is TransposeResult.Refused -> return result
+            }
+        applyEdit(edited, s.config.key.name, edited.config.key.name)
+        return result
+    }
+
     // -------------------------------------------------------------------------------------------
     // The edits
     // -------------------------------------------------------------------------------------------
@@ -1190,6 +1212,9 @@ internal class NotationPanel(
 
         /** What the header says after the score was put back the way the take ended. */
         const val REVERTED = "Reverted to the take"
+
+        /** What the app says when there is no score to transpose. */
+        private const val NO_SCORE = "There is no score to transpose."
     }
 
     /** The box a block is drawn in. */

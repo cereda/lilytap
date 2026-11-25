@@ -331,7 +331,7 @@ internal class PillButton(
  */
 internal open class ChevronButton : JComponent() {
     /** Whether the mouse is over the button. */
-    private var hover = false
+    protected var hover = false
 
     /**
      * Whether the chevron points up.
@@ -428,6 +428,17 @@ internal abstract class PopupButton : ChevronButton() {
      */
     protected abstract fun buildPopup(): JPopupMenu
 
+    /**
+     * Where the popup opens: under the button, with a space between them.
+     *
+     * A button at the bottom of the window opens its popup above itself: there is no room
+     * below it, and a popup that hangs out of the window is cut off.
+     *
+     * @param size the size the popup wants.
+     * @return the place of the popup, in the coordinates of the button.
+     */
+    protected open fun popupPoint(size: Dimension): Point = popupSpot(width, height, size.width)
+
     /** Called when the button is clicked: the popup opens, or closes when it is open. */
     final override fun onClick() {
         if (open) {
@@ -452,7 +463,7 @@ internal abstract class PopupButton : ChevronButton() {
         open = true
         up = true
         repaint()
-        val spot = popupSpot(width, height, made.preferredSize.width)
+        val spot = popupPoint(made.preferredSize)
         made.show(this, spot.x, spot.y)
     }
 

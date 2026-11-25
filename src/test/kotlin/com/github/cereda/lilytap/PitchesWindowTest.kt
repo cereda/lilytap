@@ -290,6 +290,42 @@ class PitchesWindowTest {
         )
     }
 
+    @Test
+    fun `the transpose button sits between the fill button and the octave`() {
+        val app = WindowApp()
+
+        val panel = pitches(app)
+        panel.setSize(PITCHES_WIDTH, BOTTOM_HEIGHT)
+        layOut(panel)
+
+        val fill = placeIn(panel, panel.fill)
+        val transpose = placeIn(panel, panel.transpose)
+        val octave = placeIn(panel, panel.octave)
+        assertTrue(
+            fill.x + panel.fill.width <= transpose.x,
+            "the transpose button is after the fill button",
+        )
+        assertTrue(
+            transpose.x + panel.transpose.width <= octave.x,
+            "the transpose button is before the octave",
+        )
+        assertTrue(
+            fill.y < transpose.y + panel.transpose.height && transpose.y < fill.y + panel.fill.height,
+            "the three of them are on the same line",
+        )
+    }
+
+    @Test
+    fun `the header of the pitches panel fits the panel`() {
+        val app = WindowApp()
+
+        val panel = pitches(app)
+        assertTrue(
+            panel.preferredSize.width <= PITCHES_WIDTH,
+            "the panel asks for ${panel.preferredSize.width} px, it has $PITCHES_WIDTH",
+        )
+    }
+
     // -------------------------------------------------------------------------------------------
     // The piano
     // -------------------------------------------------------------------------------------------
@@ -903,6 +939,31 @@ private fun layOut(container: Container) {
     for (child in container.components) {
         if (child is Container) layOut(child)
     }
+}
+
+/**
+ * The place of a component in the coordinates of the panel that holds it.
+ *
+ * The children of the panel sit in panels of their own, so their own places say nothing
+ * about where they are in the panel.
+ *
+ * @param panel the panel the place is in.
+ * @param child the component whose place is wanted.
+ * @return the place of the top left corner of the child.
+ */
+private fun placeIn(
+    panel: JComponent,
+    child: java.awt.Component,
+): java.awt.Point {
+    var x = 0
+    var y = 0
+    var current: java.awt.Component? = child
+    while (current != null && current !== panel) {
+        x += current.x
+        y += current.y
+        current = current.parent
+    }
+    return java.awt.Point(x, y)
 }
 
 /** The metrics of a font, measured without a screen. */

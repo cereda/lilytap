@@ -30,6 +30,9 @@ internal class PitchesPanel : JPanel(BorderLayout(0, 10)) {
             heightPx = 32,
         )
 
+    /** The button that transposes the whole score. */
+    val transpose = TransposeButton()
+
     /**
      * The stepper that says which octave the tracker plays, and moves it.
      *
@@ -58,7 +61,14 @@ internal class PitchesPanel : JPanel(BorderLayout(0, 10)) {
                     JPanel(BorderLayout(8, 0)).apply {
                         isOpaque = false
                         add(fill, BorderLayout.WEST)
-                        add(octave, BorderLayout.EAST)
+                        add(
+                            JPanel(BorderLayout(8, 0)).apply {
+                                isOpaque = false
+                                add(transpose, BorderLayout.WEST)
+                                add(octave, BorderLayout.EAST)
+                            },
+                            BorderLayout.CENTER,
+                        )
                     },
                     BorderLayout.WEST,
                 )
@@ -66,6 +76,7 @@ internal class PitchesPanel : JPanel(BorderLayout(0, 10)) {
             }
         counter.toolTipText = "Where the cursor is among the notes of the take."
         fill.toolTipText = "Take the cursor to the first note of the take, so the melody can be filled in."
+        transpose.toolTipText = "Move the whole score by an interval. The key follows, and Ctrl+Z undoes it."
         octave.toolTipText =
             "The octave the tracker plays. Click the number to put the tracker back on the note you are on."
         add(header, BorderLayout.NORTH)

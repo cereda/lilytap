@@ -755,7 +755,8 @@ internal class WindowApp {
     }
 
     /**
-     * Wires the pitches panel: the piano writes a pitch, and the button starts the walk.
+     * Wires the pitches panel: the piano writes a pitch, the button starts the walk and the
+     * transpose button moves the whole score.
      *
      * The panel is an editor: it says nothing while a take runs, and while the score plays it
      * only shows what is sounding.
@@ -767,6 +768,23 @@ internal class WindowApp {
             fillPitch(pitch)
         }
         pitches.fill.onClick = { notation.fillMelody() }
+        pitches.transpose.onPick = { transposition -> transposeScore(transposition) }
+    }
+
+    /**
+     * Transposes the score, and says so when it cannot.
+     *
+     * The transposition is an edit like any other: the strip, the key field, the piano and
+     * the LilyPond text all follow it, and Ctrl+Z undoes it. A transposition that would take
+     * the piece to a key the app cannot hold changes nothing and says why.
+     *
+     * @param transposition the interval and the direction the notes move.
+     */
+    private fun transposeScore(transposition: Transposition) {
+        val result = notation.transpose(transposition)
+        if (result is TransposeResult.Refused) {
+            showMessage(frame, transposeRefused(result.message))
+        }
     }
 
     /**
@@ -874,6 +892,7 @@ internal class WindowApp {
                 pitches,
                 pitches.piano,
                 pitches.fill,
+                pitches.transpose,
                 splitButton,
                 swapButton,
                 mergeButton,
@@ -1186,6 +1205,7 @@ internal class WindowApp {
         calibrateButton.isEnabled = on
         playButton.isEnabled = on && currentScore() != null
         soundButton.isEnabled = on && currentScore() != null
+        pitches.transpose.isEnabled = on && currentScore() != null
         updateThreeFeel()
     }
 
@@ -1204,6 +1224,7 @@ internal class WindowApp {
         start.isEnabled = !playing
         soundButton.isEnabled = !playing && currentScore() != null
         playButton.isEnabled = playing || currentScore() != null
+        pitches.transpose.isEnabled = !playing && currentScore() != null
         updateThreeFeel()
     }
 
@@ -1300,6 +1321,7 @@ internal class WindowApp {
     private fun updateKeyViews() {
         val key = keySetting.key
         pitches.piano.key = key
+        pitches.transpose.key = key
         tracker.key = key
         legend.key = key
     }

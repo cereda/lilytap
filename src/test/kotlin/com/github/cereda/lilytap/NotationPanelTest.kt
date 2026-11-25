@@ -816,6 +816,72 @@ class NotationPanelTest {
     }
 
     // -------------------------------------------------------------------------------------------
+    // Transposing the score
+    // -------------------------------------------------------------------------------------------
+
+    @Test
+    fun `the transposition moves the notes and the key`() {
+        val (panel, _) = panel()
+        panel.score = score()
+
+        val result = panel.transpose(Transposition(Interval.THIRD, true))
+
+        assertTrue(result is TransposeResult.Moved, "the score moved")
+        assertEquals("\\key e \\major\ne'4 e'4 e'2 |", panel.score?.lilypond)
+        assertEquals(
+            "E major",
+            panel.score
+                ?.config
+                ?.key
+                ?.name,
+        )
+    }
+
+    @Test
+    fun `the caption says what the transposition did`() {
+        val (panel, _) = panel()
+        panel.score = score()
+
+        panel.transpose(Transposition(Interval.THIRD, true))
+
+        assertEquals("C major → E major", panel.caption)
+    }
+
+    @Test
+    fun `the transposition can be undone`() {
+        val (panel, _) = panel()
+        val original = score()
+        panel.score = original
+
+        panel.transpose(Transposition(Interval.THIRD, true))
+        press(panel, KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK)
+
+        assertEquals(original.events, panel.score?.events, "the notes are back")
+        assertEquals(
+            "C major",
+            panel.score
+                ?.config
+                ?.key
+                ?.name,
+            "the key is back",
+        )
+    }
+
+    @Test
+    fun `a transposition that cannot be done changes nothing`() {
+        val (panel, _) = panel()
+        // The note is at the top of the keyboard: an octave up would leave it.
+        val high = Score(listOf(event(TapKind.NOTE, 0, 8, Pitch(PitchStep.C, 0, 8))), config)
+        panel.score = high
+
+        val result = panel.transpose(Transposition(Interval.OCTAVE, up = true))
+
+        assertTrue(result is TransposeResult.Refused, "the transposition was refused")
+        assertEquals(high.events, panel.score?.events, "the score did not move")
+        assertFalse(panel.canUndo, "there is nothing to undo")
+    }
+
+    // -------------------------------------------------------------------------------------------
     // Painting
     // -------------------------------------------------------------------------------------------
 

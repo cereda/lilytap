@@ -64,6 +64,90 @@ class WindowAppControlsTest {
         abort(app)
     }
 
+    @Test
+    fun `the transpose button is off with the other settings while a take runs`() {
+        val app = WindowApp()
+        takeScoreField().set(app, score)
+        val button = transposeButton(app)
+
+        setControlsEnabled(app, false)
+        assertFalse(button.isEnabled, "the score of a take is fixed")
+
+        setControlsEnabled(app, true)
+        assertTrue(button.isEnabled, "the button comes back when the take is over")
+    }
+
+    @Test
+    fun `the transpose button is off while a score plays`() {
+        val app = WindowApp()
+        takeScoreField().set(app, score)
+        val button = transposeButton(app)
+
+        startPlayback(app)
+        assertFalse(button.isEnabled, "the score that plays is fixed")
+
+        stopPlayback(app)
+        assertTrue(button.isEnabled, "the button comes back when the playback stops")
+    }
+
+    @Test
+    fun `the transpose button moves the score and the key field follows`() {
+        val app = WindowApp()
+        showScore(app, score)
+
+        transposeButton(app).onPick?.invoke(Transposition(Interval.THIRD, true))
+
+        assertEquals("E major", keySetting(app).field.text, "the field says the key the score is in")
+        assertEquals("C major → E major", scoreCaption(app).text, "the header says what happened")
+        assertEquals(
+            Pitch(PitchStep.E, 0, 4),
+            notation(app)
+                .score
+                ?.events
+                ?.first()
+                ?.pitch,
+            "the note moved up a third",
+        )
+    }
+
+    /** The transpose button of the pitches panel. */
+    private fun transposeButton(app: WindowApp): TransposeButton {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "pitches" }
+                ?: error("pitches field not found")
+        field.isAccessible = true
+        val pitches = field.get(app) as PitchesPanel
+        return pitches.transpose
+    }
+
+    /** The score strip of the window. */
+    private fun notation(app: WindowApp): NotationPanel {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "notation" }
+                ?: error("notation field not found")
+        field.isAccessible = true
+        return field.get(app) as NotationPanel
+    }
+
+    /** The message in the header of the score strip. */
+    private fun scoreCaption(app: WindowApp): CaptionLabel {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "scoreCaption" }
+                ?: error("scoreCaption field not found")
+        field.isAccessible = true
+        return field.get(app) as CaptionLabel
+    }
+
+    /** Shows a score in the window, as a finished take does. */
+    private fun showScore(
+        app: WindowApp,
+        score: Score,
+    ) {
+        val showScore = WindowApp::class.java.getDeclaredMethod("showScore", Score::class.java)
+        showScore.isAccessible = true
+        showScore.invoke(app, score)
+    }
+
     /** The key setting of the window: the field with the name of the key and the menu. */
     private fun keySetting(app: WindowApp): KeySetting {
         val field =
