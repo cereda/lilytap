@@ -24,8 +24,9 @@ build/install/lilytap/bin/lilytap
 
 A dark, custom-painted UI (no extra dependencies, icons are drawn in code):
 steppers you can click, hold, scroll or drag, a sliding option picker, a beat indicator, a glowing
-playhead over the timeline, a copy button that confirms with a check mark, and a button with a step
-that writes the octaves of the LilyPond text relative to the note before.
+playhead over the timeline, a copy button that confirms with a check mark, a button that saves the
+LilyPond text to a file, and a button with a step that writes the octaves of the LilyPond text
+relative to the note before.
 
 The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
 carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
@@ -413,6 +414,42 @@ c'4 des'4 ees'4 f'4 |
 
 C major says nothing: the text of a piece in C major is the text it always was.
 
+### Saving the file
+
+The button that draws an arrow into a tray, beside the copy button, writes the score to a `.ly`
+file. It asks where the file goes in a small window of the app's own: a field with the path and
+two buttons. The path starts in your home folder, with the name `lilytap.ly`, and the name is
+selected, so a name typed in takes its place.
+
+The field is checked as it is typed: the border turns red and the **Save** button goes off when
+the path cannot be used - when it is empty, when the folder does not exist, or when the folder
+cannot be written to. A path that names a folder (or that ends with a separator) takes the
+default name inside it, a name without an extension gets `.ly`, and a name with one is left
+alone. A `~` at the front of the path stands for your home folder.
+
+The file is a whole document - the version, the score block, the staff and the bars - so that
+LilyPond reads it on its own:
+
+```
+\version "2.26.0"
+
+\score {
+  \new Staff {
+    \key bes \major
+    c'4 des'4 ees'4 f'4 |
+  }
+}
+```
+
+The file is written in the mode the card is in: with the relative mode on, the bars go into a
+`\relative` block, and the file says so. The button confirms with a check mark when the file is
+written, and the app says what went wrong when it cannot be written. The next save starts in
+the folder of the last one.
+
+The text in the box stays a fragment, meant to be pasted into a score of your own; the file is
+the whole thing. Both buttons - the copy and the save - are off while there is no score, so a
+click never lands on a button that would do nothing.
+
 ## Playback
 
 The **Play** button in the timeline header plays the edited score back through the audio output.
@@ -455,8 +492,9 @@ delay: lower it a few steps if the click sounds early.
 Outside calibration, the beat dots and the status text follow the beat itself, so they line up
 with the playhead rather than with the moment the click is written to the sound card.
 
-Nothing is written to disk: the theme follows your OS setting on every launch, and the audio
-latency starts at zero.
+Nothing is remembered: the theme follows your OS setting on every launch, and the audio
+latency starts at zero. The only thing the app writes is the LilyPond file you save — see
+[Saving the file](#saving-the-file).
 
 ## Layout
 

@@ -19,9 +19,8 @@ blocks.
 ## MIDI export
 
 The app only speaks LilyPond text. A `.mid` export would need the onset, the duration
-and the pitch of every block, plus a file dialog and a MIDI writer (either a new
-dependency or a hand-rolled one). The data is all there; most of the work is on the
-file side.
+and the pitch of every block, plus a MIDI writer (either a new dependency or a
+hand-rolled one). The data is all there; what is left is the writer.
 
 ## The length of the count-in
 
