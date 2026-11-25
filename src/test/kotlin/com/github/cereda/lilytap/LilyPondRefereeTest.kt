@@ -9,11 +9,14 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The referee: the LilyPond text of the transposed scores, written out for LilyPond to read.
+ * The referee: the LilyPond file of the transposed scores, written out for LilyPond to read.
  *
- * The test writes a file for every case - the LilyPond text of the score and the pitches the
+ * The test writes a file for every case - the LilyPond file of the score and the pitches the
  * model says it has - and the script in `tools/lilypond-referee` has LilyPond play the text
  * and reads the MIDI back. The pitches LilyPond plays must be the pitches the model says.
+ *
+ * The file is the one the app writes when the user saves a score: the referee thus proves
+ * that what the app saves is a document LilyPond reads.
  *
  * LilyPond is not on the PATH and is not a dependency of the build, so the reading of the
  * MIDI is left to the script: the test itself only writes the files and checks the model.
@@ -43,12 +46,20 @@ class LilyPondRefereeTest {
                     case.interval.label,
                     if (case.up) "-up" else "-down",
                 )
-            File(folder, "$name.ly").writeText(lilypondFile(moved.score))
             val pitches = moved.score.events.mapNotNull { it.pitch }
-            File(folder, "$name.expected").writeText(pitches.joinToString("\n") { it.midi.toString() } + "\n")
+            // Every case is written twice: once with the octaves in full and once with them
+            // relative, because the app saves the file in either way.
+            for (relative in listOf(false, true)) {
+                val suffix = if (relative) "-relative" else ""
+                File(folder, "$name$suffix.ly").writeText(
+                    lilyPondFile(moved.score, relative = relative, midi = true),
+                )
+                File(folder, "$name$suffix.expected")
+                    .writeText(pitches.joinToString("\n") { it.midi.toString() } + "\n")
+            }
             assertEquals(pitches.size, 8, "the scale of the key has eight notes")
         }
-        assertEquals(cases.size * 2, folder.listFiles()?.size, "every case has its files")
+        assertEquals(cases.size * 4, folder.listFiles()?.size, "every case has its files")
     }
 
     @Test
@@ -87,18 +98,6 @@ class LilyPondRefereeTest {
             val distance = (if (raw >= 0) raw else raw + 12) + if (degree == 7) 12 else 0
             key.spell(start + distance)
         }
-    }
-
-    /** The LilyPond text of a score, as a file LilyPond can read. */
-    private fun lilypondFile(score: Score): String {
-        val body = score.lilypond.lines().joinToString("\n") { "    $it" }
-        return "\\version \"2.26.0\"\n" +
-            "\\score {\n" +
-            "  \\new Staff {\n" +
-            "$body\n" +
-            "  }\n" +
-            "  \\midi { }\n" +
-            "}\n"
     }
 
     /**
