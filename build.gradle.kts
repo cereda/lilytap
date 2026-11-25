@@ -88,6 +88,7 @@ val koverCoreClasses =
         "com.github.cereda.lilytap.SnappedNote",
         "com.github.cereda.lilytap.QuantizeResult",
         "com.github.cereda.lilytap.Transcription",
+        "com.github.cereda.lilytap.MidiFile*",
     )
 
 kover {
