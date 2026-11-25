@@ -124,4 +124,60 @@ class TimelinePanelTest {
         val pixel = image.getRGB(x, 70) and 0xFFFFFF
         assertTrue(pixel != Theme.code.rgb, "the rest block should be visible at cell 5.5")
     }
+
+    @Test
+    fun `the count-in is drawn in the lane`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        val now = System.nanoTime()
+        val beatNanos = 1_000_000_000L
+        // The count-in is over: half a beat has passed since the first click.
+        val start = now - beatNanos / 2
+        val origin = start + cfg.countInBeats * beatNanos
+        panel.session = Session(cfg, 1, start, origin, origin + 4 * beatNanos, beatNanos)
+        assertTrue(
+            warnPixels(paint(panel)) > 0,
+            "the count-in should be drawn while the take waits",
+        )
+    }
+
+    @Test
+    fun `the count-in is gone when the take starts`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        val now = System.nanoTime()
+        val beatNanos = 1_000_000_000L
+        val start = now - 10 * beatNanos
+        val origin = start + cfg.countInBeats * beatNanos
+        panel.session = Session(cfg, 1, start, origin, origin + 4 * beatNanos, beatNanos)
+        assertEquals(
+            0,
+            warnPixels(paint(panel)),
+            "the count-in should be gone once the take has started",
+        )
+    }
+
+    /** Paints the panel and returns the image it drew on. */
+    private fun paint(panel: TimelinePanel): BufferedImage {
+        val image = BufferedImage(400, 130, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        try {
+            panel.paint(graphics)
+        } finally {
+            graphics.dispose()
+        }
+        return image
+    }
+
+    /** How many pixels of the image carry the colour of the count-in. */
+    private fun warnPixels(image: BufferedImage): Int {
+        val warn = Theme.warn.rgb and 0xFFFFFF
+        var count = 0
+        for (y in 0 until image.height) {
+            for (x in 0 until image.width) {
+                if ((image.getRGB(x, y) and 0xFFFFFF) == warn) count++
+            }
+        }
+        return count
+    }
 }

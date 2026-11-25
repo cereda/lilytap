@@ -23,6 +23,7 @@ import java.awt.geom.Rectangle2D
 import javax.swing.JComponent
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 
 internal class Session(
@@ -383,6 +384,8 @@ internal class TimelinePanel(
                     head.closePath()
                     g2.fill(head)
                 }
+                // The count-in, in the empty lane: the beats that are left before the take.
+                drawCountIn(g2, s, laneTop, laneBottom, w)
                 if (overlay) drawLegend(g2, w, rulerTop)
             } else if (score != null) {
                 drawScoreBlocks(g2, score!!, cfg, laneTop, laneBottom)
@@ -423,6 +426,45 @@ internal class TimelinePanel(
                 g2.fill(rr(thumbX(), trackY, thumbW(), 5.0, 2.5))
             }
         }
+    }
+
+    /**
+     * The count-in, drawn in the lane: the beats that are left before the take starts.
+     *
+     * The lane holds nothing until the first note, so the number has the whole lane to
+     * itself, and it is gone the moment the downbeat lands and the notes take the space
+     * over. It counts the beats of the count-in down to the one that lands on the downbeat,
+     * so the last number of the run is the beat the player plays on.
+     */
+    private fun drawCountIn(
+        g2: Graphics2D,
+        s: Session,
+        laneTop: Double,
+        laneBottom: Double,
+        w: Double,
+    ) {
+        if (s.done) return
+        val index = beatIndexAt(System.nanoTime(), s.startNanos, s.beatNanos)
+        if (index < 0) return // before the first click: there is nothing to count yet
+        val countInBeats = s.config.countInBeats
+        if (index >= countInBeats) return // the take has started
+        val left = countInBeats - index
+
+        val laneH = laneBottom - laneTop
+        val size = min(laneH * 0.62, 92.0).toFloat()
+        g2.font = Theme.font(size, Font.BOLD)
+        val fm = g2.fontMetrics
+        val text = left.toString()
+        val tw = fm.stringWidth(text)
+        val th = fm.height
+        val cx = w / 2.0
+        val cy = laneTop + laneH / 2.0
+
+        // A plate behind the number, so it reads over the lines of the grid.
+        g2.color = Theme.code.alpha(225)
+        g2.fill(rr(cx - tw / 2.0 - 26.0, cy - th / 2.0 - 10.0, tw + 52.0, th + 20.0, 22.0))
+        g2.color = Theme.warn
+        g2.drawString(text, (cx - tw / 2.0).toFloat(), (cy + (fm.ascent - fm.descent) / 2.0).toFloat())
     }
 
     private fun drawLegend(
