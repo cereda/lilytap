@@ -16,12 +16,6 @@ and the editor (split, swap, merge) would have to keep the two apart. **My advic
 to leave it alone** unless the strip is ever about to show rests as first-class
 blocks.
 
-## MIDI export
-
-The app only speaks LilyPond text. A `.mid` export would need the onset, the duration
-and the pitch of every block, plus a MIDI writer (either a new dependency or a
-hand-rolled one). The data is all there; what is left is the writer.
-
 ## The length of the count-in
 
 The count-in is one bar of clicks. Two bars would give a runner more room to settle in,

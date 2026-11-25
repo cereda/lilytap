@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The score can be written to a MIDI file now. The button with the square wave, in the header of
+  the timeline, asks where the file goes and writes it there. The window that asks is the app's
+  own - the same one the LilyPond file uses - and the path starts in the home folder with the name
+  `lilytap.mid`. The file is a standard MIDI file, written by the app itself: one track says how
+  the piece goes (the tempo, the meter and the key) and one holds the notes, with the pitches the
+  piano wrote. A rest is silence, so it is not written: the note after it starts later, which is
+  what a rest is. The file plays at the tempo of the score: a MIDI file counts the tempo in
+  quarter notes, while the app counts it in musical beats, so the beat is written out. The button
+  confirms with a check mark when the file is written, the app says what went wrong when it
+  cannot be written, and the button is off while there is no score.
+
 ## [0.20.0] - 2026-11-25
 
 ### Added

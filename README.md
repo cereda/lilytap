@@ -25,8 +25,8 @@ build/install/lilytap/bin/lilytap
 A dark, custom-painted UI (no extra dependencies, icons are drawn in code):
 steppers you can click, hold, scroll or drag, a sliding option picker, a beat indicator, a glowing
 playhead over the timeline, a copy button that confirms with a check mark, a button that saves the
-LilyPond text to a file, and a button with a step that writes the octaves of the LilyPond text
-relative to the note before.
+LilyPond text to a file, a button that writes the score to a MIDI file, and a button with a step
+that writes the octaves of the LilyPond text relative to the note before.
 
 The bottom of the window is split in two: the **Pitches** panel takes two thirds of the width and
 carries a piano that writes the melody of the take, and the LilyPond text takes the third that is
@@ -451,6 +451,27 @@ The text in the box stays a fragment, meant to be pasted into a score of your ow
 the whole thing. Both buttons - the copy and the save - are off while there is no score, so a
 click never lands on a button that would do nothing.
 
+## The MIDI file
+
+The score can be written to a MIDI file as well: the button with the square wave, in the header
+of the timeline, asks where the file goes and writes it there. The window that asks is the same
+one the LilyPond file uses - a field with the path and two buttons - and the path starts in your
+home folder with the name `lilytap.mid`.
+
+The file is a standard MIDI file, written by the app itself: one track says how the piece goes
+(the tempo, the meter and the key) and one holds the notes. A rest is silence, so it is not
+written: the note after it starts later, which is what a rest is. The notes carry the pitches
+the piano wrote, so the melody of the take is in the file, and the key it is in is the key the
+take was recorded in.
+
+The file plays at the tempo of the score. A MIDI file counts the tempo in quarter notes, while
+the app counts it in musical beats - the dotted quarter in a compound meter - so the beat is
+written out: a bar of 6/8 at 60 beats a minute lasts the two seconds it lasts in the app.
+
+The button confirms with a check mark when the file is written, and the app says what went wrong
+when it cannot be written. The next export starts in the folder of the last one. The button is
+off while there is no score, so a click never lands on a button that would do nothing.
+
 ## Playback
 
 The **Play** button in the timeline header plays the edited score back through the audio output.
@@ -494,8 +515,9 @@ Outside calibration, the beat dots and the status text follow the beat itself, s
 with the playhead rather than with the moment the click is written to the sound card.
 
 Nothing is remembered: the theme follows your OS setting on every launch, and the audio
-latency starts at zero. The only thing the app writes is the LilyPond file you save — see
-[Saving the file](#saving-the-file).
+latency starts at zero. The only things the app writes are the files you save — the LilyPond
+file and the MIDI file; see [Saving the file](#saving-the-file) and
+[The MIDI file](#the-midi-file).
 
 ## Layout
 
@@ -509,7 +531,8 @@ recording logic), `Timeline.kt` the recording timeline, `Player.kt` playback, `M
 count-in and calibration click, `Sound.kt` the click waveform, `Widgets.kt` the widget kit
 (buttons, steppers, etc.), `Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt` is
 the entry point and opens the window. `Interval.kt` holds the intervals the score is transposed
-by and `TransposeSetting.kt` the button and the panel of them.
+by and `TransposeSetting.kt` the button and the panel of them. `MidiFile.kt` writes the MIDI
+file of a score and `MidiExport.kt` the button that asks for it.
 
 Kotlin sources must live under `src/main/kotlin/`, tests under `src/test/kotlin/`.
 
@@ -522,8 +545,10 @@ audio paths are excluded because they need a display and a sound card).
 
 The **referee** is the check that needs LilyPond: it has LilyPond compile the LilyPond text of
 the transposed scores and reads the MIDI back, so the pitches the app says and the pitches
-LilyPond plays are compared. LilyPond is not a dependency of the build, so the referee is run
-by hand - see [tools/lilypond-referee](tools/lilypond-referee/README.md).
+LilyPond plays are compared. The MIDI file the app writes itself is held against the one LilyPond
+writes for the same text: the notes have to be the same, down to when they start and how long
+they last. LilyPond is not a dependency of the build, so the referee is run by hand - see
+[tools/lilypond-referee](tools/lilypond-referee/README.md).
 
 ## Changelog
 
