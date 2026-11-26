@@ -43,7 +43,7 @@ internal fun showMessage(
             foreground = message.accent
         }
     val body =
-        JLabel("<html><body style='width:320px'>${escapeHtml(message.description)}</body></html>").apply {
+        JLabel(htmlLines(BODY_WIDTH, message.lines)).apply {
             font = Theme.font(13f)
             foreground = Theme.dim
         }
@@ -107,3 +107,6 @@ internal fun showMessage(
     dialog.setLocationRelativeTo(frame)
     dialog.isVisible = true
 }
+
+/** How wide the body of the dialog is, in pixels. */
+private const val BODY_WIDTH = 440

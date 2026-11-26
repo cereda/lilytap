@@ -242,9 +242,17 @@ class ScoreTest {
         val config = cfg().copy(key = KeySignature.parse("C𝄪 major")!!)
         val s = score(note(0, 8, Pitch(PitchStep.C, 2, 4)), config = config)
         val refused = assertIs<TransposeResult.Refused>(moved(s, Interval.FIFTH))
-        assertEquals(
-            "A key signature carries at most fourteen accidentals, and this one has 15.",
-            refused.message,
+        assertTrue(
+            refused.lines.any { it.contains("G𝄪 major") },
+            "the refusal names the key: ${refused.lines}",
+        )
+        assertTrue(
+            refused.lines.any { it.contains("15") },
+            "the refusal says how many accidentals: ${refused.lines}",
+        )
+        assertTrue(
+            refused.lines.any { it.contains("fourteen") },
+            "the refusal says what the limit is: ${refused.lines}",
         )
     }
 
@@ -252,7 +260,10 @@ class ScoreTest {
     fun `a note that would leave the keyboard is refused`() {
         val s = score(note(0, 8, Pitch(PitchStep.C, 0, 8)))
         val refused = assertIs<TransposeResult.Refused>(moved(s, Interval.OCTAVE))
-        assertEquals("The transposition would take a note of the score out of the keyboard.", refused.message)
+        assertTrue(
+            refused.lines.any { it.contains("keyboard") },
+            "the refusal says what went wrong: ${refused.lines}",
+        )
     }
 
     @Test

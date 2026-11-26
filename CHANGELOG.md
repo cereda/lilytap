@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - The long tooltips of the window say their lines one under the other: the key, the circle of
   fifths, the piano, the legend, the grid, the tempo, the pitch and the score strip among them.
+- The errors of the app say more. Every problem has a short name — **Bad meter**, **Not a key**,
+  **Too many accidentals**, **Not a note name** — and lines that say what was written, what is
+  accepted and what to do about it. The key and the pitch field say the same words as the
+  dialog, and a refused transposition names the key the piece would have landed in.
 
 ## [0.24.0] - 2026-11-26
 

@@ -465,7 +465,7 @@ internal class WindowApp {
     private fun transposeScore(transposition: Transposition) {
         val result = notation.transpose(transposition)
         if (result is TransposeResult.Refused) {
-            showMessage(frame, transposeRefused(result.message))
+            showMessage(frame, transposeRefused(result.lines))
         }
     }
 
@@ -512,7 +512,7 @@ internal class WindowApp {
         val pitch = Pitch.parse(text)
         if (pitch == null) {
             pitchField.invalid = true
-            pitchField.toolTipText = tooltip(PITCH_ERROR_LINES)
+            pitchField.toolTipText = tooltip(listOf(PITCH_ERROR_TITLE) + pitchErrorLines(text))
             return
         }
         pitchField.invalid = false
@@ -1052,8 +1052,11 @@ internal class WindowApp {
                     frame,
                     Message(
                         "Invalid settings",
-                        e.message ?: "The settings are not valid.",
-                        "Fix the setting and try again.",
+                        "Bad setting",
+                        listOf(
+                            e.message ?: "The settings are not valid.",
+                            "Fix the setting and try again.",
+                        ),
                         Glyph.BOLT,
                         Theme.rec,
                     ),
@@ -1147,8 +1150,11 @@ internal class WindowApp {
                 Message(
                     "Calibration complete",
                     "${corrected.roundToLong()} ms",
-                    "The click is now shifted earlier by this much. The measurement includes your own " +
-                        "reaction time, so lower it a few steps if the click sounds early.",
+                    listOf(
+                        "The click is now shifted earlier by this much.",
+                        "The measurement includes your own reaction time.",
+                        "Lower it a few steps if the click sounds early.",
+                    ),
                     Glyph.CHECK,
                 ),
             )
@@ -1160,7 +1166,7 @@ internal class WindowApp {
                 Message(
                     "Calibration cancelled",
                     "No taps recorded",
-                    "The audio latency was left unchanged.",
+                    listOf("The audio latency was left unchanged."),
                     Glyph.PAUSE,
                     Theme.warn,
                 ),

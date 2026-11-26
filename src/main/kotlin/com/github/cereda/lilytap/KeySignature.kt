@@ -10,29 +10,59 @@ import kotlin.math.abs
 
 /**
  * What is wrong with the name of a key.
+ *
+ * A fault has a short name and the lines that explain it: the name says what the problem
+ * is, the lines say what was written, what a name looks like and what to do about it. The
+ * field and the dialog say the same words.
  */
 sealed interface KeyFault {
-    /** What the field says about the name that cannot be read. */
-    val message: String
+    /** The short name of the problem. */
+    val title: String
 
-    /** The text is not the name of a key at all. */
-    data object Malformed : KeyFault {
-        override val message: String =
-            "Not the name of a key. Write it as it is written in English (Bb major, F# minor) " +
-                "or the way LilyPond writes it (bes major, fis minor). A double accidental is " +
-                "written with two signs (F𝄪 major) or with LilyPond's own (Fisis major)."
+    /** The lines that explain the problem. */
+    val lines: List<String>
+
+    /** The problem as one string, for the places that need one. */
+    val message: String get() = lines.joinToString(" ")
+
+    /**
+     * The text is not the name of a key at all.
+     *
+     * @property text the name that was written.
+     */
+    data class Malformed(
+        val text: String,
+    ) : KeyFault {
+        override val title: String = "Not a key"
+
+        override val lines: List<String> =
+            listOf(
+                if (text.isBlank()) "The key field is empty." else "The key field says “$text”.",
+                "A key is a letter, an optional accidental and a mode:",
+                "Bb major, F# minor, bes major.",
+                "A double accidental is written with two signs:",
+                "F𝄪 major, Fisis major.",
+            )
     }
 
     /**
      * The key is a real one, but its signature carries more accidentals than the app holds.
      *
      * @property fifths the number of accidentals the signature would carry.
+     * @property text the name that was written.
      */
     data class TooManyAccidentals(
         val fifths: Int,
+        val text: String,
     ) : KeyFault {
-        override val message: String =
-            "A key signature carries at most fourteen accidentals, and this one has $fifths."
+        override val title: String = "Too many accidentals"
+
+        override val lines: List<String> =
+            listOf(
+                "The key “$text” carries $fifths accidentals.",
+                "A signature carries at most fourteen accidentals.",
+                "Choose a key nearer to C major.",
+            )
     }
 }
 
@@ -110,15 +140,7 @@ data class KeySignature(
 
     /** The name of the tonic as the app writes it: `B♭`, `F𝄪`. */
     val tonicDisplay: String
-        get() =
-            tonic.letter.uppercase() +
-                when {
-                    alter >= 2 -> Theme.doubleSharp
-                    alter == 1 -> "♯"
-                    alter <= -2 -> Theme.doubleFlat
-                    alter == -1 -> "♭"
-                    else -> ""
-                }
+        get() = tonic.letter.uppercase() + signOf(alter)
 
     /** The LilyPond line that declares the key: `\key f \major`. */
     val lilypond: String get() = "\\key $tonicName \\${if (major) "major" else "minor"}"
@@ -203,6 +225,21 @@ data class KeySignature(
      * @return the number of sharps (positive) or flats (negative) of the new signature.
      */
     fun fifthsAfter(transposition: Transposition): Int = targetOf(transposition).fifths
+
+    /**
+     * The name of the key a transposition would land in, even when the app cannot hold it.
+     *
+     * The name is the one the app writes: the letter of the tonic, its sign and the mode.
+     * A refusal quotes it, so the user sees the key the piece would have landed in.
+     *
+     * @param transposition the interval and the direction the notes move.
+     * @return the name of the key.
+     */
+    fun nameAfter(transposition: Transposition): String {
+        val target = targetOf(transposition)
+        val mode = if (major) "major" else "minor"
+        return "${target.letter.letter.uppercase()}${signOf(target.alter)} $mode"
+    }
 
     /**
      * The key the piece would be in, with the number of accidentals its signature carries.
@@ -320,6 +357,22 @@ data class KeySignature(
 
     companion object {
         /**
+         * The sign of an accidental, as the app writes it.
+         *
+         * @param alter the accidental: -2 for a double flat, -1 for a flat, 0 for a natural,
+         * 1 for a sharp, 2 for a double sharp.
+         * @return the sign of the accidental, or nothing for a natural.
+         */
+        private fun signOf(alter: Int): String =
+            when {
+                alter >= 2 -> Theme.doubleSharp
+                alter == 1 -> "♯"
+                alter <= -2 -> Theme.doubleFlat
+                alter == -1 -> "♭"
+                else -> ""
+            }
+
+        /**
          * The fifths of the major key of every letter, before the tonic is altered.
          *
          * The tables come before the keys they are used for: a key is built when it is read,
@@ -435,20 +488,20 @@ data class KeySignature(
          */
         private fun read(text: String): Reading {
             val parts = text.trim().lowercase().split(WHITESPACE)
-            if (parts.size != 2) return Reading(null, KeyFault.Malformed)
+            if (parts.size != 2) return Reading(null, KeyFault.Malformed(text))
             val major =
                 when (parts[1]) {
                     "major", "maj" -> true
                     "minor", "min" -> false
-                    else -> return Reading(null, KeyFault.Malformed)
+                    else -> return Reading(null, KeyFault.Malformed(text))
                 }
             val step =
-                PitchStep.of(parts[0].firstOrNull() ?: return Reading(null, KeyFault.Malformed))
-                    ?: return Reading(null, KeyFault.Malformed)
-            val alter = accidentalOf(parts[0].drop(1)) ?: return Reading(null, KeyFault.Malformed)
+                PitchStep.of(parts[0].firstOrNull() ?: return Reading(null, KeyFault.Malformed(text)))
+                    ?: return Reading(null, KeyFault.Malformed(text))
+            val alter = accidentalOf(parts[0].drop(1)) ?: return Reading(null, KeyFault.Malformed(text))
             val fifths = MAJOR_FIFTHS.getValue(step) + 7 * alter - (if (major) 0 else 3)
             if (fifths !in -14..14) {
-                return Reading(null, KeyFault.TooManyAccidentals(abs(fifths)))
+                return Reading(null, KeyFault.TooManyAccidentals(abs(fifths), text))
             }
             return Reading(KeySignature(step, alter, major), null)
         }

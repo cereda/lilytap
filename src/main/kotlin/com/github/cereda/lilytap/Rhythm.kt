@@ -56,7 +56,7 @@ data class TimeSignature(
 ) {
     init {
         require(beats > 0) { "Beats per bar must be positive" }
-        require(beatUnit in setOf(1, 2, 4, 8, 16, 32)) { "Beat unit must be 1, 2, 4, 8, 16 or 32" }
+        require(beatUnit in BEAT_UNITS) { "Beat unit must be 1, 2, 4, 8, 16 or 32" }
     }
 
     /** Internal grid units in a single note value (a whole note is [UNITS_PER_WHOLE] units). */
@@ -109,6 +109,13 @@ data class TimeSignature(
     override fun toString() = "$beats/$beatUnit"
 
     companion object {
+        /**
+         * The note values a meter can name: a whole, a half, a quarter and the rest.
+         *
+         * The set is here because the app says it to the user when a meter cannot be read.
+         */
+        internal val BEAT_UNITS = setOf(1, 2, 4, 8, 16, 32)
+
         /**
          * Parses a time signature from text like "4/4" or "6/8".
          * @throws IllegalArgumentException if the text is not a valid time signature.

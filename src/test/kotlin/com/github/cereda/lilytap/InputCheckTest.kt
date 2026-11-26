@@ -2,6 +2,7 @@
 package com.github.cereda.lilytap
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -19,57 +20,93 @@ class InputCheckTest {
     fun `a time signature that is not a meter is a problem`() {
         val problem = InputCheck.message("7/5", null, "")
         assertNotNull(problem, "the time signature is not a meter")
-        assertTrue(problem.headline.contains("time signature"), "the message says what is wrong")
-        assertTrue(problem.description.contains("must"), "the message says what a meter looks like")
+        assertEquals("Bad meter", problem.headline, "the message has a short name")
+        assertTrue(
+            problem.lines.any { it.contains("7/5") },
+            "the message quotes the time signature: ${problem.lines}",
+        )
+        assertTrue(
+            problem.lines.any { it.contains("must") },
+            "the message says what a meter looks like: ${problem.lines}",
+        )
     }
 
     @Test
     fun `a time signature that does not look like a meter is a problem`() {
         val problem = InputCheck.message("nope", null, "")
         assertNotNull(problem, "the text is not a meter")
-        assertTrue(problem.description.contains("4/4"), "the message says what a meter looks like")
+        assertTrue(
+            problem.lines.any { it.contains("4/4") },
+            "the message says what a meter looks like: ${problem.lines}",
+        )
     }
 
     @Test
     fun `an empty time signature is a problem`() {
-        assertNotNull(InputCheck.message("", null, ""), "an empty field is not a meter")
+        val problem = InputCheck.message("", null, "")
+        assertNotNull(problem, "an empty field is not a meter")
+        assertTrue(
+            problem.lines.any { it.contains("empty") },
+            "the message says the field is empty: ${problem.lines}",
+        )
     }
 
     @Test
     fun `a key that cannot be read is a problem`() {
         val problem = InputCheck.message("4/4", KeySignature.fault("Bb dorian"), "")
         assertNotNull(problem, "the name is not a key")
-        assertTrue(problem.headline.contains("key"), "the message says what is wrong")
-        assertTrue(problem.description.contains("name of a key"), "the message says what a key looks like")
+        assertEquals("Not a key", problem.headline, "the message has a short name")
+        assertTrue(
+            problem.lines.any { it.contains("Bb dorian") },
+            "the message quotes the name of the key: ${problem.lines}",
+        )
+        assertTrue(
+            problem.lines.any { it.contains("Bb major") },
+            "the message says what a key looks like: ${problem.lines}",
+        )
     }
 
     @Test
     fun `a key with too many accidentals says how many`() {
         val problem = InputCheck.message("4/4", KeySignature.fault("feses major"), "")
         assertNotNull(problem, "the key carries fifteen accidentals")
-        assertTrue(problem.headline.contains("15"), "the message says how many accidentals")
-        assertTrue(problem.description.contains("fourteen"), "the message says what the limit is")
+        assertEquals("Too many accidentals", problem.headline, "the message has a short name")
+        assertTrue(
+            problem.lines.any { it.contains("15") },
+            "the message says how many accidentals: ${problem.lines}",
+        )
+        assertTrue(
+            problem.lines.any { it.contains("fourteen") },
+            "the message says what the limit is: ${problem.lines}",
+        )
     }
 
     @Test
     fun `a pitch that is not a note is a problem`() {
         val problem = InputCheck.message("4/4", null, "h")
         assertNotNull(problem, "the name is not a note")
-        assertTrue(problem.headline.contains("pitch"), "the message says what is wrong")
-        assertTrue(problem.description.contains("LilyPond"), "the message says what a note looks like")
+        assertEquals("Not a note name", problem.headline, "the message has a short name")
+        assertTrue(
+            problem.lines.any { it.contains("h") },
+            "the message quotes the pitch: ${problem.lines}",
+        )
+        assertTrue(
+            problem.lines.any { it.contains("LilyPond") },
+            "the message says what a note looks like: ${problem.lines}",
+        )
     }
 
     @Test
     fun `the time signature is the first thing that is checked`() {
         val problem = InputCheck.message("nope", KeySignature.fault("Bb dorian"), "h")
         assertNotNull(problem)
-        assertTrue(problem.headline.contains("time signature"), "the time signature comes first")
+        assertEquals("Bad meter", problem.headline, "the time signature comes first")
     }
 
     @Test
     fun `the key comes before the pitch`() {
         val problem = InputCheck.message("4/4", KeySignature.fault("Bb dorian"), "h")
         assertNotNull(problem)
-        assertTrue(problem.headline.contains("key"), "the key comes before the pitch")
+        assertEquals("Not a key", problem.headline, "the key comes before the pitch")
     }
 }

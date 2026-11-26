@@ -121,9 +121,9 @@ sealed interface TransposeResult {
     /**
      * The transposition was refused, and this says why.
      *
-     * @property message the words of the refusal.
+     * @property lines what went wrong, and what to do about it.
      */
     data class Refused(
-        val message: String,
+        val lines: List<String>,
     ) : TransposeResult
 }

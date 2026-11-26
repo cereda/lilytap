@@ -45,8 +45,12 @@ class ScoreSaverTest {
         val message = saveRefused("the disk is full")
 
         assertEquals("Cannot write the file", message.title)
-        assertEquals("The file was not written", message.headline)
-        assertEquals("the disk is full", message.description, "the reason is in the message")
+        assertEquals("Not written", message.headline)
+        assertEquals("the disk is full", message.lines.first(), "the reason is in the message")
+        assertTrue(
+            message.lines.any { it.contains("try again") },
+            "the message says what to do: ${message.lines}",
+        )
     }
 
     @Test

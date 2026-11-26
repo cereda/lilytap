@@ -690,7 +690,7 @@ internal class NotationPanel(
      * @return the transposed score, or the reason the transposition was refused.
      */
     fun transpose(transposition: Transposition): TransposeResult {
-        val s = score ?: return TransposeResult.Refused(NO_SCORE)
+        val s = score ?: return TransposeResult.Refused(listOf(NO_SCORE))
         val result = s.transpose(transposition)
         val edited =
             when (result) {

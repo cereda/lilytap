@@ -146,14 +146,14 @@ internal class TransposeButton : PopupButton() {
 /**
  * The message the window shows when a transposition is refused.
  *
- * @param message the reason the transposition was refused.
+ * @param lines what went wrong, and what to do about it.
  * @return the message of the dialog.
  */
-internal fun transposeRefused(message: String): Message =
+internal fun transposeRefused(lines: List<String>): Message =
     Message(
         "Cannot transpose",
-        "The score stays where it is",
-        message,
+        "Score unchanged",
+        lines,
         Glyph.BOLT,
         Theme.rec,
     )

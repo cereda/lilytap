@@ -156,10 +156,16 @@ internal class KeySetting(
     /**
      * What the field says when the name in it cannot be read.
      *
+     * The field says the same words as the dialog: the short name of the problem and the
+     * lines that explain it.
+     *
      * @param fault what is wrong with the name.
      * @return the words of the tooltip.
      */
-    private fun faultText(fault: KeyFault?): String = fault?.message ?: KeyFault.Malformed.message
+    private fun faultText(fault: KeyFault?): String {
+        val problem = fault ?: KeyFault.Malformed(field.text)
+        return tooltip(listOf(problem.title) + problem.lines)
+    }
 
     /** Writes the name of the key in the field, unless it is being typed in. */
     private fun show() {

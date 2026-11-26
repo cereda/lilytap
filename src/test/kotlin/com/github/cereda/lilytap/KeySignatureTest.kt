@@ -4,6 +4,7 @@ package com.github.cereda.lilytap
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -172,10 +173,10 @@ class KeySignatureTest {
 
     @Test
     fun `a name that is not a key is malformed`() {
-        assertEquals(KeyFault.Malformed, KeySignature.fault(""))
-        assertEquals(KeyFault.Malformed, KeySignature.fault("Bb"))
-        assertEquals(KeyFault.Malformed, KeySignature.fault("Bb dorian"))
-        assertEquals(KeyFault.Malformed, KeySignature.fault("H major"))
+        assertEquals(KeyFault.Malformed(""), KeySignature.fault(""))
+        assertEquals(KeyFault.Malformed("Bb"), KeySignature.fault("Bb"))
+        assertEquals(KeyFault.Malformed("Bb dorian"), KeySignature.fault("Bb dorian"))
+        assertEquals(KeyFault.Malformed("H major"), KeySignature.fault("H major"))
         assertNull(KeySignature.fault("Bb major"), "a good name has no fault")
         assertNull(KeySignature.fault("cis major"), "a good name has no fault")
     }
@@ -292,8 +293,8 @@ class KeySignatureTest {
 
     @Test
     fun `a key with more than fourteen accidentals has a fault of its own`() {
-        assertEquals(KeyFault.TooManyAccidentals(15), KeySignature.fault("feses major"))
-        assertEquals(KeyFault.TooManyAccidentals(15), KeySignature.fault("gisis major"))
+        assertEquals(KeyFault.TooManyAccidentals(15, "feses major"), KeySignature.fault("feses major"))
+        assertEquals(KeyFault.TooManyAccidentals(15, "gisis major"), KeySignature.fault("gisis major"))
         assertNull(KeySignature.fault("cis major"), "the app holds that key")
         assertNull(KeySignature.fault("ceses major"), "the app holds that key")
         assertNull(KeySignature.parse("feses major"), "the app does not hold that key")
@@ -301,18 +302,35 @@ class KeySignatureTest {
 
     @Test
     fun `the fault says what is wrong`() {
+        val malformed = assertIs<KeyFault.Malformed>(KeySignature.fault("Bb dorian"))
+        assertEquals("Not a key", malformed.title, "the fault has a short name")
         assertTrue(
-            KeyFault.Malformed.message.contains("Not the name of a key"),
-            "the fault says the name is not a key",
+            malformed.lines.any { it.contains("Bb dorian") },
+            "the fault quotes the name that was written: ${malformed.lines}",
         )
         assertTrue(
-            KeyFault.TooManyAccidentals(15).message.contains("fifteen") ||
-                KeyFault.TooManyAccidentals(15).message.contains("15"),
-            "the fault says how many accidentals the key has",
+            malformed.lines.any { it.contains("Bb major") },
+            "the fault says what a key looks like: ${malformed.lines}",
+        )
+        val tooMany = assertIs<KeyFault.TooManyAccidentals>(KeySignature.fault("feses major"))
+        assertEquals("Too many accidentals", tooMany.title, "the fault has a short name")
+        assertTrue(
+            tooMany.lines.any { it.contains("15") },
+            "the fault says how many accidentals the key has: ${tooMany.lines}",
         )
         assertTrue(
-            KeyFault.TooManyAccidentals(15).message.contains("fourteen"),
-            "the fault says what the limit is",
+            tooMany.lines.any { it.contains("fourteen") },
+            "the fault says what the limit is: ${tooMany.lines}",
+        )
+    }
+
+    @Test
+    fun `the fault of an empty field says the field is empty`() {
+        val fault = assertIs<KeyFault.Malformed>(KeySignature.fault(""))
+
+        assertTrue(
+            fault.lines.any { it.contains("empty") },
+            "the fault says the field is empty: ${fault.lines}",
         )
     }
 

@@ -99,8 +99,11 @@ internal fun withExtension(
 internal fun saveRefused(reason: String): Message =
     Message(
         "Cannot write the file",
-        "The file was not written",
-        reason,
+        "Not written",
+        listOf(
+            reason,
+            "Check the folder and the name, then try again.",
+        ),
         Glyph.BOLT,
         Theme.rec,
     )

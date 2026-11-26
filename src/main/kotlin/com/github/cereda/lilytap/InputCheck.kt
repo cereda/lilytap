@@ -5,11 +5,62 @@ package com.github.cereda.lilytap
  * The check that every input of the window can be used before the app acts.
  */
 
-/** What the pitch field says when the name in it cannot be read. */
-internal val PITCH_ERROR_LINES =
+/** The short name of the problem of the pitch field. */
+internal const val PITCH_ERROR_TITLE = "Not a note name"
+
+/**
+ * The lines the time signature field says when the meter in it cannot be read.
+ *
+ * The lines say what was written, what a meter looks like and what to do about it.
+ *
+ * @param text the time signature that was written.
+ * @return the lines of the words.
+ */
+internal fun meterErrorLines(text: String): List<String> =
     listOf(
-        "Not a LilyPond note name.",
-        "Write it the way LilyPond does: c' (middle C), cis' (sharp), ces' (flat), c (lower), c'' (higher).",
+        if (text.isBlank()) {
+            "The time signature field is empty."
+        } else {
+            "The time signature field says “$text”."
+        },
+        meterReason(text),
+        "Fix it and try again.",
+    )
+
+/**
+ * The line that says what a meter must be.
+ *
+ * The reason names the number that is wrong, so the user knows which half of the meter to
+ * change: the beats in the bar or the note value of the beat.
+ *
+ * @param text the time signature that was written.
+ * @return the line of the words.
+ */
+private fun meterReason(text: String): String {
+    val parts = text.trim().split("/")
+    if (parts.size != 2) return "A meter is two numbers, like 4/4 or 6/8."
+    val beats = parts[0].trim().toIntOrNull()
+    val unit = parts[1].trim().toIntOrNull()
+    if (beats == null || unit == null) return "A meter is two numbers, like 4/4 or 6/8."
+    if (beats <= 0) return "The beats in the bar must be a positive number."
+    if (unit !in TimeSignature.BEAT_UNITS) {
+        return "The note value of the beat must be 1, 2, 4, 8, 16 or 32."
+    }
+    return "The time signature is not a meter."
+}
+
+/**
+ * The lines the pitch field says when the name in it cannot be read.
+ *
+ * @param text the name that was written.
+ * @return the lines of the words.
+ */
+internal fun pitchErrorLines(text: String): List<String> =
+    listOf(
+        "The pitch field says “$text”.",
+        "Write it the way LilyPond does:",
+        "c' (middle C), cis' (sharp), ces' (flat), c (lower), c'' (higher).",
+        "Fix it and try again.",
     )
 
 /**
@@ -40,22 +91,17 @@ internal object InputCheck {
         if (meter != null) {
             return Message(
                 "Invalid settings",
-                "The time signature is not a meter",
-                "${meter.message}. Fix it and try again.",
+                "Bad meter",
+                meterErrorLines(time),
                 Glyph.BOLT,
                 Theme.rec,
             )
         }
         if (key != null) {
-            val headline =
-                when (key) {
-                    is KeyFault.TooManyAccidentals -> "The key carries ${key.fifths} accidentals"
-                    KeyFault.Malformed -> "The key is not the name of a key"
-                }
             return Message(
                 "Invalid settings",
-                headline,
-                "${key.message} Fix it and try again.",
+                key.title,
+                key.lines,
                 Glyph.BOLT,
                 Theme.rec,
             )
@@ -64,8 +110,8 @@ internal object InputCheck {
         if (name.isNotEmpty() && Pitch.parse(name) == null) {
             return Message(
                 "Invalid pitch",
-                "The pitch is not a note name",
-                "${PITCH_ERROR_LINES.joinToString(" ")} Fix it and try again.",
+                PITCH_ERROR_TITLE,
+                pitchErrorLines(name),
                 Glyph.BOLT,
                 Theme.rec,
             )

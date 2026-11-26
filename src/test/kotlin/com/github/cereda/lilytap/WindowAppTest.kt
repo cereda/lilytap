@@ -559,6 +559,21 @@ class WindowAppTest {
     }
 
     @Test
+    fun `the field and the dialog say the same words about a bad key`() {
+        val app = WindowApp()
+
+        keyField(app).text = "Bb dorian"
+
+        val problem = inputProblem(app)
+        assertNotNull(problem, "the name of the key is not a key")
+        val tip = keyField(app).toolTipText ?: ""
+        assertTrue(tip.contains(problem.headline), "the field names the problem: $tip")
+        for (line in problem.lines) {
+            assertTrue(tip.contains(line), "the field says the same words: $tip")
+        }
+    }
+
+    @Test
     fun `the take does not begin when the time signature is wrong`() {
         val app = WindowApp()
 
@@ -566,7 +581,10 @@ class WindowAppTest {
 
         val problem = inputProblem(app)
         assertNotNull(problem, "the time signature is not a meter")
-        assertTrue(problem.headline.contains("time signature"), "the problem says what is wrong")
+        assertTrue(
+            problem.lines.any { it.contains("time signature") },
+            "the problem says what is wrong: ${problem.lines}",
+        )
     }
 
     @Test
@@ -577,7 +595,10 @@ class WindowAppTest {
 
         val problem = inputProblem(app)
         assertNotNull(problem, "the pitch is not a note")
-        assertTrue(problem.headline.contains("pitch"), "the problem says what is wrong")
+        assertTrue(
+            problem.lines.any { it.contains("pitch") },
+            "the problem says what is wrong: ${problem.lines}",
+        )
     }
 
     @Test

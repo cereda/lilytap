@@ -148,8 +148,15 @@ data class Score(
         val key = config.key
         val newKey = key.transposed(transposition)
         if (newKey == null) {
-            val fifths = key.fifthsAfter(transposition)
-            return TransposeResult.Refused(KeyFault.TooManyAccidentals(abs(fifths)).message)
+            val name = key.nameAfter(transposition)
+            val fifths = abs(key.fifthsAfter(transposition))
+            return TransposeResult.Refused(
+                listOf(
+                    "The score would land in $name, which carries $fifths accidentals.",
+                    "A signature carries at most fourteen accidentals.",
+                    "Choose a smaller interval.",
+                ),
+            )
         }
         val semitones = transposition.semitones(key)
         val moved = mutableListOf<Event>()
@@ -410,8 +417,11 @@ data class Score(
         /**
          * What the app says when a transposition would take a note out of the keyboard.
          */
-        private const val OUT_OF_RANGE =
-            "The transposition would take a note of the score out of the keyboard."
+        private val OUT_OF_RANGE =
+            listOf(
+                "A note of the score would leave the keyboard.",
+                "Choose an interval that keeps the notes on it.",
+            )
     }
 }
 
