@@ -193,6 +193,53 @@ class TimelinePanelTest {
         )
     }
 
+    @Test
+    fun `the notes of the take stay after it ends`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        val now = System.nanoTime()
+        val beatNanos = 1_000_000_000L
+        val start = now - 10 * beatNanos
+        val origin = start + cfg.countInBeats * beatNanos
+        val session = Session(cfg, 1, start, origin, origin + 4 * beatNanos, beatNanos)
+        session.finished += HeldNote(0.0, 500.0)
+        // The take is over: the notes stay in the lane, because they are what was played.
+        session.done = true
+        panel.session = session
+        assertTrue(
+            notePixels(paint(panel)) > 0,
+            "the note should stay in the lane after the take has ended",
+        )
+    }
+
+    @Test
+    fun `the raw taps replace the notes of the take once it ends`() {
+        val cfg = config(bars = 1)
+        val (panel, grid) = panel(cfg)
+        val now = System.nanoTime()
+        val beatNanos = 1_000_000_000L
+        val start = now - 10 * beatNanos
+        val origin = start + cfg.countInBeats * beatNanos
+        val session = Session(cfg, 1, start, origin, origin + 4 * beatNanos, beatNanos)
+        session.finished += HeldNote(0.0, 500.0)
+        session.done = true
+        // The raw taps of the take: what was written and what was played.
+        session.snapped = listOf(SnappedNote(0, 4, HeldNote(20.0, 480.0)))
+        panel.session = session
+
+        panel.showRaw = true
+        assertTrue(
+            notePixels(paint(panel)) > 0,
+            "the raw taps should be drawn when the toggle is on",
+        )
+
+        panel.showRaw = false
+        assertTrue(
+            notePixels(paint(panel)) > 0,
+            "the notes should come back when the toggle is off",
+        )
+    }
+
     /** Paints the panel and returns the image it drew on. */
     private fun paint(panel: TimelinePanel): BufferedImage {
         val image = BufferedImage(400, 130, BufferedImage.TYPE_INT_ARGB)

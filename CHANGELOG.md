@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The notes you played stay in the timeline after the take ends. The lane was left empty when
+  the take was over, so the only way to see what you had played was the **Raw taps** toggle, and
+  turning it off emptied the lane again. The notes come back when the toggle is off, and the
+  raw taps still take their place when it is on. The rule that keeps the lane empty during the
+  count-in is unchanged: before the downbeat the lane holds the countdown and nothing else.
+
 ## [0.22.1] - 2026-11-26
 
 ### Changed

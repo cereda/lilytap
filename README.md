@@ -104,6 +104,18 @@ big number in the empty lane, counting down to the beat you play on. The status 
 same beats in small letters, and the beat dots keep marking the bar, so the count-in can be read
 at a glance or followed with the corner of the eye.
 
+## The timeline
+
+The timeline is where the take is recorded: every note you play appears in the lane, the way you
+played it, and the playhead follows the clock of the take. When the take ends, the notes stay
+where they were played - the lane keeps the take, so it can be looked at again.
+
+The **Raw taps** button in the header of the timeline swaps the lane for the two rows of the
+take: the top row is what was written (the notes snapped to the grid) and the bottom row is
+what you actually played (the ghosts of your key presses). A line between the two says how far
+the note went: amber is late and teal is early. Turning the button off brings your own notes
+back.
+
 ## No rests
 
 The last option of the **Smallest rest** control — **No rests** — turns every silence into extra

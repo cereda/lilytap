@@ -57,6 +57,22 @@ internal fun beatIndexAt(
 ): Int = Math.floorDiv(nowNanos - startNanos, beatNanos).toInt()
 
 /**
+ * Whether the notes of a take belong in the lane of the timeline.
+ *
+ * The notes are the take: they are drawn from the downbeat on, and they stay when the take is
+ * over, because they are what the player played. Before the downbeat the lane belongs to the
+ * count-in, and holds nothing else.
+ *
+ * @param session the session of the take.
+ * @param elapsedMs the time since the downbeat of the take, in milliseconds.
+ * @return whether the notes of the take are drawn.
+ */
+private fun takeHasStarted(
+    session: Session,
+    elapsedMs: Double,
+): Boolean = session.done || elapsedMs >= 0.0
+
+/**
  * Draws the bar/beat grid, the notes as you play them, and a glowing playhead.
  * Each bar gets a minimum width; when the bars don't fit, the grid scrolls horizontally
  * (mouse wheel, or drag the slim bar at the bottom) and follows the playhead while recording.
@@ -269,7 +285,14 @@ internal class TimelinePanel(
                 // During playback show the edited score, not the take's raw notes.
                 drawScoreBlocks(g2, playingScore, cfg, laneTop, laneBottom)
             } else if (s != null) {
-                val nowMs = if (s.done) -1.0 else (System.nanoTime() - s.originNanos) / 1e6
+                // The clock of the take. It stops when the take is over: the playhead is not
+                // drawn then, but the notes stay where they were played.
+                val elapsedMs = (System.nanoTime() - s.originNanos) / 1e6
+                val nowMs = if (s.done) -1.0 else elapsedMs
+                // The notes belong to the take: before its first beat the lane holds the
+                // count-in and nothing else. Once the take is over they stay, because they
+                // are what the player played.
+                val takeStarted = takeHasStarted(s, elapsedMs)
                 val pulse = 0.5 + 0.5 * sin(System.nanoTime() / 1.2e8)
                 val overlay = showRaw && s.done && s.snapped.isNotEmpty()
 
@@ -351,9 +374,7 @@ internal class TimelinePanel(
                             g2.fill(Ellipse2D.Double(rx1 - 2.5, midY - 2.5, 5.0, 5.0))
                         }
                     }
-                } else if (nowMs >= 0.0) {
-                    // The notes belong to the take: before its first beat the lane holds the
-                    // count-in and nothing else.
+                } else if (takeStarted) {
                     val laneH = laneBottom - laneTop
                     val noteY = laneTop + laneH * 0.22
                     val noteH = laneH * 0.56
