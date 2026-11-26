@@ -239,11 +239,11 @@ class ScoreTest {
 
     @Test
     fun `a key the app cannot hold is refused`() {
-        val config = cfg().copy(key = KeySignature.parse("C# major")!!)
-        val s = score(note(0, 8, Pitch(PitchStep.C, 1, 4)), config = config)
+        val config = cfg().copy(key = KeySignature.parse("C𝄪 major")!!)
+        val s = score(note(0, 8, Pitch(PitchStep.C, 2, 4)), config = config)
         val refused = assertIs<TransposeResult.Refused>(moved(s, Interval.FIFTH))
         assertEquals(
-            "A key signature carries at most seven accidentals, and this one has 8.",
+            "A key signature carries at most fourteen accidentals, and this one has 15.",
             refused.message,
         )
     }

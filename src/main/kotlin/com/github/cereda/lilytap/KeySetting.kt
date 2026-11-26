@@ -17,8 +17,9 @@ import javax.swing.event.DocumentListener
  * and not while it is typed: every letter of a name would spell the score again. A name that
  * cannot be read turns the border of the field red.
  *
- * The circle beside the field holds every key of the piece: the major keys outside the ring
- * and their relative minors inside it.
+ * The circle beside the field holds the keys of the piece: the major keys outside the ring
+ * and their relative minors inside it. It holds the keys with ten accidentals on either
+ * side of C major; the keys past them are named in the field.
  *
  * @param onKey called when a key is chosen: the score is put in it.
  */
@@ -174,11 +175,13 @@ internal class KeySetting(
          * What the key field says about itself.
          *
          * The field takes the name of the key the way it is written in English (`Bb major`)
-         * or the way LilyPond writes it (`bes major`).
+         * or the way LilyPond writes it (`bes major`), and a key past seven accidentals
+         * carries a double accidental: `F𝄪 major`, `B𝄫 minor`.
          */
         private const val KEY_TOOLTIP =
             "The key of the piece: the notes are spelled in it and the LilyPond text declares it. " +
                 "Write it as it is written in English (Bb major, F# minor) or the way LilyPond " +
-                "writes it (bes major, fis minor)."
+                "writes it (bes major, fis minor). A key past seven accidentals carries a double " +
+                "accidental: F𝄪 major, B𝄫 minor."
     }
 }

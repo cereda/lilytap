@@ -45,10 +45,10 @@ class InputCheckTest {
 
     @Test
     fun `a key with too many accidentals says how many`() {
-        val problem = InputCheck.message("4/4", KeySignature.fault("gis major"), "")
-        assertNotNull(problem, "the key carries eight accidentals")
-        assertTrue(problem.headline.contains("8"), "the message says how many accidentals")
-        assertTrue(problem.description.contains("seven"), "the message says what the limit is")
+        val problem = InputCheck.message("4/4", KeySignature.fault("feses major"), "")
+        assertNotNull(problem, "the key carries fifteen accidentals")
+        assertTrue(problem.headline.contains("15"), "the message says how many accidentals")
+        assertTrue(problem.description.contains("fourteen"), "the message says what the limit is")
     }
 
     @Test

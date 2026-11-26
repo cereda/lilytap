@@ -15,6 +15,14 @@ class KeySignatureTest {
     /** The names of the twelve notes of an octave, in the order of the pitch classes. */
     private fun spellings(key: KeySignature): List<String> = (0..11).map { key.spell(60 + it).lilypondName }
 
+    /** The seven degrees of the scale of a key, as LilyPond writes them. */
+    private fun scaleOf(key: KeySignature): List<String> =
+        (0 until 7).map { degree ->
+            val step = PitchStep.entries[(key.tonic.ordinal + degree) % 7]
+            val alter = key.altered[step] ?: 0
+            Pitch(step, alter, 4).lilypondName
+        }
+
     @Test
     fun `the keys stand on a circle of fifths`() {
         val expected =
@@ -158,7 +166,8 @@ class KeySignatureTest {
         assertNull(KeySignature.parse("Bb major extra"))
         assertNull(KeySignature.parse("H major"), "H is not a note")
         assertNull(KeySignature.parse("Bb dorian"), "there is no dorian here")
-        assertNull(KeySignature.parse("B## major"), "two sharps is one too many")
+        assertNull(KeySignature.parse("B## major"), "that key carries nineteen accidentals")
+        assertNull(KeySignature.parse("B### major"), "three sharps is one too many")
     }
 
     @Test
@@ -172,13 +181,122 @@ class KeySignatureTest {
     }
 
     @Test
-    fun `a key with more than seven accidentals has a fault of its own`() {
-        assertEquals(KeyFault.TooManyAccidentals(8), KeySignature.fault("gis major"))
-        assertEquals(KeyFault.TooManyAccidentals(8), KeySignature.fault("fes major"))
-        assertEquals(KeyFault.TooManyAccidentals(11), KeySignature.fault("eis major"))
-        assertEquals(KeyFault.TooManyAccidentals(10), KeySignature.fault("ais major"))
-        assertEquals(KeyFault.TooManyAccidentals(9), KeySignature.fault("bis minor"))
-        assertNull(KeySignature.parse("gis major"), "the app does not hold that key")
+    fun `the signature of a key past seven accidentals doubles the steps the circle comes back to`() {
+        assertEquals(
+            mapOf(
+                PitchStep.F to 2,
+                PitchStep.C to 1,
+                PitchStep.G to 1,
+                PitchStep.D to 1,
+                PitchStep.A to 1,
+                PitchStep.E to 1,
+                PitchStep.B to 1,
+            ),
+            key("G# major").altered,
+            "the eighth sharp is an F double sharp",
+        )
+        assertEquals(
+            mapOf(
+                PitchStep.F to 2,
+                PitchStep.C to 2,
+                PitchStep.G to 1,
+                PitchStep.D to 1,
+                PitchStep.A to 1,
+                PitchStep.E to 1,
+                PitchStep.B to 1,
+            ),
+            key("D# major").altered,
+            "the ninth sharp is a C double sharp",
+        )
+        assertEquals(
+            mapOf(
+                PitchStep.B to -2,
+                PitchStep.E to -1,
+                PitchStep.A to -1,
+                PitchStep.D to -1,
+                PitchStep.G to -1,
+                PitchStep.C to -1,
+                PitchStep.F to -1,
+            ),
+            key("Fb major").altered,
+            "the eighth flat is a B double flat",
+        )
+        assertEquals(
+            mapOf(
+                PitchStep.B to -2,
+                PitchStep.E to -2,
+                PitchStep.A to -2,
+                PitchStep.D to -2,
+                PitchStep.G to -2,
+                PitchStep.C to -2,
+                PitchStep.F to -2,
+            ),
+            key("C𝄫 major").altered,
+            "every step of the flattest key carries a double flat",
+        )
+    }
+
+    @Test
+    fun `the scale of a key past seven accidentals follows the signature`() {
+        assertEquals(
+            listOf("gis", "ais", "bis", "cis", "dis", "eis", "fisis"),
+            scaleOf(key("G# major")),
+            "the seventh of G sharp major is an F double sharp",
+        )
+        assertEquals(
+            listOf("fes", "ges", "aes", "beses", "ces", "des", "ees"),
+            scaleOf(key("Fb major")),
+            "the fourth of F flat major is a B double flat",
+        )
+        assertEquals(
+            listOf("cisis", "disis", "eisis", "fisis", "gisis", "aisis", "bisis"),
+            scaleOf(key("C𝄪 major")),
+            "every degree of C double sharp major is a double sharp",
+        )
+        assertEquals(
+            listOf("ceses", "deses", "eeses", "feses", "geses", "aeses", "beses"),
+            scaleOf(key("C𝄫 major")),
+            "every degree of C double flat major is a double flat",
+        )
+    }
+
+    @Test
+    fun `the notes of a key past seven accidentals are spelled the way the key wants them`() {
+        assertEquals(
+            listOf("bis", "cis", "d", "dis", "e", "eis", "fis", "fisis", "gis", "a", "ais", "b"),
+            spellings(key("G# major")),
+        )
+    }
+
+    @Test
+    fun `the name of a key past seven accidentals can be read`() {
+        assertEquals(key("F𝄪 major"), KeySignature.parse("F𝄪 major"))
+        assertEquals(key("F𝄪 major"), KeySignature.parse("F## major"))
+        assertEquals(key("F𝄪 major"), KeySignature.parse("Fisis major"))
+        assertEquals(key("F𝄪 major"), KeySignature.parse("F♯♯ major"))
+        assertEquals(key("C𝄫 major"), KeySignature.parse("C𝄫 major"))
+        assertEquals(key("C𝄫 major"), KeySignature.parse("Cbb major"))
+        assertEquals(key("C𝄫 major"), KeySignature.parse("Ceses major"))
+        assertEquals(key("C𝄫 major"), KeySignature.parse("C♭♭ major"))
+    }
+
+    @Test
+    fun `the key past seven accidentals says its name in LilyPond`() {
+        assertEquals("\\key fisis \\major", key("F𝄪 major").lilypond)
+        assertEquals("\\key cisis \\major", key("C𝄪 major").lilypond)
+        assertEquals("\\key ceses \\major", key("C𝄫 major").lilypond)
+        assertEquals("\\key beses \\major", key("B𝄫 major").lilypond)
+        assertEquals("F${Theme.doubleSharp} major", key("F𝄪 major").name)
+        assertEquals("B${Theme.doubleFlat} major", key("B𝄫 major").name)
+    }
+
+    @Test
+    fun `a key with more than fourteen accidentals has a fault of its own`() {
+        assertEquals(KeyFault.TooManyAccidentals(15), KeySignature.fault("feses major"))
+        assertEquals(KeyFault.TooManyAccidentals(15), KeySignature.fault("gisis major"))
+        assertNull(KeySignature.fault("cis major"), "the app holds that key")
+        assertNull(KeySignature.fault("ceses major"), "the app holds that key")
+        assertNull(KeySignature.parse("feses major"), "the app does not hold that key")
     }
 
     @Test
@@ -188,20 +306,22 @@ class KeySignatureTest {
             "the fault says the name is not a key",
         )
         assertTrue(
-            KeyFault.TooManyAccidentals(8).message.contains("eight") ||
-                KeyFault.TooManyAccidentals(8).message.contains("8"),
+            KeyFault.TooManyAccidentals(15).message.contains("fifteen") ||
+                KeyFault.TooManyAccidentals(15).message.contains("15"),
             "the fault says how many accidentals the key has",
         )
         assertTrue(
-            KeyFault.TooManyAccidentals(8).message.contains("seven"),
+            KeyFault.TooManyAccidentals(15).message.contains("fourteen"),
             "the fault says what the limit is",
         )
     }
 
     @Test
-    fun `a key with more than seven accidentals does not exist`() {
-        assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.G, 1, true) }
-        assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.C, -1, false) }
+    fun `a key with more than fourteen accidentals does not exist`() {
+        assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.F, -2, true) }
+        assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.B, 2, true) }
+        assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.G, 2, true) }
+        assertFailsWith<IllegalArgumentException> { KeySignature(PitchStep.D, -2, false) }
     }
 
     @Test

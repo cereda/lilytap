@@ -125,6 +125,11 @@ private fun denominatorOf(beatUnit: Int): Int {
 /**
  * The key of the piece, as the MIDI file says it.
  *
+ * A MIDI file says the key with the number of its sharps or its flats, and the number it can
+ * hold is seven. A key with more accidentals than that has no place in the file, and the file
+ * says nothing about the key: the notes carry their own pitches, so the piece still plays the
+ * way it was written.
+ *
  * @param track the track to write to.
  * @param key the key of the piece.
  */
@@ -132,6 +137,7 @@ private fun keySignature(
     track: ByteArrayOutputStream,
     key: KeySignature,
 ) {
+    if (key.fifths !in -7..7) return
     meta(
         track,
         META_KEY_SIGNATURE,

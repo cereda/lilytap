@@ -75,10 +75,10 @@ class TransposeSettingTest {
 
     @Test
     fun `the tooltip of a cell that cannot be used says so`() {
-        val panel = panel("C# major")
+        val panel = panel("C𝄪 major")
         val (x, y) = place(Interval.FIFTH, up = true)
         val tip = panel.getToolTipText(MouseEvent(panel, MouseEvent.MOUSE_MOVED, 0, 0, x, y, 0, false))
-        assertEquals("Up a perfect fifth: C♯ major → a key the app cannot hold", tip)
+        assertEquals("Up a perfect fifth: C𝄪 major → a key the app cannot hold", tip)
     }
 
     @Test

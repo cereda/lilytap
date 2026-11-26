@@ -30,6 +30,13 @@ class TranspositionTest {
             "B major",
             "F# major",
             "C# major",
+            "G# major",
+            "D# major",
+            "A# major",
+            "E# major",
+            "B# major",
+            "F𝄪 major",
+            "C𝄪 major",
             "F major",
             "Bb major",
             "Eb major",
@@ -37,11 +44,28 @@ class TranspositionTest {
             "Db major",
             "Gb major",
             "Cb major",
+            "Fb major",
+            "B𝄫 major",
+            "E𝄫 major",
+            "A𝄫 major",
+            "D𝄫 major",
+            "G𝄫 major",
+            "C𝄫 major",
             "A minor",
             "E minor",
             "B minor",
             "F# minor",
             "C# minor",
+            "G# minor",
+            "D# minor",
+            "A# minor",
+            "E# minor",
+            "B# minor",
+            "F𝄪 minor",
+            "C𝄪 minor",
+            "G𝄪 minor",
+            "D𝄪 minor",
+            "A𝄪 minor",
             "D minor",
             "G minor",
             "C minor",
@@ -49,6 +73,13 @@ class TranspositionTest {
             "Bb minor",
             "Eb minor",
             "Ab minor",
+            "Db minor",
+            "Gb minor",
+            "Cb minor",
+            "Fb minor",
+            "B𝄫 minor",
+            "E𝄫 minor",
+            "A𝄫 minor",
         ).map { key(it) }
 
     // -------------------------------------------------------------------------------------------
@@ -145,16 +176,16 @@ class TranspositionTest {
 
     @Test
     fun `a key the app cannot hold is refused`() {
-        assertNull(key("C# major").transposed(up(Interval.FIFTH)), "G sharp major has eight sharps")
-        assertNull(key("Cb major").transposed(down(Interval.FIFTH)), "F flat major has eight flats")
-        assertNull(key("C# major").transposed(up(Interval.SECOND)), "D sharp major has nine sharps")
+        assertNull(key("C𝄪 major").transposed(up(Interval.FIFTH)), "G double sharp major has fifteen sharps")
+        assertNull(key("C𝄫 major").transposed(down(Interval.FIFTH)), "G double flat major has fifteen flats")
+        assertNull(key("C𝄪 major").transposed(up(Interval.SECOND)), "D double sharp major has sixteen sharps")
     }
 
     @Test
     fun `the refusal says how many accidentals the key would carry`() {
-        assertEquals(8, key("C# major").fifthsAfter(up(Interval.FIFTH)))
-        assertEquals(-8, key("Cb major").fifthsAfter(down(Interval.FIFTH)))
-        assertEquals(9, key("C# major").fifthsAfter(up(Interval.SECOND)))
+        assertEquals(15, key("C𝄪 major").fifthsAfter(up(Interval.FIFTH)))
+        assertEquals(-15, key("C𝄫 major").fifthsAfter(down(Interval.FIFTH)))
+        assertEquals(16, key("C𝄪 major").fifthsAfter(up(Interval.SECOND)))
         assertEquals(1, key("C major").fifthsAfter(up(Interval.FIFTH)))
     }
 
@@ -168,7 +199,7 @@ class TranspositionTest {
                     if (moved == null) {
                         assertEquals(
                             true,
-                            start.fifthsAfter(transposition) !in -7..7,
+                            start.fifthsAfter(transposition) !in -14..14,
                             "${start.name} was refused for another reason",
                         )
                     } else {

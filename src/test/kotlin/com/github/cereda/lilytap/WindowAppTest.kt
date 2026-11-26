@@ -527,11 +527,11 @@ class WindowAppTest {
         val app = WindowApp()
         showScore(app, score)
 
-        keyField(app).text = "gis major"
+        keyField(app).text = "feses major"
         applyKey(app)
 
         val tip = keyField(app).toolTipText ?: ""
-        assertTrue(tip.contains("seven accidentals"), "the field says what the limit is")
+        assertTrue(tip.contains("fourteen accidentals"), "the field says what the limit is")
         assertEquals("% absolute\nc'1 |", output(app).text, "the score did not change")
     }
 

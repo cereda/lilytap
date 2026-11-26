@@ -19,7 +19,8 @@ sealed interface KeyFault {
     data object Malformed : KeyFault {
         override val message: String =
             "Not the name of a key. Write it as it is written in English (Bb major, F# minor) " +
-                "or the way LilyPond writes it (bes major, fis minor)."
+                "or the way LilyPond writes it (bes major, fis minor). A double accidental is " +
+                "written with two signs (F𝄪 major) or with LilyPond's own (Fisis major)."
     }
 
     /**
@@ -31,7 +32,7 @@ sealed interface KeyFault {
         val fifths: Int,
     ) : KeyFault {
         override val message: String =
-            "A key signature carries at most seven accidentals, and this one has $fifths."
+            "A key signature carries at most fourteen accidentals, and this one has $fifths."
     }
 }
 
@@ -42,8 +43,14 @@ sealed interface KeyFault {
  * tells LilyPond that the B is flat - and it says how every note is spelled: `ees` in F
  * major, `dis` in E major.
  *
+ * A signature carries up to fourteen accidentals: the seven steps of the scale carry one
+ * each, and the steps the circle of fifths comes back to carry a second one. LilyPond draws
+ * a signature the same way, and it cannot draw more: a step that would carry a third
+ * accidental has no sign to draw.
+ *
  * @property tonic the letter of the tonic.
- * @property alter the accidental of the tonic: -1 for a flat, 0 for a natural, 1 for a sharp.
+ * @property alter the accidental of the tonic: -2 for a double flat, -1 for a flat, 0 for a
+ * natural, 1 for a sharp, 2 for a double sharp.
  * @property major true for a major key, false for a minor one.
  */
 data class KeySignature(
@@ -52,8 +59,8 @@ data class KeySignature(
     val major: Boolean = true,
 ) {
     init {
-        require(alter in -1..1) { "A tonic carries at most one sharp or one flat" }
-        require(fifths in -7..7) { "A key signature has at most seven accidentals" }
+        require(alter in -2..2) { "A tonic carries at most two sharps or two flats" }
+        require(fifths in -14..14) { "A key signature carries at most fourteen accidentals" }
     }
 
     /**
@@ -66,31 +73,50 @@ data class KeySignature(
     val fifths: Int
         get() = MAJOR_FIFTHS.getValue(tonic) + 7 * alter - (if (major) 0 else 3)
 
-    /** The steps the signature alters, and by how much. */
+    /**
+     * The steps the signature alters, and by how much.
+     *
+     * The signature of a key with seven accidentals or fewer alters the first steps of the
+     * circle of fifths, one accidental each: the F, the C, the G... Past seven the circle
+     * comes back to the steps it has already used, and they carry a second accidental: the
+     * eighth sharp is an F double sharp, and the ninth a C double sharp.
+     *
+     * The same steps carry the double accidentals of the scale, so the signature and the
+     * scale always agree: the seventh of G sharp major is an F double sharp, and the fourth
+     * of F flat major is a B double flat.
+     */
     val altered: Map<PitchStep, Int>
         get() {
             val count = abs(fifths)
+            if (count == 0) return emptyMap()
             val steps = if (fifths > 0) SHARP_ORDER else FLAT_ORDER
-            return steps.take(count).associateWith { if (fifths > 0) 1 else -1 }
+            val sign = if (fifths > 0) 1 else -1
+            val doubled = (count - steps.size).coerceAtLeast(0)
+            return steps
+                .mapIndexed { index, step -> step to if (index < doubled) 2 * sign else sign }
+                .take(minOf(count, steps.size))
+                .toMap()
         }
 
-    /** The LilyPond name of the tonic: `f`, `bes`. */
+    /** The LilyPond name of the tonic: `f`, `bes`, `fisis`. */
     val tonicName: String
         get() =
             "${tonic.letter}" +
-                when (alter) {
-                    1 -> "is"
-                    -1 -> "es"
+                when {
+                    alter > 0 -> "is".repeat(alter)
+                    alter < 0 -> "es".repeat(-alter)
                     else -> ""
                 }
 
-    /** The name of the tonic as the app writes it: `B♭`. */
+    /** The name of the tonic as the app writes it: `B♭`, `F𝄪`. */
     val tonicDisplay: String
         get() =
             tonic.letter.uppercase() +
-                when (alter) {
-                    1 -> "♯"
-                    -1 -> "♭"
+                when {
+                    alter >= 2 -> Theme.doubleSharp
+                    alter == 1 -> "♯"
+                    alter <= -2 -> Theme.doubleFlat
+                    alter == -1 -> "♭"
                     else -> ""
                 }
 
@@ -155,15 +181,15 @@ data class KeySignature(
      * semitone is F, not E sharp.
      *
      * A key the app cannot hold is not a key the transposition can land in: the signature
-     * carries at most seven accidentals and the tonic at most one, so a transposition that
+     * carries at most fourteen accidentals and the tonic at most two, so a transposition that
      * would ask for more says so instead of moving the notes.
      *
      * @param transposition the interval and the direction the notes move.
-     * @return the new key, or null when its signature would carry more than seven accidentals.
+     * @return the new key, or null when its signature would carry more than fourteen accidentals.
      */
     fun transposed(transposition: Transposition): KeySignature? {
         val target = targetOf(transposition)
-        if (target.fifths !in -7..7) return null
+        if (target.fifths !in -14..14) return null
         return KeySignature(target.letter, target.alter, major)
     }
 
@@ -279,8 +305,8 @@ data class KeySignature(
      * The key a transposition would land in.
      *
      * The tonic of a target can carry a double sharp or a double flat: that is a key whose
-     * signature is already outside what the app holds, and the number of accidentals is
-     * what the refusal says.
+     * signature is outside what the app holds, and the number of accidentals is what the
+     * refusal says.
      *
      * @property letter the letter of the tonic.
      * @property alter the accidental of the tonic.
@@ -380,7 +406,9 @@ data class KeySignature(
          *
          * The tonic is a letter with an optional accidental, and the accidental can be written
          * the way it is written in English (`#`, `♯`, `b`, `♭`) or the way LilyPond writes it
-         * (`is` for a sharp, `es` for a flat). The mode is `major` or `minor`.
+         * (`is` for a sharp, `es` for a flat). The accidental can be doubled as well - `𝄪`,
+         * `♯♯`, `isis` and the same for the flats - which is how the keys past seven
+         * accidentals are named. The mode is `major` or `minor`.
          *
          * @param text the name to read.
          * @return the key, or null when the text is not the name of a key.
@@ -417,21 +445,34 @@ data class KeySignature(
             val step =
                 PitchStep.of(parts[0].firstOrNull() ?: return Reading(null, KeyFault.Malformed))
                     ?: return Reading(null, KeyFault.Malformed)
-            val alter =
-                when (parts[0].drop(1)) {
-                    "" -> 0
-                    "#", "♯" -> 1
-                    "b", "♭" -> -1
-                    "is" -> 1
-                    "es" -> -1
-                    else -> return Reading(null, KeyFault.Malformed)
-                }
+            val alter = accidentalOf(parts[0].drop(1)) ?: return Reading(null, KeyFault.Malformed)
             val fifths = MAJOR_FIFTHS.getValue(step) + 7 * alter - (if (major) 0 else 3)
-            if (fifths !in -7..7) {
+            if (fifths !in -14..14) {
                 return Reading(null, KeyFault.TooManyAccidentals(abs(fifths)))
             }
             return Reading(KeySignature(step, alter, major), null)
         }
+
+        /**
+         * The accidental a key name carries after its letter.
+         *
+         * The accidental can be written in the ways the app writes it everywhere else: the
+         * signs of the English and of the app (`#`, `♯`, `b`, `♭`) and the signs of LilyPond
+         * (`is` for a sharp, `es` for a flat). It can be doubled as well - `𝄪`, `♯♯`, `isis`
+         * and the same for the flats - which is how the keys past seven accidentals are named.
+         *
+         * @param rest the name without its letter.
+         * @return the accidental: -2, -1, 0, 1 or 2, or null when the text is not one.
+         */
+        private fun accidentalOf(rest: String): Int? =
+            when (rest) {
+                "" -> 0
+                "#", "♯", "is" -> 1
+                "b", "♭", "es" -> -1
+                "##", "♯♯", "𝄪", "isis" -> 2
+                "bb", "♭♭", "𝄫", "eses" -> -2
+                else -> null
+            }
 
         /**
          * The name of a key read: the key, or what is wrong with the name.

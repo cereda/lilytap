@@ -32,4 +32,5 @@ every degree of the scale is checked, and the score is transposed the way the ap
 the notes move by the interval, the key follows and the notes are spelled in the new key.
 
 The cases cover the major and the minor keys, the flat and the sharp sides, the chromatic
-semitone, and the keys whose spelling needs a double accidental.
+semitone, and the keys whose spelling needs a double accidental: the keys past seven
+accidentals, up to C𝄪 major and C𝄫 major, are among them.

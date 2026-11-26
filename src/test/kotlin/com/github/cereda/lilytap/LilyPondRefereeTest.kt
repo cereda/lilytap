@@ -133,6 +133,13 @@ class LilyPondRefereeTest {
                 // The sharp keys: the spelling needs the accidentals of the signature.
                 Case("G♯ minor", Interval.THIRD, true),
                 Case("E♭ major", Interval.FOURTH, false),
+                // The keys past seven accidentals: the signature carries a double accidental,
+                // and the notes are written with it.
+                Case("G# major", Interval.SECOND, true),
+                Case("Fisis major", Interval.THIRD, false),
+                Case("Cisis major", Interval.SECOND, false),
+                Case("Ceses major", Interval.THIRD, true),
+                Case("Aisis minor", Interval.SECOND, false),
             )
     }
 }

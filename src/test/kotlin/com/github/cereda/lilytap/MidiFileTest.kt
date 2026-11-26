@@ -137,6 +137,16 @@ class MidiFileTest {
     }
 
     @Test
+    fun `a key with more than seven accidentals has no place in the file`() {
+        val key = assertNotNull(KeySignature.parse("G# major"))
+        val file = readMidiFile(midiFile(scoreIn(cfg(key = key))))
+
+        assertNull(file.fifths, "the file says nothing about the key")
+        assertNull(file.minor, "the file says nothing about the key")
+        assertEquals(listOf(60), file.notes.map { it.pitch }, "the note of the score is in the file")
+    }
+
+    @Test
     fun `the notes of the score keep their order and their pitches`() {
         val pitches = listOf("c'", "e'", "g'", "c''")
         val score =

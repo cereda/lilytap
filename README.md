@@ -164,17 +164,25 @@ the mode (`major` or `minor`, `maj` and `min` are read as well), and the acciden
 in any of the ways it is written: `C# major`, `C♯ major`, `cis major`, `Bb major`, `B♭ major`,
 `bes minor`. The field writes the name back the way the app writes every other pitch, with the
 sign of the accidental: `B♭ major`. The field takes any name at all, and its border turns red
-when the text is not the name of a key. A key whose signature carries more than seven accidentals
-is refused too, and the field says so: `G♯ major` has eight. The name is read when it is
+when the text is not the name of a key. A key whose signature carries more than fourteen accidentals
+is refused too, and the field says so: `F𝄫 major` has fifteen. The name is read when it is
 finished, with **Enter** or when the field loses the focus.
 
+A key past seven accidentals carries a **double accidental** on the steps the circle of fifths
+comes back to: `G♯ major` has eight accidentals, and its seventh degree is an F𝄪. Such a key is
+named with the double sign — `F𝄪 major`, `B𝄫 minor` — or with LilyPond's own spelling:
+`Fisis major`, `Beses minor`. The app holds every key LilyPond can draw, from C𝄪 major (fourteen sharps) to C𝄫 major
+(fourteen flats); the keys past them, G𝄪 major and F𝄫 major, carry fifteen accidentals each and
+are refused, because LilyPond has no sign for a triple sharp or a triple flat.
+
 Beside the field, a button opens the **circle of fifths**: every key of the piece around a ring,
-C major at the top, the sharps climbing to the right and the flats coming back on the left.
-Outside the ring are the major keys and inside them the minor keys that have the same signature,
-the relative minors, written with an `m` as in a circle of fifths chart (`C` outside, `Am`
-inside). Click the half of the position you want — the outer one for the major key, the inner one
-for the minor key — and the field takes the name. The key the piece is in is written in the
-middle of the circle and lit where it stands; clicking the middle keeps that key.
+C major at the top, the sharps climbing to the right and the flats coming back on the left. The
+ring holds the keys with ten accidentals on either side of C major; the keys past them are named
+in the field. Outside the ring are the major keys and inside them the minor keys that have the
+same signature, the relative minors, written with an `m` as in a circle of fifths chart (`C`
+outside, `Am` inside). Click the half of the position you want — the outer one for the major key,
+the inner one for the minor key — and the field takes the name. The key the piece is in is
+written in the middle of the circle and lit where it stands; clicking the middle keeps that key.
 
 The buttons that open a menu — the one of the **Time** setting and the one of the **Key** setting
 — have two states. The chevron points down while the menu is closed and up while it is open, and
@@ -377,7 +385,7 @@ name of the interval.
 - The transposition is an **edit like any other**: **Ctrl+Z** takes it back, the header says
   what happened (`C major → E♭ major`), and **Revert** puts the take back the way it was
   recorded.
-- A key the app cannot hold is **refused**: a signature carries at most seven accidentals, so
+- A key the app cannot hold is **refused**: a signature carries at most fourteen accidentals, so
   a transposition that would ask for more says so and changes nothing. The same happens when a
   note would leave the keyboard.
 - The button is greyed out while a take is being recorded and while the score plays, and so is
@@ -525,7 +533,9 @@ The file is a standard MIDI file, written by the app itself: one track says how 
 (the tempo, the meter and the key) and one holds the notes. A rest is silence, so it is not
 written: the note after it starts later, which is what a rest is. The notes carry the pitches
 the piano wrote, so the melody of the take is in the file, and the key it is in is the key the
-take was recorded in.
+take was recorded in. A MIDI file says the key with a number of sharps or flats, and the number
+it holds is seven: a key past that is left out of the file, the notes carrying their own
+pitches, so the piece still plays the way it was written.
 
 The file plays at the tempo of the score. A MIDI file counts the tempo in quarter notes, while
 the app counts it in musical beats - the dotted quarter in a compound meter - so the beat is

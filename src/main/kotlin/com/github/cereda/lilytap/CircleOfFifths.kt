@@ -64,6 +64,10 @@ internal class CircleButton(
  * The outer half of a position picks the major key and the inner half the minor one, the part
  * under the mouse is lit, and the middle of the circle says which key the piece is in.
  *
+ * The ring holds twenty-one positions: the keys with ten accidentals on either side. The
+ * keys past them are named in the field beside the circle, and the circle marks the key of
+ * the piece whenever it stands on it.
+ *
  * @param pick called with the key the user picks.
  */
 internal class CircleOfFifths(
@@ -345,28 +349,28 @@ internal class CircleOfFifths(
 
     companion object {
         /** The size of the circle, in pixels. */
-        const val SIZE = 380
+        const val SIZE = 420
 
         /** The centre of the circle, in pixels. */
         private const val CENTER = SIZE / 2
 
         /** The radius of the ring: the circle of fifths itself. */
-        const val R_RING = 110.0
+        const val R_RING = 142.0
 
         /** The radius of the labels of the major keys, outside the ring. */
-        const val R_MAJOR = 129.0
+        const val R_MAJOR = 169.0
 
         /** The radius of the labels of the minor keys, inside the ring. */
-        const val R_MINOR = 87.0
+        const val R_MINOR = 121.0
 
         /** The radius of the hole in the middle: it keeps the key of the piece. */
-        const val R_HOLE = 64.0
+        const val R_HOLE = 100.0
 
         /** The radius of the outer edge of the circle: nothing is picked beyond it. */
-        const val R_OUTER = 148.0
+        const val R_OUTER = 196.0
 
         /** The angle between two positions, in degrees. */
-        const val STEP = 24.0
+        const val STEP = 360.0 / 21
 
         /** The size of the letters of the major keys. */
         const val MAJOR_FONT = 17f
@@ -383,6 +387,9 @@ internal class CircleOfFifths(
          * C major is at the top, the sharps climb to the right and the flats come back on the
          * left. Every position holds the major key and the minor key that has the same
          * signature - the relative minor.
+         *
+         * The ring holds twenty-one positions: the keys with ten accidentals on either side
+         * of C major. The keys past them are named in the field beside the circle.
          */
         private val KEYS =
             listOf(
@@ -394,19 +401,26 @@ internal class CircleOfFifths(
                 KeySignature(PitchStep.B, 0, true) to KeySignature(PitchStep.G, 1, false),
                 KeySignature(PitchStep.F, 1, true) to KeySignature(PitchStep.D, 1, false),
                 KeySignature(PitchStep.C, 1, true) to KeySignature(PitchStep.A, 1, false),
-                KeySignature(PitchStep.F, 0, true) to KeySignature(PitchStep.D, 0, false),
-                KeySignature(PitchStep.B, -1, true) to KeySignature(PitchStep.G, 0, false),
-                KeySignature(PitchStep.E, -1, true) to KeySignature(PitchStep.C, 0, false),
-                KeySignature(PitchStep.A, -1, true) to KeySignature(PitchStep.F, 0, false),
-                KeySignature(PitchStep.D, -1, true) to KeySignature(PitchStep.B, -1, false),
-                KeySignature(PitchStep.G, -1, true) to KeySignature(PitchStep.E, -1, false),
+                KeySignature(PitchStep.G, 1, true) to KeySignature(PitchStep.E, 1, false),
+                KeySignature(PitchStep.D, 1, true) to KeySignature(PitchStep.B, 1, false),
+                KeySignature(PitchStep.A, 1, true) to KeySignature(PitchStep.F, 2, false),
+                KeySignature(PitchStep.E, -2, true) to KeySignature(PitchStep.C, -1, false),
+                KeySignature(PitchStep.B, -2, true) to KeySignature(PitchStep.G, -1, false),
+                KeySignature(PitchStep.F, -1, true) to KeySignature(PitchStep.D, -1, false),
                 KeySignature(PitchStep.C, -1, true) to KeySignature(PitchStep.A, -1, false),
+                KeySignature(PitchStep.G, -1, true) to KeySignature(PitchStep.E, -1, false),
+                KeySignature(PitchStep.D, -1, true) to KeySignature(PitchStep.B, -1, false),
+                KeySignature(PitchStep.A, -1, true) to KeySignature(PitchStep.F, 0, false),
+                KeySignature(PitchStep.E, -1, true) to KeySignature(PitchStep.C, 0, false),
+                KeySignature(PitchStep.B, -1, true) to KeySignature(PitchStep.G, 0, false),
+                KeySignature(PitchStep.F, 0, true) to KeySignature(PitchStep.D, 0, false),
             )
 
         /** What the circle says about itself. */
         private const val TOOLTIP =
             "The circle of fifths: the keys of the piece and the minor key that has the same " +
                 "signature. Outside the ring are the major keys (C), inside the minor ones " +
-                "(Am). Click the key you want."
+                "(Am). Click the key you want. The keys past ten accidentals are named in the " +
+                "field beside the circle."
     }
 }

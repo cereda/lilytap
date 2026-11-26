@@ -14,22 +14,33 @@ import kotlin.test.assertTrue
 
 /** The circle of fifths: the keys of the piece around a ring. */
 class CircleOfFifthsTest {
+    /**
+     * The place of a position of the circle.
+     *
+     * The outer half of a position is the major key and the inner half the minor one.
+     *
+     * @param index the position on the circle.
+     * @param major whether the point is on the outer half.
+     * @return the place of the point.
+     */
+    private fun place(
+        index: Int,
+        major: Boolean,
+    ): Pair<Int, Int> {
+        val angle = Math.toRadians(-90.0 + index * CircleOfFifths.STEP)
+        val radius = if (major) CircleOfFifths.R_MAJOR else CircleOfFifths.R_MINOR
+        return (CENTER + radius * cos(angle)).toInt() to (CENTER + radius * sin(angle)).toInt()
+    }
+
     @Test
     fun `the circle holds every key of the piece`() {
         val circle = CircleOfFifths {}
         val found = mutableSetOf<KeySignature>()
-        for (index in 0 until 15) {
-            val angle = Math.toRadians(-90.0 + index * 24.0)
-            val major =
-                circle.pickAt(
-                    (CENTER + 120 * cos(angle)).toInt(),
-                    (CENTER + 120 * sin(angle)).toInt(),
-                )
-            val minor =
-                circle.pickAt(
-                    (CENTER + 85 * cos(angle)).toInt(),
-                    (CENTER + 85 * sin(angle)).toInt(),
-                )
+        for (index in 0 until 21) {
+            val (mx, my) = place(index, major = true)
+            val (nx, ny) = place(index, major = false)
+            val major = circle.pickAt(mx, my)
+            val minor = circle.pickAt(nx, ny)
             assertNotNull(major, "the position $index has a major key")
             assertNotNull(minor, "the position $index has a minor key")
             assertEquals(true, major.major, "the outer half of the position is a major key")
@@ -37,22 +48,56 @@ class CircleOfFifthsTest {
             found += major
             found += minor
         }
-        assertEquals(30, found.size, "the circle holds every key of the piece")
+        assertEquals(42, found.size, "the circle holds every key of the piece")
     }
 
     @Test
     fun `the circle starts at C major and climbs to the right`() {
         val circle = CircleOfFifths {}
-        assertEquals(KeySignature.C_MAJOR, circle.pickAt(CENTER, CENTER - 120), "C major is at the top")
+        val (cx, cy) = place(0, major = true)
+        assertEquals(KeySignature.C_MAJOR, circle.pickAt(cx, cy), "C major is at the top")
+        val (gx, gy) = place(1, major = true)
         assertEquals(
             KeySignature(PitchStep.G, 0, true),
-            circle.pickAt((CENTER + 120 * cos(Math.toRadians(-66.0))).toInt(), (CENTER + 120 * sin(Math.toRadians(-66.0))).toInt()),
+            circle.pickAt(gx, gy),
             "G major is a step to the right",
         )
+        val (fx, fy) = place(20, major = true)
         assertEquals(
             KeySignature(PitchStep.F, 0, true),
-            circle.pickAt((CENTER + 120 * cos(Math.toRadians(102.0))).toInt(), (CENTER + 120 * sin(Math.toRadians(102.0))).toInt()),
+            circle.pickAt(fx, fy),
             "F major is a step to the left",
+        )
+    }
+
+    @Test
+    fun `the circle holds the keys past seven accidentals`() {
+        val circle = CircleOfFifths {}
+        // The eighth sharp is the eighth position of the circle.
+        val (sx, sy) = place(8, major = true)
+        assertEquals(
+            KeySignature(PitchStep.G, 1, true),
+            circle.pickAt(sx, sy),
+            "the eighth sharp is on the circle",
+        )
+        val (nx, ny) = place(8, major = false)
+        assertEquals(
+            KeySignature(PitchStep.E, 1, false),
+            circle.pickAt(nx, ny),
+            "and so is its relative minor",
+        )
+        // The tenth sharp is the tenth position, and the tenth flat the eleventh.
+        val (tx, ty) = place(10, major = true)
+        assertEquals(
+            KeySignature(PitchStep.A, 1, true),
+            circle.pickAt(tx, ty),
+            "the tenth sharp is on the circle",
+        )
+        val (ex, ey) = place(11, major = true)
+        assertEquals(
+            KeySignature(PitchStep.E, -2, true),
+            circle.pickAt(ex, ey),
+            "the tenth flat is on the circle",
         )
     }
 
@@ -61,16 +106,17 @@ class CircleOfFifthsTest {
         val circle = CircleOfFifths {}
         val major = KeySignature(PitchStep.B, -1, true)
         val minor = KeySignature(PitchStep.G, 0, false)
-        // B flat major is the ninth position of the circle, at 126 degrees from the top.
-        val angle = Math.toRadians(126.0)
+        // B flat major is the nineteenth position of the circle.
+        val (mx, my) = place(19, major = true)
         assertEquals(
             major,
-            circle.pickAt((CENTER + 120 * cos(angle)).toInt(), (CENTER + 120 * sin(angle)).toInt()),
+            circle.pickAt(mx, my),
             "the outer half is the major key",
         )
+        val (nx, ny) = place(19, major = false)
         assertEquals(
             minor,
-            circle.pickAt((CENTER + 85 * cos(angle)).toInt(), (CENTER + 85 * sin(angle)).toInt()),
+            circle.pickAt(nx, ny),
             "the inner half is its relative minor",
         )
     }
@@ -88,7 +134,7 @@ class CircleOfFifthsTest {
     @Test
     fun `nothing is picked outside the circle`() {
         val circle = CircleOfFifths {}
-        assertNull(circle.pickAt(CENTER + 160, CENTER), "the outside of the circle picks nothing")
+        assertNull(circle.pickAt(CENTER + 200, CENTER), "the outside of the circle picks nothing")
         assertNull(circle.pickAt(0, 0), "the corner of the circle picks nothing")
     }
 
@@ -161,9 +207,10 @@ class CircleOfFifthsTest {
         val bounds = wedge.bounds2D
         assertEquals(true, bounds.centerY < CENTER, "the wedge of the first position is at the top")
         assertEquals(true, bounds.centerX > CENTER - 20, "the wedge of the first position is at the top")
-        val last = circle.sector(7, CircleOfFifths.R_HOLE, CircleOfFifths.R_OUTER)
+        // The tenth sharp and the tenth flat are the two positions at the bottom.
+        val last = circle.sector(10, CircleOfFifths.R_HOLE, CircleOfFifths.R_OUTER)
         val lastBounds = last.bounds2D
-        assertEquals(true, lastBounds.centerY > CENTER, "the wedge of the eighth position is at the bottom")
+        assertEquals(true, lastBounds.centerY > CENTER, "the wedge of the tenth position is at the bottom")
     }
 
     companion object {

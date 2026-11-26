@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The app holds the keys past seven accidentals. A signature carries up to fourteen accidentals:
+  the seven steps of the scale carry one each, and the steps the circle of fifths comes back to
+  carry a second one. `G♯ major` therefore has eight accidentals, and its seventh degree is an
+  F𝄪 — the rule LilyPond draws its own signatures with, so the notes and the signature always
+  agree. The name of such a key is written with the double sign (`F𝄪 major`, `B𝄫 minor`) or
+  with LilyPond's own spelling (`Fisis major`, `Beses minor`), and the field takes it. The
+  circle of fifths grew to twenty-one positions and reaches the keys with ten accidentals on
+  either side of C major; the keys past them are named in the field. The keys past the end,
+  G𝄪 major and F𝄫 major, carry fifteen accidentals each and are refused, because LilyPond has
+  no sign for a triple sharp or a triple flat.
+
+### Changed
+- A transposition that would land in a key with more than fourteen accidentals is refused, and
+  the message says how many the key would carry. Before, the limit was seven.
+- A MIDI file says the key with a number of sharps or flats, and it holds seven; a key past
+  that is left out of the file, the notes carrying their own pitches.
+
 ## [0.23.0] - 2026-11-26
 
 ### Added
