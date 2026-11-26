@@ -75,10 +75,21 @@ internal class PitchesPanel : JPanel(BorderLayout(0, 10)) {
                 add(counter, BorderLayout.EAST)
             }
         counter.toolTipText = "Where the cursor is among the notes of the take."
-        fill.toolTipText = "Take the cursor to the first note of the take, so the melody can be filled in."
-        transpose.toolTipText = "Move the whole score by an interval. The key follows, and Ctrl+Z undoes it."
+        fill.toolTipText =
+            tooltip(
+                "Take the cursor to the first note of the take,",
+                "so the melody can be filled in.",
+            )
+        transpose.toolTipText =
+            tooltip(
+                "Move the whole score by an interval.",
+                "The key follows, and Ctrl+Z undoes it.",
+            )
         octave.toolTipText =
-            "The octave the tracker plays. Click the number to put the tracker back on the note you are on."
+            tooltip(
+                "The octave the tracker plays.",
+                "Click the number to put the tracker back on the note you are on.",
+            )
         add(header, BorderLayout.NORTH)
         add(piano, BorderLayout.CENTER)
     }
@@ -126,8 +137,10 @@ internal class PitchesPanel : JPanel(BorderLayout(0, 10)) {
             if (anchor == null) {
                 "The octave the tracker plays (C$value)."
             } else {
-                "The octave the tracker plays (C$value). The note you are on is C$anchor — " +
-                    "click the number to go back to it."
+                tooltip(
+                    "The octave the tracker plays (C$value).",
+                    "The note you are on is C$anchor — click the number to go back to it.",
+                )
             }
         piano.liveOctave = value
     }

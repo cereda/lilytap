@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The tooltip of the timing badge said its three lines as one: Swing draws a tooltip on a single
+  line unless the text is HTML, so the line breaks in the report were ignored.
+
+### Changed
+- The long tooltips of the window say their lines one under the other: the key, the circle of
+  fifths, the piano, the legend, the grid, the tempo, the pitch and the score strip among them.
+
 ## [0.24.0] - 2026-11-26
 
 ### Added

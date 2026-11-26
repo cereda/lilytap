@@ -417,10 +417,11 @@ internal class CircleOfFifths(
             )
 
         /** What the circle says about itself. */
-        private const val TOOLTIP =
-            "The circle of fifths: the keys of the piece and the minor key that has the same " +
-                "signature. Outside the ring are the major keys (C), inside the minor ones " +
-                "(Am). Click the key you want. The keys past ten accidentals are named in the " +
-                "field beside the circle."
+        private val TOOLTIP =
+            tooltip(
+                "The circle of fifths: the keys of the piece and the minor key that has the same signature.",
+                "Outside the ring are the major keys (C), inside the minor ones (Am). Click the key you want.",
+                "The keys past ten accidentals are named in the field beside the circle.",
+            )
     }
 }

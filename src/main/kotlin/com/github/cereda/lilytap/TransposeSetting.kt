@@ -135,8 +135,11 @@ internal class TransposeButton : PopupButton() {
         private const val ARROW = 12
 
         /** What the button says about itself. */
-        private const val TOOLTIP =
-            "Move the whole score by an interval. The key follows, and Ctrl+Z undoes it."
+        private val TOOLTIP =
+            tooltip(
+                "Move the whole score by an interval.",
+                "The key follows, and Ctrl+Z undoes it.",
+            )
     }
 }
 

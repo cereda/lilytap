@@ -47,10 +47,12 @@ private const val IDLE_STATUS = "Set the tempo, press Start, then play with any 
  * accidental and the octave marks. LilyPond puts `c` in the octave below middle C, so
  * middle C is `c'` there.
  */
-private const val PITCH_TOOLTIP =
-    "The pitch of the selected note, written the way LilyPond writes it: " +
-        "c' (middle C), cis' (sharp), ces' (flat), cisis' (double sharp), c (lower), c'' (higher). " +
-        "Press Enter to apply it."
+private val PITCH_TOOLTIP =
+    tooltip(
+        "The pitch of the selected note, written the way LilyPond writes it.",
+        "c' (middle C), cis' (sharp), ces' (flat), cisis' (double sharp), c (lower), c'' (higher).",
+        "Press Enter to apply it.",
+    )
 
 /**
  * Launches the Swing (window) version of lilytap.
@@ -330,11 +332,19 @@ internal class WindowApp {
             }
 
         rawToggle.isEnabled = false
-        rawToggle.toolTipText = "Show your raw key presses as ghosts under the snapped notes. Amber = pressed late, teal = early."
+        rawToggle.toolTipText =
+            tooltip(
+                "Show your raw key presses as ghosts under the snapped notes.",
+                "Amber = pressed late, teal = early.",
+            )
         soundButton.isEnabled = false
         beatDots.isVisible = false
         revert.isEnabled = false
-        revert.toolTipText = "Put the score back the way it was when the take ended. Ctrl+Z undoes it."
+        revert.toolTipText =
+            tooltip(
+                "Put the score back the way it was when the take ended.",
+                "Ctrl+Z undoes it.",
+            )
         val stage = buildStage()
         val bottom = buildBottom()
 
@@ -367,7 +377,11 @@ internal class WindowApp {
             }
 
         start.onClick = { if (session == null) begin() else abort() }
-        start.toolTipText = "Start (Ctrl+Enter, or Cmd+Enter on macOS). Esc aborts. Press r for a rest."
+        start.toolTipText =
+            tooltip(
+                "Start (Ctrl+Enter, or Cmd+Enter on macOS).",
+                "Esc aborts. Press r for a rest.",
+            )
         lilypond.relative.onClick = { toggleRelativeOutput() }
         rawToggle.onClick = { toggleRaw() }
         scoreToggle.onClick = { toggleScoreStrip() }
@@ -498,7 +512,7 @@ internal class WindowApp {
         val pitch = Pitch.parse(text)
         if (pitch == null) {
             pitchField.invalid = true
-            pitchField.toolTipText = PITCH_ERROR
+            pitchField.toolTipText = tooltip(PITCH_ERROR_LINES)
             return
         }
         pitchField.invalid = false
@@ -747,9 +761,15 @@ internal class WindowApp {
         soundButton.accentOverride = if (beat) Theme.accent else null
         soundButton.toolTipText =
             if (beat) {
-                "Playback sound: Beat (a click on every note onset). Click for the score's pitch."
+                tooltip(
+                    "Playback sound: Beat (a click on every note onset).",
+                    "Click for the score's pitch.",
+                )
             } else {
-                "Playback sound: Note (the score's pitch). Click for a metronome-style click."
+                tooltip(
+                    "Playback sound: Note (the score's pitch).",
+                    "Click for a metronome-style click.",
+                )
             }
     }
 
@@ -1324,7 +1344,7 @@ internal class WindowApp {
         status.mood = Mood.DONE
         status.text = timingSummary(timing)
         // The tooltip carries the numbers that do not fit in the status line.
-        status.toolTipText = timing?.details()
+        status.toolTipText = timing?.details()?.takeIf { it.isNotEmpty() }?.let { lines -> tooltip(lines) }
         relayoutStageRight()
     }
 

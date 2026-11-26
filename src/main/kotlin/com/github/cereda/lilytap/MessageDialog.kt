@@ -21,30 +21,6 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.KeyStroke
 
-/** The text of a message, with the characters HTML would read as markup. */
-private fun escapeHtml(text: String): String =
-    text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-
-/**
- * A message for the dialog: what it says and how it looks.
- *
- * @property title the headline of the dialog.
- * @property headline the big line of the dialog.
- * @property description what the dialog says about it.
- * @property glyph the icon of the dialog.
- * @property accent the colour of the headline.
- */
-internal data class Message(
-    val title: String,
-    val headline: String,
-    val description: String,
-    val glyph: Glyph,
-    val accent: Color = Theme.accent,
-)
-
 /**
  * A themed modal dialog: undecorated, draggable by its header, closed with OK, Enter or Esc.
  *

@@ -178,10 +178,12 @@ internal class KeySetting(
          * or the way LilyPond writes it (`bes major`), and a key past seven accidentals
          * carries a double accidental: `F𝄪 major`, `B𝄫 minor`.
          */
-        private const val KEY_TOOLTIP =
-            "The key of the piece: the notes are spelled in it and the LilyPond text declares it. " +
+        private val KEY_TOOLTIP =
+            tooltip(
+                "The key of the piece: the notes are spelled in it and the LilyPond text declares it.",
                 "Write it as it is written in English (Bb major, F# minor) or the way LilyPond " +
-                "writes it (bes major, fis minor). A key past seven accidentals carries a double " +
-                "accidental: F𝄪 major, B𝄫 minor."
+                    "writes it (bes major, fis minor).",
+                "A key past seven accidentals carries a double accidental: F𝄪 major, B𝄫 minor.",
+            )
     }
 }

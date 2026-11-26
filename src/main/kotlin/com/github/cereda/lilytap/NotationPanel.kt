@@ -265,8 +265,11 @@ internal class NotationPanel(
         focusTraversalKeysEnabled = false
         preferredSize = Dimension(STAGE_WIDTH, 68)
         toolTipText =
-            "Click a block to select it, double-click to turn it into a rest, " +
-            "drag a border to change its length. Keys: S splits, X swaps, M merges, Ctrl+Z undoes."
+            tooltip(
+                "Click a block to select it, double-click to turn it into a rest, " +
+                    "drag a border to change its length.",
+                "Keys: S splits, X swaps, M merges, Ctrl+Z undoes.",
+            )
         // The strip shares the grid with the timeline: when it scrolls, the strip follows.
         // The cell-to-pixel mapping depends on the panel's width; keep it in sync on resize
         // instead of mutating shared state during paint.

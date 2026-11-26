@@ -1195,7 +1195,7 @@ class NotationPanelTest {
         panel.score = score()
         val event = MouseEvent(panel, MouseEvent.MOUSE_MOVED, 0, 0, 399, 28, 0, false)
         assertTrue(
-            panel.getToolTipText(event)?.startsWith("Click a block") == true,
+            panel.getToolTipText(event)?.contains("Click a block") == true,
             "away from a block the strip shows its hint",
         )
     }

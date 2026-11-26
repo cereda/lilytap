@@ -268,22 +268,36 @@ internal class SettingsCard(
     /** The tooltips of the settings: what every control does and how it is used. */
     fun setToolTips() {
         bpm.toolTipText =
-            "Beats per minute: the dotted quarter in a compound meter (6/8), the note value " +
-            "otherwise. Click +/-, scroll, or drag the number."
+            tooltip(
+                "Beats per minute: the dotted quarter in a compound meter (6/8), the note value otherwise.",
+                "Click +/-, scroll, or drag the number.",
+            )
         tapButton.toolTipText =
-            "Set the tempo by tapping: click this button in time, or press any key. " +
-            "The tempo follows the taps and settles on the median of the intervals."
+            tooltip(
+                "Set the tempo by tapping: click this button in time, or press any key.",
+                "The tempo follows the taps and settles on the median of the intervals.",
+            )
         bars.toolTipText = "How many bars to record after the count-in."
         latency.toolTipText = "Delay subtracted from your taps (audio output + reaction time)."
         latencyReset.toolTipText = "Reset the tap latency to 0 ms."
-        audioLatency.toolTipText = "Audio output latency: shifts the metronome click earlier so it sounds on time."
+        audioLatency.toolTipText =
+            tooltip(
+                "Audio output latency.",
+                "It shifts the metronome click earlier so it sounds on time.",
+            )
         audioLatencyReset.toolTipText = "Reset the audio latency to 0 ms."
-        calibrateButton.toolTipText = "Tap along with the metronome clicks to measure your audio output latency automatically."
+        calibrateButton.toolTipText =
+            tooltip(
+                "Tap along with the metronome clicks.",
+                "It measures your audio output latency automatically.",
+            )
         minRest.toolTipText = restToolTip()
         subdivisions.toolTipText =
-            "How many grid cells the note value is cut into: 1 = the note value itself " +
-            "(eighths in 6/8), 2 = half of it, 4 = a quarter of it. The click falls on the " +
-            "beat, not on the cells (unless the 3-feel is on)."
+            tooltip(
+                "How many grid cells the note value is cut into: 1 = the note value itself " +
+                    "(eighths in 6/8), 2 = half of it, 4 = a quarter of it.",
+                "The click falls on the beat, not on the cells (unless the 3-feel is on).",
+            )
         time.toolTipText = "Time signature, e.g. 4/4 or 6/8."
     }
 
@@ -417,13 +431,20 @@ internal class SettingsCard(
         threeFeelButton.accentOverride = if (threeFeel && compoundMeter) Theme.accent else null
         threeFeelButton.toolTipText =
             if (!compoundMeter) {
-                "3 feel: click every note value of a compound meter (the eighth in 6/8). " +
-                    "It needs a compound meter."
+                tooltip(
+                    "3 feel: click every note value of a compound meter (the eighth in 6/8).",
+                    "It needs a compound meter.",
+                )
             } else if (threeFeel) {
-                "3 feel is on: the click falls on every note value of the bar. Click to turn it off."
+                tooltip(
+                    "3 feel is on: the click falls on every note value of the bar.",
+                    "Click to turn it off.",
+                )
             } else {
-                "3 feel: click every note value of a compound meter (the eighth in 6/8). " +
-                    "Click to turn it on."
+                tooltip(
+                    "3 feel: click every note value of a compound meter (the eighth in 6/8).",
+                    "Click to turn it on.",
+                )
             }
     }
 }

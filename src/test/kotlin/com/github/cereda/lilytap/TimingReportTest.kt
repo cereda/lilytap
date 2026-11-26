@@ -127,10 +127,20 @@ class TimingReportTest {
     @Test
     fun `the details carry the numbers of the take`() {
         val report = assertNotNull(transcribeHeld(held(40, 1040, 2040), cfg(), 1).timing)
-        val details = report.details()
+        val details = report.details().joinToString(" ")
         assertTrue(details.contains("+40"), "the mean is in the details: $details")
         assertTrue(details.contains("3 late"), "the counts are in the details: $details")
         assertTrue(details.contains("spread"), "the spread is in the details: $details")
+    }
+
+    @Test
+    fun `the details are lines of their own`() {
+        val report = assertNotNull(transcribeHeld(held(40, 1040, 2040), cfg(), 1).timing)
+
+        val details = report.details()
+        assertEquals(3, details.size, "the report has a line for the mean, the counts and the notes")
+        assertTrue(details[0].contains("Mean"), "the first line is the mean: $details")
+        assertTrue(details[2].contains("ms"), "the last line is the error of every note: $details")
     }
 
     @Test

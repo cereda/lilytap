@@ -218,9 +218,11 @@ internal class PianoPanel : JComponent() {
         // The piano does not take the keyboard: the keys of the tracker belong to the score.
         isFocusable = false
         toolTipText =
-            "Click a key to give it to the selected note. " +
-            "The keyboard plays the piano too: 1 to 7 are C to B, Q W E R T the accidentals, " +
-            "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on."
+            tooltip(
+                "Click a key to give it to the selected note.",
+                "The keyboard plays the piano too: 1 to 7 are C to B, Q W E R T the accidentals.",
+                "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on.",
+            )
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {

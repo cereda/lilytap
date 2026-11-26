@@ -6,9 +6,11 @@ package com.github.cereda.lilytap
  */
 
 /** What the pitch field says when the name in it cannot be read. */
-internal const val PITCH_ERROR =
-    "Not a LilyPond note name. Write it the way LilyPond does: c' (middle C), cis' (sharp), " +
-        "ces' (flat), c (lower), c'' (higher)."
+internal val PITCH_ERROR_LINES =
+    listOf(
+        "Not a LilyPond note name.",
+        "Write it the way LilyPond does: c' (middle C), cis' (sharp), ces' (flat), c (lower), c'' (higher).",
+    )
 
 /**
  * The check that every input of the window can be used before the app acts.
@@ -63,7 +65,7 @@ internal object InputCheck {
             return Message(
                 "Invalid pitch",
                 "The pitch is not a note name",
-                "$PITCH_ERROR Fix it and try again.",
+                "${PITCH_ERROR_LINES.joinToString(" ")} Fix it and try again.",
                 Glyph.BOLT,
                 Theme.rec,
             )

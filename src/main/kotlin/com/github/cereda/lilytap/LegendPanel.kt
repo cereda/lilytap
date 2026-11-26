@@ -51,9 +51,11 @@ internal class LegendPanel : JComponent() {
         isOpaque = false
         font = Theme.font(11f)
         toolTipText =
-            "Raw taps: amber = pressed late, teal = pressed early. " +
-            "Tracker keys: 1 to 7 are C to B, Q W E R T the accidentals of the key, " +
-            "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on."
+            tooltip(
+                "Raw taps: amber = pressed late, teal = pressed early.",
+                "Tracker keys: 1 to 7 are C to B, Q W E R T the accidentals of the key.",
+                "8 moves the octave down, 9 moves it up and 0 puts it back on the note you are on.",
+            )
     }
 
     override fun getPreferredSize(): Dimension = Dimension(legendWidth, 80)

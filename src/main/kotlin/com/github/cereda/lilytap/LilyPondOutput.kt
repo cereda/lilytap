@@ -79,7 +79,10 @@ internal class LilyPondOutput(
         save.onClick = { saveFile() }
         save.toolTipText = SAVE_TOOLTIP
         relative.toolTipText =
-            "Write the octaves relative to the note before, the way LilyPond reads them."
+            tooltip(
+                "Write the octaves relative to the note before.",
+                "It is the way LilyPond reads them.",
+            )
         updateButtons()
     }
 

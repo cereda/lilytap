@@ -372,12 +372,14 @@ data class TimingReport(
         }
 
     /** The numbers of the take, for the place that has the room to show them. */
-    fun details(): String {
-        val mean = meanMs ?: return ""
+    fun details(): List<String> {
+        val mean = meanMs ?: return emptyList()
         val spread = spreadMs?.roundToLong() ?: 0
-        return "Mean ${signed(mean)} ms (${headline()}) · spread $spread ms\n" +
-            "$early early, $late late, $onTime on time\n" +
-            eventOffsetsMs.filterNotNull().joinToString(", ") { signed(it) } + " ms"
+        return listOf(
+            "Mean ${signed(mean)} ms (${headline()}) · spread $spread ms",
+            "$early early, $late late, $onTime on time",
+            eventOffsetsMs.filterNotNull().joinToString(", ") { signed(it) } + " ms",
+        )
     }
 
     companion object {
