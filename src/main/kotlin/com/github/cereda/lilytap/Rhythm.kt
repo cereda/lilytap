@@ -9,8 +9,10 @@ package com.github.cereda.lilytap
  *            -> split at barlines (ties) -> LilyPond text
  */
 
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.roundToLong
 
 /** Resolution used internally: a whole note is 64 units (down to 64th notes). */
 const val UNITS_PER_WHOLE = 64
@@ -301,24 +303,171 @@ fun clickAccent(
  * The result of quantizing taps to the grid.
  *
  * @property onsets the snapped note/rest onsets, in grid order.
- * @property meanOffsetMs average timing error *after* the configured latency has been applied
- * (compensated tap time - grid time). Positive = you tend to be late. Null if no taps landed.
+ * @property noteOffsetsMs the timing error of every note of the take, in grid order: positive
+ * means the note was pressed late. A rest is not judged - a silence is not played on time.
  * @property snapped for the window's overlay: where each held note landed on the grid
  * (empty for plain taps).
  */
 data class QuantizeResult(
     val onsets: List<Onset>,
-    /**
-     * Average timing error after the configured latency has been applied (compensated tap time -
-     * grid time). Positive = you tend to be late. Null if no taps landed.
-     *
-     * Add it to the configured latency to correct the timing: it is the *remaining* error, not a
-     * second compensation on top of the one already in use.
-     */
-    val meanOffsetMs: Double?,
+    /** The timing error of every note of the take, in grid order (positive means late). */
+    val noteOffsetsMs: List<Double> = emptyList(),
     /** For the window's overlay: where each held note landed on the grid (empty for plain taps). */
     val snapped: List<SnappedNote> = emptyList(),
 )
+
+/**
+ * How a take was played: the error of every note, and what it adds up to.
+ *
+ * A note is on time when it is within [TOLERANCE_MS] of the beat it belongs to. The tolerance is
+ * a fixed one and not a part of the grid: it is the ear that decides whether a note was in time,
+ * not the note value.
+ *
+ * @property eventOffsetsMs the error of every event of the score, in order: null for a rest.
+ * @property meanMs the average error (positive means late), null when nothing was played.
+ * @property spreadMs the median distance from the mean: how steady the timing was.
+ * @property late how many notes were later than the tolerance.
+ * @property early how many notes were earlier than the tolerance.
+ * @property onTime how many notes were within the tolerance.
+ */
+data class TimingReport(
+    val eventOffsetsMs: List<Double?>,
+    val meanMs: Double?,
+    val spreadMs: Double?,
+    val late: Int,
+    val early: Int,
+    val onTime: Int,
+) {
+    /** How many notes the report covers. */
+    val notes: Int get() = eventOffsetsMs.count { it != null }
+
+    /**
+     * Whether the report says something worth saying.
+     *
+     * One or two notes are an accident, not a timing: the mean of them would be read as a
+     * verdict on a player who did not mean it.
+     */
+    val hasStatistics: Boolean get() = notes >= 3
+
+    /** How the bias of the take reads: the average error, in words. */
+    fun headline(): String {
+        val mean = meanMs ?: return ""
+        return when {
+            mean > 0.5 -> "${mean.roundToLong()} ms late"
+
+            mean < -0.5 -> "${(-mean).roundToLong()} ms early"
+
+            // The notes were scattered around the beat: the take has no bias, even though
+            // every one of its notes can be off.
+            else -> "no bias"
+        }
+    }
+
+    /** How the error of one note reads. */
+    fun describe(offset: Double): String =
+        when {
+            offset > TOLERANCE_MS -> "${offset.roundToLong()} ms late"
+            offset < -TOLERANCE_MS -> "${(-offset).roundToLong()} ms early"
+            else -> "on time"
+        }
+
+    /** The numbers of the take, for the place that has the room to show them. */
+    fun details(): String {
+        val mean = meanMs ?: return ""
+        val spread = spreadMs?.roundToLong() ?: 0
+        return "Mean ${signed(mean)} ms (${headline()}) · spread $spread ms\n" +
+            "$early early, $late late, $onTime on time\n" +
+            eventOffsetsMs.filterNotNull().joinToString(", ") { signed(it) } + " ms"
+    }
+
+    companion object {
+        /**
+         * How far a note may be from the beat and still count as on time, in milliseconds.
+         *
+         * It is the threshold the ear uses: under it the note is heard in time, over it the
+         * note is heard late or early.
+         */
+        const val TOLERANCE_MS = 25.0
+
+        /**
+         * The report of a take, or null when nothing was played.
+         *
+         * @param score the score of the take: it says which events are notes.
+         * @param noteOffsetsMs the error of every note of the take, in order.
+         * @return the report, or null when there are no notes.
+         */
+        fun of(
+            score: Score,
+            noteOffsetsMs: List<Double>,
+        ): TimingReport? {
+            if (noteOffsetsMs.isEmpty()) return null
+            val mean = noteOffsetsMs.average()
+            val spread = median(noteOffsetsMs.map { abs(it - mean) })
+            var late = 0
+            var early = 0
+            var onTime = 0
+            for (offset in noteOffsetsMs) {
+                when {
+                    offset > TOLERANCE_MS -> late++
+                    offset < -TOLERANCE_MS -> early++
+                    else -> onTime++
+                }
+            }
+            return TimingReport(
+                eventOffsetsMs = eventOffsets(score, noteOffsetsMs),
+                meanMs = mean,
+                spreadMs = spread,
+                late = late,
+                early = early,
+                onTime = onTime,
+            )
+        }
+
+        /**
+         * The error of every event of a score, in the order the events come.
+         *
+         * A rest has no error: a silence is not judged.
+         *
+         * @param score the score of the take.
+         * @param noteOffsetsMs the error of every note of the take, in order.
+         * @return the error of every event, null for the rests.
+         */
+        fun eventOffsets(
+            score: Score,
+            noteOffsetsMs: List<Double>,
+        ): List<Double?> {
+            val offsets = ArrayList<Double?>(score.events.size)
+            var next = 0
+            for (event in score.events) {
+                if (event.kind == TapKind.NOTE) {
+                    offsets += noteOffsetsMs.getOrNull(next)
+                    next++
+                } else {
+                    offsets += null
+                }
+            }
+            return offsets
+        }
+    }
+}
+
+/** The median of a list of numbers: the middle one, or the middle of the two. */
+private fun median(values: List<Double>): Double {
+    if (values.isEmpty()) return 0.0
+    val sorted = values.sorted()
+    val middle = sorted.size / 2
+    return if (sorted.size % 2 == 1) {
+        sorted[middle]
+    } else {
+        (sorted[middle - 1] + sorted[middle]) / 2.0
+    }
+}
+
+/** A number with its sign: the timing errors are read as late (plus) and early (minus). */
+private fun signed(value: Double): String {
+    val rounded = value.roundToLong()
+    return if (rounded > 0) "+$rounded" else "$rounded"
+}
 
 /** A held note after snapping: it occupies grid cells [startCell, endCell); [raw] is what was played. */
 data class SnappedNote(
@@ -340,20 +489,29 @@ data class HeldNote(
 )
 
 /**
- * The result of transcribing a take: the score, the timing error, and the raw notes.
+ * The result of transcribing a take: the score, the timing of the take and the raw notes.
  *
  * @property score the notes and rests of the take.
- * @property meanOffsetMs the timing error that is left after the configured latency has been
- * applied; add it to that latency to correct the timing. Null if nothing was played.
+ * @property timing how the take was played: the error of every note and what it adds up to.
  * @property snapped where each held note landed on the grid (empty for plain taps).
  */
 data class Transcription(
     val score: Score,
-    val meanOffsetMs: Double?,
+    /** How the take was played; null when nothing was played. */
+    val timing: TimingReport? = null,
+    /** Where each held note landed on the grid (empty for plain taps). */
     val snapped: List<SnappedNote> = emptyList(),
 ) {
     /** The score as LilyPond text. */
     val lilypond: String get() = score.lilypond
+
+    /**
+     * The timing error that is left after the configured latency has been applied.
+     *
+     * Add it to that latency to correct the timing: it is the *remaining* error, not a second
+     * compensation on top of the one already in use.
+     */
+    val meanOffsetMs: Double? get() = timing?.meanMs
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +566,7 @@ fun quantize(
     config: Config,
 ): QuantizeResult {
     val byCell = sortedMapOf<Int, TapKind>()
-    val offsets = mutableListOf<Double>()
+    val offsetByCell = sortedMapOf<Int, Double>()
     for (tap in taps.sortedBy { it.timeMs }) {
         val adjusted = tap.timeMs - config.latencyMs
         val cell = tapCell(tap.timeMs, config)
@@ -417,14 +575,16 @@ fun quantize(
         // Measured against the *compensated* time, so this is the error that is left after the
         // configured latency has been applied. It is therefore the correction to add to that
         // latency, not a second compensation on top of it.
-        offsets += adjusted - cell * config.cellMs
+        offsetByCell[cell] = adjusted - cell * config.cellMs
     }
     val cells = byCell.keys.toList()
     val kinds = byCell.values.toList()
     val kept = if (config.noRests) keptOnsets(kinds) else kinds.indices.toList()
+    // The error of the notes of the take: a rest is not judged.
+    val noteOffsets = kept.filter { kinds[it] == TapKind.NOTE }.map { offsetByCell.getValue(cells[it]) }
     return QuantizeResult(
         onsets = kept.map { Onset(cells[it], kinds[it]) },
-        meanOffsetMs = offsets.takeIf { it.isNotEmpty() }?.average(),
+        noteOffsetsMs = noteOffsets,
     )
 }
 
@@ -481,7 +641,7 @@ fun transcribe(
 ): Transcription {
     val q = quantize(taps, config)
     val score = Score(buildEvents(q.onsets, config), config)
-    return Transcription(score, q.meanOffsetMs)
+    return Transcription(score, TimingReport.of(score, q.noteOffsetsMs))
 }
 
 // ---------------------------------------------------------------------------
@@ -512,7 +672,7 @@ fun quantizeHeld(
     require(minRestCells >= 1) { "Smallest rest must be at least one cell" }
     val ends = sortedMapOf<Int, Int>() // start cell -> end cell
     val rawByStart = sortedMapOf<Int, HeldNote>() // start cell -> the note that won that cell
-    val offsets = mutableListOf<Double>()
+    val offsetByStart = sortedMapOf<Int, Double>() // start cell -> the error of that note
 
     for (note in notes.sortedBy { it.downMs }) {
         val start = tapCell(note.downMs, config)
@@ -520,7 +680,9 @@ fun quantizeHeld(
         val rawEnd = tapCell(note.upMs, config)
         ends[start] = maxOf(rawEnd, start + 1) // at least one cell long
         rawByStart[start] = note
-        offsets += (note.downMs - config.latencyMs) - start * config.cellMs
+        // The error that is left after the configured latency has been applied: the correction
+        // to add to that latency, not a second compensation on top of it.
+        offsetByStart[start] = (note.downMs - config.latencyMs) - start * config.cellMs
     }
 
     val starts = ends.keys.toList()
@@ -532,6 +694,7 @@ fun quantizeHeld(
 
     val onsets = mutableListOf<Onset>()
     val snapped = mutableListOf<SnappedNote>()
+    val noteOffsets = mutableListOf<Double>()
     for ((i, start) in keptStarts.withIndex()) {
         val raw = rawByStart.getValue(start)
         val nextStart = keptStarts.getOrNull(i + 1) ?: config.totalCells
@@ -546,6 +709,8 @@ fun quantizeHeld(
             }
         } else {
             onsets += Onset(start, TapKind.NOTE)
+            // The error of the note: the marks of the strip are drawn from it.
+            noteOffsets += offsetByStart.getValue(start)
             val end = minOf(ends.getValue(start), nextStart)
             val becomesRest = !config.noRests && nextStart - end >= minRestCells
             if (becomesRest) onsets += Onset(end, TapKind.REST)
@@ -553,7 +718,7 @@ fun quantizeHeld(
             snapped += SnappedNote(start, if (becomesRest) end else nextStart, raw)
         }
     }
-    return QuantizeResult(onsets, offsets.takeIf { it.isNotEmpty() }?.average(), snapped)
+    return QuantizeResult(onsets, noteOffsets, snapped)
 }
 
 /**
@@ -570,5 +735,5 @@ fun transcribeHeld(
 ): Transcription {
     val q = quantizeHeld(notes, config, minRestCells)
     val score = Score(buildEvents(q.onsets, config), config)
-    return Transcription(score, q.meanOffsetMs, q.snapped)
+    return Transcription(score, TimingReport.of(score, q.noteOffsetsMs), q.snapped)
 }

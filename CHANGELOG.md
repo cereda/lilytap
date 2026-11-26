@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The window says how a take was played. The status line carries the **bias** of the take (how
+  late or early the notes were on average) and the **spread** (how far the notes fell from that
+  average, measured as the median, so one slipped note cannot move it): `Done. 23 ms late ·
+  spread 18 ms · try latency 223`. The tooltip of the badge carries the whole report: the mean,
+  the spread, how many notes were early, late and on time, and the error of every note of the
+  take.
+- The notes that were off the beat carry a mark on the score strip: a small triangle above the
+  block, pointing to the right when the note was late (amber) and to the left when it was early
+  (teal) — the same colours as the raw taps of the timeline. A note is on time when it is
+  within 25 ms of the beat it belongs to; the silences are not judged, because a rest is not
+  played on time or late. The marks belong to the take: a new take takes them away, and so
+  does an edit of the score. A **Revert** puts the take back, and the marks come back with it.
+
 ### Fixed
 - The app does not hold the sound card while it waits. The audio line is opened when a take
   starts and closed when the take ends, and the playback of a score does the same. A sound card

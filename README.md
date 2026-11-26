@@ -72,7 +72,8 @@ Every input is read before a take begins. A name that cannot be read — a time 
 not a meter, a key that is not a key, a pitch that is not a note — stops the take and says what
 is wrong, instead of running the take on the last good value.
 
-After a take, the suggested latency is the configured one plus the timing error that is left.
+After a take, the status line says how the take was played, and the suggested latency is the
+configured one plus the timing error that is left — see [Accuracy](#accuracy).
 
 ## Tap tempo
 
@@ -115,6 +116,39 @@ take: the top row is what was written (the notes snapped to the grid) and the bo
 what you actually played (the ghosts of your key presses). A line between the two says how far
 the note went: amber is late and teal is early. Turning the button off brings your own notes
 back.
+
+## Accuracy
+
+After a take, the status line says how it was played: the **bias** (how late or early the
+notes were on average) and the **spread** (how far the notes fell from that average, measured
+as the median — one slipped note cannot move it).
+
+```
+Done. 23 ms late · spread 18 ms · try latency 223
+```
+
+- The **bias** is the average error of the notes of the take, after the latency you have
+  configured has been subtracted. A take that is late on average is a take that is late: the
+  suggested latency is the configured one plus that error, and the line says it when the bias
+  is big enough to be worth correcting (15 ms or more, over at least four notes). A take whose
+  notes were scattered around the beat has no bias at all, and the line says so.
+- The **spread** says how steady the timing was: a spread of 0 ms means every note was
+  exactly as late as the others, and a spread of 40 ms means they were all over the place.
+- A note is **on time** when it is within 25 ms of the beat it belongs to. The tolerance is
+  the ear's, not the grid's: it does not depend on the length of the note.
+- **Silences are not judged.** A rest is not played on time or late — there is nothing to
+  press — so it is left out of the numbers.
+- Hovering the status badge shows the whole report: the mean, the spread, how many notes were
+  early, late and on time, and the error of every note of the take.
+
+The notes that were off the beat carry a **mark** on the score strip: a small triangle above
+the block, pointing to the right when the note was late (amber) and to the left when it was
+early (teal) — the same colours as the raw taps of the timeline. A note that was on time
+carries no mark, and hovering a block says how late or early it was.
+
+The marks belong to the take: a new take takes them away, and so does an edit of the score,
+because an edited score is no longer the score of that take. A **Revert** puts the take back,
+and the marks come back with it.
 
 ## No rests
 

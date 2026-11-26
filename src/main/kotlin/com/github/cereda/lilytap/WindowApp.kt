@@ -264,6 +264,15 @@ internal class WindowApp {
     private var takeScore: Score? = null
 
     /**
+     * How the last take was played: the marks of the strip come from it.
+     *
+     * The marks belong to the take, so they are there while the score is the score of the
+     * take. An edit of the score takes them away, and a Revert - which puts the take back -
+     * brings them back.
+     */
+    private var takeTiming: TimingReport? = null
+
+    /**
      * The round that sets the tempo by tapping.
      *
      * The round owns the taps and the clocks around them; the window tells it what the
@@ -913,6 +922,10 @@ internal class WindowApp {
         updateKeyViews()
         timeline.score = edited
         lilypond.show(edited)
+        // The marks of the timing are about the take that made this score: an edited score is
+        // no longer that score, so the marks go with it. A Revert puts the take back, and the
+        // marks come back with it.
+        notation.timing = if (edited == takeScore) takeTiming else null
         revert.isEnabled = edited != takeScore
         updateScoreHeader()
     }
@@ -973,8 +986,11 @@ internal class WindowApp {
     /** Throws the score away: there is nothing to edit until the next take. */
     private fun clearScore() {
         takeScore = null
+        // The numbers of the last take are gone with the score they were about.
+        takeTiming = null
         notation.score = null
         timeline.score = null
+        status.toolTipText = null
         revert.isEnabled = false
         playButton.isEnabled = false
         soundButton.isEnabled = false
@@ -1301,18 +1317,36 @@ internal class WindowApp {
         showScore(take.transcription.score)
         s.snapped = take.transcription.snapped
         rawToggle.isEnabled = take.transcription.snapped.isNotEmpty()
-        val off = take.transcription.meanOffsetMs
+        val timing = take.transcription.timing
+        // The marks of the strip: how each note of the take was played.
+        takeTiming = timing
+        notation.timing = timing
         status.mood = Mood.DONE
-        status.text =
-            if (off != null && take.notes >= 4 && abs(off) >= 15) {
-                // The offset is the error that is left after the configured latency, so the
-                // corrected latency is the configured one plus that error.
-                val suggested = (settingsCard.latency.value + off).roundToLong()
-                "Done. You pressed ~${abs(off).roundToLong()} ms ${if (off > 0) "late" else "early"}; try latency $suggested."
-            } else {
-                "Done."
-            }
+        status.text = timingSummary(timing)
+        // The tooltip carries the numbers that do not fit in the status line.
+        status.toolTipText = timing?.details()
         relayoutStageRight()
+    }
+
+    /**
+     * What the status line says after a take: how the take was played.
+     *
+     * The line has room for the bias and the spread, and for the suggestion when the bias is
+     * big enough to be worth correcting. The rest of the numbers are in the tooltip.
+     *
+     * @param timing the timing of the take, null when nothing was played.
+     * @return the text of the status line.
+     */
+    private fun timingSummary(timing: TimingReport?): String {
+        if (timing == null || !timing.hasStatistics) return "Done."
+        val mean = timing.meanMs ?: return "Done."
+        val spread = timing.spreadMs?.roundToLong() ?: 0
+        val text = "Done. ${timing.headline()} · spread $spread ms"
+        // The offset is the error that is left after the configured latency, so the corrected
+        // latency is the configured one plus that error.
+        if (abs(mean) < 15 || timing.notes < 4) return text
+        val suggested = (settingsCard.latency.value + mean).roundToLong()
+        return "$text · try latency $suggested"
     }
 
     private fun abort() {

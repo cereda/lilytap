@@ -88,6 +88,7 @@ val koverCoreClasses =
         "com.github.cereda.lilytap.SnappedNote",
         "com.github.cereda.lilytap.QuantizeResult",
         "com.github.cereda.lilytap.Transcription",
+        "com.github.cereda.lilytap.TimingReport",
         "com.github.cereda.lilytap.MidiFile*",
         "com.github.cereda.lilytap.Calibration",
         "com.github.cereda.lilytap.CalibrationKt",

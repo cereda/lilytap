@@ -88,6 +88,12 @@ internal const val RING_WIDTH = 3.0
 /** How tall the duration band at the foot of a block is, in pixels. */
 internal const val BAND_H = 12.0
 
+/** How wide the mark of a note that was pressed off the beat is, in pixels. */
+internal const val MARK_WIDTH = 9.0
+
+/** How tall the mark of a note that was pressed off the beat is, in pixels. */
+internal const val MARK_HEIGHT = 5.0
+
 /**
  * How tall the duration band of a block of the given height is.
  *
@@ -175,11 +181,26 @@ internal class NotationPanel(
             undoStack.clear()
             redoStack.clear()
             clearSelection()
+            // The marks belong to the take of this score: another score has no marks.
+            timing = null
             repaint()
         }
 
     /** The states before each edit: undo walks back through them. */
     private val undoStack = ArrayDeque<Snapshot>()
+
+    /**
+     * How the take that produced the score was played.
+     *
+     * The marks of the strip come from it: a note that was pressed too early or too late carries
+     * one. An edit of the score clears the marks - they are about a take, and an edited score is
+     * no longer the score of that take.
+     */
+    var timing: TimingReport? = null
+        set(value) {
+            field = value
+            repaint()
+        }
 
     /** The states that were undone: redo walks forward through them. */
     private val redoStack = ArrayDeque<Snapshot>()
@@ -352,7 +373,10 @@ internal class NotationPanel(
         if (index < 0) return super.getToolTipText(event)
         val block = s.events[index]
         val what = block.pitch?.scientific ?: "Rest"
-        return "$what · ${durationName(block.lengthUnits)}"
+        val text = "$what · ${durationName(block.lengthUnits)}"
+        val offset = timing?.eventOffsetsMs?.getOrNull(index)
+        val report = timing
+        return if (offset == null || report == null) text else "$text · ${report.describe(offset)}"
     }
 
     // -------------------------------------------------------------------------------------------
@@ -951,6 +975,7 @@ internal class NotationPanel(
                 val x2 = grid.xOfCell(event.endUnits.toDouble() / s.config.cellUnits) - 1.0
                 drawBlock(g2, event, BlockBox(x1, x2, top, top + blockH))
             }
+            drawTimingMarks(g2, s, top)
             drawHoveredBlock(g2, s, top, blockH)
             drawSelection(g2, s, top, blockH)
             drawHoveredBorder(g2, s, top, blockH)
@@ -973,6 +998,73 @@ internal class NotationPanel(
             }
             if (hasFocus()) drawFocus(g2, w, h)
         }
+    }
+
+    /**
+     * The marks of the timing: what the take was like, on the notes that were off.
+     *
+     * A note that was pressed late carries a triangle that points to the right, and a note that
+     * was pressed early one that points to the left: the mark points the way the note went, the
+     * same way the raw taps of the timeline do. The colours are the ones of the timeline too:
+     * amber is late and teal is early.
+     *
+     * The marks live in the margin above the blocks, so they touch neither the colour of the
+     * block nor the band at its foot, and the strip keeps its height.
+     *
+     * @param g2 the graphics context.
+     * @param s the score the strip shows.
+     * @param top the top of the blocks.
+     */
+    private fun drawTimingMarks(
+        g2: Graphics2D,
+        s: Score,
+        top: Double,
+    ) {
+        val report = timing ?: return
+        for ((index, event) in s.events.withIndex()) {
+            drawTimingMark(g2, s, event, report.eventOffsetsMs.getOrNull(index), top)
+        }
+    }
+
+    /**
+     * The mark of one note, when it was pressed off the beat.
+     *
+     * @param g2 the graphics context.
+     * @param s the score the strip shows.
+     * @param event the event of the note.
+     * @param offset the error of the note, null when it was not judged.
+     * @param top the top of the blocks.
+     */
+    private fun drawTimingMark(
+        g2: Graphics2D,
+        s: Score,
+        event: Event,
+        offset: Double?,
+        top: Double,
+    ) {
+        if (offset == null) return
+        if (abs(offset) <= TimingReport.TOLERANCE_MS) return
+        val x1 = grid.xOfCell(event.startUnits.toDouble() / s.config.cellUnits) + 1.0
+        val x2 = grid.xOfCell(event.endUnits.toDouble() / s.config.cellUnits) - 1.0
+        if (x2 < -10 || x1 > width + 10) return
+        val late = offset > 0
+        g2.color = if (late) Theme.warn else Theme.accent2
+        val left = x1 + 3.0
+        val right = left + MARK_WIDTH
+        val topY = top - MARK_HEIGHT - 2.0
+        val middleY = topY + MARK_HEIGHT / 2.0
+        val mark = Path2D.Double()
+        if (late) {
+            mark.moveTo(left, topY)
+            mark.lineTo(right, middleY)
+            mark.lineTo(left, topY + MARK_HEIGHT)
+        } else {
+            mark.moveTo(right, topY)
+            mark.lineTo(left, middleY)
+            mark.lineTo(right, topY + MARK_HEIGHT)
+        }
+        mark.closePath()
+        g2.fill(mark)
     }
 
     /** The bar lines, so the strip reads as the same grid as the timeline. */
