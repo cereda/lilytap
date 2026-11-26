@@ -546,8 +546,13 @@ itself: the notes and rests, the LilyPond text and the edits that can be made to
 `GridView.kt` is the grid the timeline and the score strip share, `NotationPanel.kt` the score
 strip itself. `PianoPanel.kt` is the piano of the pitches panel, `PitchesPanel.kt` the panel that
 holds it, and `Tracker.kt` the keys of the keyboard that play it and the octave they play.
-`LegendPanel.kt` is the legend above the Start button. `WindowApp.kt` is the window (layout +
-recording logic), `Timeline.kt` the recording timeline, `Player.kt` playback, `Metronome.kt` the
+`LegendPanel.kt` is the legend above the Start button. `WindowApp.kt` is the window: it holds the
+widgets and the state, and it delegates the work to the classes below. `TakeRecorder.kt` is the
+recording of a take (the session, the metronome and the keys), `Calibration.kt` the round that
+measures the audio latency, `TapTempoRound.kt` the round that sets the tempo by tapping, and
+`AutoRepeat.kt` the guard against the keys that repeat themselves. `SettingsCard.kt` is the card
+of the settings and the state that belongs to them. `Playback.kt` is the playback of the score.
+`Timeline.kt` the recording timeline, `Player.kt` playback, `Metronome.kt` the
 count-in and calibration click, `Sound.kt` the click waveform, `Widgets.kt` the widget kit
 (buttons, steppers, etc.), `Theme.kt` the colours and `Glyph.kt` the vector icons. `Main.kt` is
 the entry point and opens the window. `Interval.kt` holds the intervals the score is transposed

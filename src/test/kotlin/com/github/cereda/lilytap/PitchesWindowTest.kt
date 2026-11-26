@@ -358,8 +358,7 @@ class PitchesWindowTest {
     fun `the piano is quiet while the score plays`() {
         val app = WindowApp()
 
-        val isPlaying = flag("isPlaying")
-        isPlaying.set(app, true)
+        playback(app).isPlaying = true
         updatePitchesPanel(app)
 
         assertFalse(
@@ -367,7 +366,7 @@ class PitchesWindowTest {
             "the piano does not answer while the app is playing",
         )
 
-        isPlaying.set(app, false)
+        playback(app).isPlaying = false
     }
 
     @Test
@@ -461,8 +460,7 @@ class PitchesWindowTest {
         val app = WindowApp()
 
         showScore(app, score)
-        val isPlaying = flag("isPlaying")
-        isPlaying.set(app, true)
+        playback(app).isPlaying = true
 
         press(app, KeyEvent.VK_5)
 
@@ -476,7 +474,7 @@ class PitchesWindowTest {
             "the score is left alone while it plays",
         )
 
-        isPlaying.set(app, false)
+        playback(app).isPlaying = false
     }
 
     @Test
@@ -795,13 +793,13 @@ class PitchesWindowTest {
         )
     }
 
-    /** A field of the window, by the name it has. */
-    private fun flag(name: String): java.lang.reflect.Field {
+    /** The playback of the window: the player and the place the playhead is at. */
+    private fun playback(app: WindowApp): Playback {
         val field =
-            WindowApp::class.java.declaredFields.find { it.name == name }
-                ?: error("$name field not found")
+            WindowApp::class.java.declaredFields.find { it.name == "playback" }
+                ?: error("playback field not found")
         field.isAccessible = true
-        return field
+        return field.get(app) as Playback
     }
 
     /** The recording session of the window. */

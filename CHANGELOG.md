@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The window is split into smaller classes. `WindowApp.kt` keeps the widgets and the state and
+  delegates the work: `TakeRecorder.kt` holds the recording of a take (the session, the metronome
+  and the keys), `Calibration.kt` the round that measures the audio latency, `TapTempoRound.kt`
+  the round that sets the tempo by tapping, `AutoRepeat.kt` the guard against the keys that
+  repeat themselves, `SettingsCard.kt` the card of the settings and `Playback.kt` the playback of
+  the score. The window itself is a third of its old size, and the logic that moved out can be
+  tested without a display and without a sound card. Nothing changes in the app itself.
+
 ## [0.22.0] - 2026-11-25
 
 ### Added

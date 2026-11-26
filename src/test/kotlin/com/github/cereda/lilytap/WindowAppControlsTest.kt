@@ -186,12 +186,15 @@ class WindowAppControlsTest {
     }
 
     /** The key setting of the window: the field with the name of the key and the menu. */
-    private fun keySetting(app: WindowApp): KeySetting {
+    private fun keySetting(app: WindowApp): KeySetting = settings(app).keySetting
+
+    /** The settings card of the window: the controls that describe the next take. */
+    private fun settings(app: WindowApp): SettingsCard {
         val field =
-            WindowApp::class.java.declaredFields.find { it.name == "keySetting" }
-                ?: error("keySetting field not found")
+            WindowApp::class.java.declaredFields.find { it.name == "settingsCard" }
+                ?: error("settingsCard field not found")
         field.isAccessible = true
-        return field.get(app) as KeySetting
+        return field.get(app) as SettingsCard
     }
 
     /** The field of the window that holds the take it plays. */

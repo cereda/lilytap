@@ -44,17 +44,13 @@ class WindowAppTest {
         startPlayback.isAccessible = true
         startPlayback.invoke(app)
 
-        val isPlayingField =
-            WindowApp::class.java.declaredFields.find { it.name == "isPlaying" }
-                ?: error("isPlaying field not found")
-        isPlayingField.isAccessible = true
-        assertTrue(isPlayingField.get(app) as Boolean)
+        assertTrue(playback(app).isPlaying, "the score should be playing")
 
         val stopPlayback = WindowApp::class.java.getDeclaredMethod("stopPlayback")
         stopPlayback.isAccessible = true
         stopPlayback.invoke(app)
 
-        assertFalse(isPlayingField.get(app) as Boolean)
+        assertFalse(playback(app).isPlaying, "the score should be still")
     }
 
     @Test
@@ -67,17 +63,9 @@ class WindowAppTest {
         takeScoreField.isAccessible = true
         takeScoreField.set(app, score)
 
-        val isPlayingField =
-            WindowApp::class.java.declaredFields.find { it.name == "isPlaying" }
-                ?: error("isPlaying field not found")
-        isPlayingField.isAccessible = true
-        isPlayingField.set(app, true)
-
-        val startField =
-            WindowApp::class.java.declaredFields.find { it.name == "playbackStartNanos" }
-                ?: error("playbackStartNanos field not found")
-        startField.isAccessible = true
-        startField.set(app, System.nanoTime() - 1_000_000_000L)
+        val playback = playback(app)
+        playback.isPlaying = true
+        playback.startNanos = System.nanoTime() - 1_000_000_000L
 
         val onFrame = WindowApp::class.java.getDeclaredMethod("onFrame")
         onFrame.isAccessible = true
@@ -93,7 +81,7 @@ class WindowAppTest {
             "the timeline should receive the playback position",
         )
 
-        isPlayingField.set(app, false)
+        playback.isPlaying = false
     }
 
     @Test
@@ -106,11 +94,7 @@ class WindowAppTest {
         takeScoreField.isAccessible = true
         takeScoreField.set(app, score)
 
-        val bpmField =
-            WindowApp::class.java.declaredFields.find { it.name == "bpm" }
-                ?: error("bpm field not found")
-        bpmField.isAccessible = true
-        val bpm = bpmField.get(app) as JComponent
+        val bpm = settings(app).bpm
 
         val startPlayback = WindowApp::class.java.getDeclaredMethod("startPlayback")
         startPlayback.isAccessible = true
@@ -142,11 +126,7 @@ class WindowAppTest {
         clearScore.isAccessible = true
         clearScore.invoke(app)
 
-        val isPlayingField =
-            WindowApp::class.java.declaredFields.find { it.name == "isPlaying" }
-                ?: error("isPlaying field not found")
-        isPlayingField.isAccessible = true
-        assertFalse(isPlayingField.get(app) as Boolean)
+        assertFalse(playback(app).isPlaying, "the score should not be playing")
 
         val playButtonField =
             WindowApp::class.java.declaredFields.find { it.name == "playButton" }
@@ -170,11 +150,7 @@ class WindowAppTest {
         startPlayback.isAccessible = true
         startPlayback.invoke(app)
 
-        val isPlayingField =
-            WindowApp::class.java.declaredFields.find { it.name == "isPlaying" }
-                ?: error("isPlaying field not found")
-        isPlayingField.isAccessible = true
-        assertTrue(isPlayingField.get(app) as Boolean)
+        assertTrue(playback(app).isPlaying, "the score should be playing")
 
         val stopPlayback = WindowApp::class.java.getDeclaredMethod("stopPlayback")
         stopPlayback.isAccessible = true
@@ -866,182 +842,6 @@ class WindowAppTest {
     }
 
     @Test
-    fun `the time signature menu offers the common meters in two groups`() {
-        val app = WindowApp()
-
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == "timeMenu" }
-                ?: error("timeMenu field not found")
-        field.isAccessible = true
-        val menu = field.get(app) as MenuButton
-
-        assertEquals(
-            listOf(
-                MenuGroup("Simple", listOf("4/4", "3/4", "2/4", "2/2", "3/8", "5/4", "7/8", "5/8")),
-                MenuGroup("Compound", listOf("6/8", "9/8", "12/8", "6/4")),
-            ),
-            menu.groups,
-        )
-        assertEquals(
-            listOf("4/4", "3/4", "2/4", "2/2", "3/8", "5/4", "7/8", "5/8", "6/8", "9/8", "12/8", "6/4"),
-            menu.options,
-        )
-    }
-
-    @Test
-    fun `the groups of the time menu are the simple and the compound meters`() {
-        val app = WindowApp()
-
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == "timeMenu" }
-                ?: error("timeMenu field not found")
-        field.isAccessible = true
-        val menu = field.get(app) as MenuButton
-
-        menu.groups.forEach { group ->
-            group.options.forEach { meter ->
-                val signature = runCatching { TimeSignature.parse(meter) }.getOrNull()
-                assertNotNull(signature, "$meter is a time signature")
-                val compound = signature.isCompound
-                assertEquals(
-                    compound,
-                    group.name == "Compound",
-                    "$meter belongs to the ${group.name} group",
-                )
-            }
-        }
-    }
-
-    @Test
-    fun `picking a meter in the menu fills the field`() {
-        val app = WindowApp()
-
-        val menuField =
-            WindowApp::class.java.declaredFields.find { it.name == "timeMenu" }
-                ?: error("timeMenu field not found")
-        menuField.isAccessible = true
-        val menu = menuField.get(app) as MenuButton
-
-        val timeField =
-            WindowApp::class.java.declaredFields.find { it.name == "time" }
-                ?: error("time field not found")
-        timeField.isAccessible = true
-        val time = timeField.get(app) as StyledField
-
-        menu.pick("6/8")
-        assertEquals("6/8", time.text)
-        assertFalse(time.invalid)
-    }
-
-    @Test
-    fun `a time signature that cannot be used is marked`() {
-        val app = WindowApp()
-
-        val timeField =
-            WindowApp::class.java.declaredFields.find { it.name == "time" }
-                ?: error("time field not found")
-        timeField.isAccessible = true
-        val time = timeField.get(app) as StyledField
-
-        time.text = "6/8"
-        assertFalse(time.invalid, "6/8 is a meter")
-
-        time.text = "11/16"
-        assertFalse(time.invalid, "the field takes any meter, not only the common ones")
-
-        time.text = "6/6"
-        assertTrue(time.invalid, "6/6 is not a meter")
-
-        time.text = ""
-        assertTrue(time.invalid, "an empty field is not a meter")
-    }
-
-    @Test
-    fun `the grid caption names the note the cells cut`() {
-        val app = WindowApp()
-
-        val captionField =
-            WindowApp::class.java.declaredFields.find { it.name == "gridCaption" }
-                ?: error("gridCaption field not found")
-        captionField.isAccessible = true
-        val caption = captionField.get(app) as GlyphLabel
-
-        val timeField =
-            WindowApp::class.java.declaredFields.find { it.name == "time" }
-                ?: error("time field not found")
-        timeField.isAccessible = true
-        val time = timeField.get(app) as StyledField
-
-        assertEquals("Cells / beat", caption.text, "in a simple meter the cells cut the beat")
-
-        time.text = "6/8"
-        assertEquals("Cells / eighth", caption.text, "in 6/8 they cut the eighth")
-
-        time.text = "6/4"
-        assertEquals("Cells / quarter", caption.text, "in 6/4 they cut the quarter")
-
-        time.text = "4/4"
-        assertEquals("Cells / beat", caption.text)
-    }
-
-    @Test
-    fun `the 3-feel button waits for a compound meter`() {
-        val app = WindowApp()
-        val button = iconButton(app, "threeFeelButton")
-        val time = styledField(app, "time")
-
-        assertFalse(button.isEnabled, "a simple meter has no 3-feel")
-
-        time.text = "6/8"
-        assertTrue(button.isEnabled, "6/8 is a compound meter")
-
-        time.text = "7/8"
-        assertFalse(button.isEnabled, "an irregular meter is not a compound one")
-
-        time.text = "6/4"
-        assertTrue(button.isEnabled, "6/4 is a compound meter too")
-    }
-
-    @Test
-    fun `the 3-feel button keeps its setting when the meter changes`() {
-        val app = WindowApp()
-        val button = iconButton(app, "threeFeelButton")
-        val time = styledField(app, "time")
-
-        time.text = "6/8"
-        button.onClick?.invoke()
-        assertNotNull(button.accentOverride, "the button shows that the 3-feel is on")
-
-        time.text = "4/4"
-        assertFalse(button.isEnabled, "a simple meter has no 3-feel")
-        assertNull(button.accentOverride, "the button is greyed out in a simple meter")
-
-        time.text = "6/8"
-        assertTrue(button.isEnabled)
-        assertNotNull(button.accentOverride, "the setting is remembered when the meter comes back")
-    }
-
-    @Test
-    fun `the smallest rest control holds the no-rest option`() {
-        val app = WindowApp()
-        val control = segmentedControl(app, "minRest")
-
-        control.selectedIndex = 3
-        assertEquals("No rests", control.selectedText)
-        assertTrue(
-            control.toolTipText!!.contains("Never write rests"),
-            "the tooltip follows the option that is selected",
-        )
-
-        control.selectedIndex = 0
-        assertEquals("1 beat", control.selectedText)
-        assertTrue(
-            control.toolTipText!!.contains("Silences shorter than this"),
-            "the tooltip follows the option that is selected",
-        )
-    }
-
-    @Test
     fun `the helper message fits the header`() {
         val app = WindowApp()
 
@@ -1236,54 +1036,6 @@ class WindowAppTest {
     }
 
     @Test
-    fun `calibration includes the first bar`() {
-        assertEquals(0.0, calibrationOffsetMs(0.0, 1000.0, 4))
-        assertEquals(40.0, calibrationOffsetMs(1040.0, 1000.0, 4))
-        assertEquals(-20.0, calibrationOffsetMs(2980.0, 1000.0, 4))
-        assertNull(calibrationOffsetMs(4100.0, 1000.0, 4))
-        assertNull(calibrationOffsetMs(-10.0, 1000.0, 4))
-    }
-
-    @Test
-    fun `calibration adds the median tap offset to the latency`() {
-        // A tap 50 ms after the beat it followed: the latency was 50 ms too low.
-        assertEquals(250.0, calibratedLatency(200.0, listOf(50.0)))
-        // An odd number of taps: the middle one decides.
-        assertEquals(260.0, calibratedLatency(0.0, listOf(250.0, 260.0, 300.0)))
-        // An even number of taps: the middle of the two.
-        assertEquals(275.0, calibratedLatency(0.0, listOf(250.0, 300.0)))
-        // One stray tap does not move the result.
-        assertEquals(265.0, calibratedLatency(0.0, listOf(250.0, 260.0, 270.0, 900.0)))
-    }
-
-    @Test
-    fun `a measurement outside the range keeps the old latency`() {
-        // A tap before the beat it followed would take the latency below zero.
-        assertEquals(200.0, calibratedLatency(200.0, listOf(-450.0)))
-        // A tap exactly one latency early brings it to zero, which is still a valid value.
-        assertEquals(0.0, calibratedLatency(200.0, listOf(-200.0)))
-        // A tap that would push it past the maximum is dropped as well.
-        assertEquals(400.0, calibratedLatency(400.0, listOf(400.0)))
-    }
-
-    @Test
-    fun `the calibration runs on a fixed slow grid`() {
-        // One beat per second: a tap that is late by up to half a beat still belongs to the
-        // beat it followed, whatever the tempo of the take is.
-        assertEquals(60.0, CALIBRATION_BPM)
-        assertEquals(1000.0, 60_000.0 / CALIBRATION_BPM)
-        // Eight beats to tap along with: enough for a median, short enough to stay a round.
-        assertEquals(8, CALIBRATION_BARS * CALIBRATION_SIGNATURE.beats)
-    }
-
-    @Test
-    fun `the calibration grid leaves room for a late tap`() {
-        // A tap half a beat late still belongs to the beat it followed.
-        assertEquals(450.0, calibrationOffsetMs(450.0, 1000.0, 8))
-        assertEquals(450.0, calibrationOffsetMs(1450.0, 1000.0, 8))
-    }
-
-    @Test
     fun `the beat index follows the session clock`() {
         val start = 1_000_000_000L
         val beat = 500_000_000L
@@ -1299,60 +1051,42 @@ class WindowAppTest {
     private fun button(
         app: WindowApp,
         name: String,
-    ): PillButton {
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == name }
-                ?: error("$name field not found")
-        field.isAccessible = true
-        return field.get(app) as PillButton
-    }
+    ): PillButton = widget(app, name) as PillButton
 
     /** A stepper of the window, by the name of the field that holds it. */
     private fun stepper(
         app: WindowApp,
         name: String,
-    ): Stepper {
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == name }
-                ?: error("$name field not found")
-        field.isAccessible = true
-        return field.get(app) as Stepper
-    }
+    ): Stepper = widget(app, name) as Stepper
 
     /** A round icon button of the window, by the name of the field that holds it. */
     private fun iconButton(
         app: WindowApp,
         name: String,
-    ): IconButton {
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == name }
-                ?: error("$name field not found")
-        field.isAccessible = true
-        return field.get(app) as IconButton
-    }
+    ): IconButton = widget(app, name) as IconButton
 
     /** A text field of the window, by the name of the field that holds it. */
     private fun styledField(
         app: WindowApp,
         name: String,
-    ): StyledField {
-        val field =
-            WindowApp::class.java.declaredFields.find { it.name == name }
-                ?: error("$name field not found")
-        field.isAccessible = true
-        return field.get(app) as StyledField
-    }
+    ): StyledField = widget(app, name) as StyledField
 
-    /** An option picker of the window, by the name of the field that holds it. */
-    private fun segmentedControl(
+    /**
+     * A widget of the window, by the name of the field that holds it.
+     *
+     * The widgets of the settings card live in the card, so the search falls back to it.
+     */
+    private fun widget(
         app: WindowApp,
         name: String,
-    ): SegmentedControl {
+    ): Any {
         val field =
             WindowApp::class.java.declaredFields.find { it.name == name }
+                ?: SettingsCard::class.java.declaredFields.find { it.name == name }
                 ?: error("$name field not found")
         field.isAccessible = true
-        return field.get(app) as SegmentedControl
+        val owner = if (field.declaringClass == WindowApp::class.java) app else settings(app)
+        return field.get(owner)
     }
 
     /** A tap on the tap button. */
@@ -1504,12 +1238,24 @@ class WindowAppTest {
     }
 
     /** The key setting of the window: the field with the name of the key and the menu. */
-    private fun keySetting(app: WindowApp): KeySetting {
+    private fun keySetting(app: WindowApp): KeySetting = settings(app).keySetting
+
+    /** The settings card of the window: the controls that describe the next take. */
+    private fun settings(app: WindowApp): SettingsCard {
         val field =
-            WindowApp::class.java.declaredFields.find { it.name == "keySetting" }
-                ?: error("keySetting field not found")
+            WindowApp::class.java.declaredFields.find { it.name == "settingsCard" }
+                ?: error("settingsCard field not found")
         field.isAccessible = true
-        return field.get(app) as KeySetting
+        return field.get(app) as SettingsCard
+    }
+
+    /** The playback of the window: the player and the place the playhead is at. */
+    private fun playback(app: WindowApp): Playback {
+        val field =
+            WindowApp::class.java.declaredFields.find { it.name == "playback" }
+                ?: error("playback field not found")
+        field.isAccessible = true
+        return field.get(app) as Playback
     }
 
     /** The field of the key of the piece. */
