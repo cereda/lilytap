@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-26
+
 ### Added
 - The window says how a take was played. The status line carries the **bias** of the take (how
   late or early the notes were on average) and the **spread** (how far the notes fell from that
@@ -614,7 +616,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/cereda/lilytap/compare/v0.22.2...HEAD
+[Unreleased]: https://github.com/cereda/lilytap/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/cereda/lilytap/compare/v0.22.2...v0.23.0
 [0.22.2]: https://github.com/cereda/lilytap/compare/v0.22.1...v0.22.2
 [0.22.1]: https://github.com/cereda/lilytap/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/cereda/lilytap/compare/v0.21.0...v0.22.0
