@@ -101,6 +101,10 @@ internal class TakeRecorder(
         val pulses = config.timeSignature.pulsesPerBar
         val beatNanos = (60_000_000_000.0 / config.bpm).roundToLong()
         val clickNanos = (config.clickMs * 1_000_000.0).roundToLong()
+        // The audio line is opened first: it can take tens of milliseconds, and the schedule
+        // below is built on the clock, so the first click would be late if the line were
+        // opened afterwards.
+        metronome.open()
         val startNanos = System.nanoTime() + TAKE_LEAD_NANOS
         val origin = startNanos + config.countInBeats * beatNanos
         val end = origin + config.bars.toLong() * pulses * beatNanos
@@ -252,12 +256,16 @@ internal class TakeRecorder(
     /**
      * Stops the take: the metronome stops and the session is closed.
      *
+     * The audio line is released with it: the sound card is free while the app waits for the
+     * next take, and the next take opens it again.
+     *
      * @param session the session that runs.
      */
     fun stop(session: Session) {
         session.done = true
         session.ticker.interrupt()
         session.ticker.join(300)
+        metronome.release()
     }
 
     /** Closes the metronome: the app is going down. */

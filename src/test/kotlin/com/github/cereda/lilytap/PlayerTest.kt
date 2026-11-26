@@ -56,6 +56,18 @@ class PlayerTest {
     }
 
     @Test
+    fun `the player holds the sound card only while it plays`() {
+        val player = Player(0.0)
+        assertFalse(player.hasAudio, "the player does not hold the sound card before the playback")
+        player.play(score())
+        Thread.sleep(50)
+        player.stop()
+        Thread.sleep(300)
+        assertFalse(player.hasAudio, "the sound card is free when the playback ends")
+        player.close()
+    }
+
+    @Test
     fun `play after stop does not start two threads`() {
         val player = Player(0.0)
         val positions = mutableListOf<Double>()

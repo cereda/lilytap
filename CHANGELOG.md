@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The app does not hold the sound card while it waits. The audio line is opened when a take
+  starts and closed when the take ends, and the playback of a score does the same. A sound card
+  that is busy with something else blocks the open, so a window that held the card from the
+  moment it opened could leave the launch waiting for the device — and could leave the take
+  without a click. The line is now opened before the schedule of the take is made, so the first
+  click is still in time.
+
 ## [0.22.2] - 2026-11-26
 
 ### Fixed

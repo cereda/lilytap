@@ -2,6 +2,7 @@
 package com.github.cereda.lilytap
 
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.LockSupport
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
@@ -25,6 +26,9 @@ private const val PLAYBACK_LEAD_NANOS = 40_000_000L
  * plays a short click at the note onset instead, with an accent on bar downbeats. Playback runs
  * on its own thread and reports the current position in milliseconds via [onPosition].
  *
+ * The audio line is opened when the playback starts and closed when it ends, so the app does
+ * not hold the sound card while nothing is playing.
+ *
  * Audio output latency cannot be reliably auto-measured through the Java Sound API, so the caller
  * must supply [audioLatencyMs] (the window's **Audio latency** setting). Playback is shifted
  * earlier by this amount so the sound reaches the listener's ears in time with the visual playhead.
@@ -35,14 +39,16 @@ class Player(
 ) : AutoCloseable {
     private val sampleRate = 44_100f
     private val format = AudioFormat(sampleRate, 16, 1, true, false)
-    private val line: SourceDataLine? = openLine()
+
+    /** The audio line, while it is open. */
+    private val line = AtomicReference<SourceDataLine?>(null)
 
     /** Playback clicks: lower and longer than the recording metronome, so they are distinct. */
     private val beatClick = clickWave(600.0, 0.035, 120.0, sampleRate)
     private val beatAccent = clickWave(900.0, 0.035, 120.0, sampleRate)
 
     /** True if an audio output line could be opened; false means playback is silent. */
-    val hasAudio: Boolean get() = line != null
+    val hasAudio: Boolean get() = line.get() != null
 
     private val playing = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
@@ -50,15 +56,34 @@ class Player(
     @Volatile
     private var playbackThread: Thread? = null
 
-    private fun openLine(): SourceDataLine? =
-        try {
-            AudioSystem.getSourceDataLine(format).also {
-                it.open(format, 4096)
-                it.start()
-            }
-        } catch (_: Exception) {
-            null
+    /**
+     * Opens the audio line.
+     *
+     * The line is opened before the clock of the playback is sampled: opening it can take tens
+     * of milliseconds, and the first note would start late otherwise.
+     */
+    private fun openLine() {
+        if (closed.get()) return
+        if (line.get() != null) return
+        line.set(
+            try {
+                AudioSystem.getSourceDataLine(format).also {
+                    it.open(format, 4096)
+                    it.start()
+                }
+            } catch (_: Exception) {
+                null
+            },
+        )
+    }
+
+    /** Closes the audio line: the sound card is free again. */
+    private fun releaseLine() {
+        line.getAndSet(null)?.let {
+            runCatching { it.stop() }
+            runCatching { it.close() }
         }
+    }
 
     /** Sine-tone samples for [freq] Hz lasting [seconds], with ADSR envelope and a second harmonic. */
     private fun toneSamples(
@@ -88,7 +113,7 @@ class Player(
 
     /** Plays [samples] on the audio line, blocking until done or playback stops. */
     private fun playSamples(samples: ByteArray) {
-        val l = line ?: return
+        val l = line.get() ?: return
         val chunk = 512
         var offset = 0
         while (offset < samples.size && playing.get() && !closed.get()) {
@@ -143,6 +168,10 @@ class Player(
             return 0L
         }
 
+        // The line is opened before the clock below is sampled: opening it can take tens of
+        // milliseconds, and the first note would start late otherwise.
+        openLine()
+
         val latencyNanos = (audioLatencyMs * 1_000_000).roundToLong()
         // The first event is written `latencyNanos` before its beat, so the origin has to carry
         // that head start too: otherwise the first event is written in the past and sounds late.
@@ -157,6 +186,8 @@ class Player(
                     }
                 } finally {
                     playing.set(false)
+                    // The sound card is free again: the line is only held while the score plays.
+                    releaseLine()
                     onDone?.invoke()
                 }
             }
@@ -220,10 +251,7 @@ class Player(
         if (!closed.compareAndSet(false, true)) return
         stop()
         // Close the line first to unblock any in-progress write
-        line?.let {
-            runCatching { it.stop() }
-            runCatching { it.close() }
-        }
+        releaseLine()
         playbackThread?.join(1_000)
     }
 }

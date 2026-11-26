@@ -15,6 +15,10 @@ import javax.sound.sampled.SourceDataLine
  * Click targets are computed from a fixed origin, so timing error never accumulates over the
  * course of a recording.
  *
+ * The audio line is opened when a take starts and closed when it ends, so the app does not
+ * hold the sound card while nothing is playing. Opening it can take tens of milliseconds, so
+ * it is opened before the schedule of the take is made and the first click is not late.
+ *
  * Audio output latency cannot be reliably auto-measured through the Java Sound API, so the
  * caller must supply [audioLatencyMs] (the window's **Audio latency** setting).
  */
@@ -24,11 +28,43 @@ class Metronome : AutoCloseable {
     private val normal = ClickSound.NORMAL.wave(sampleRate)
     private val beat = ClickSound.BEAT.wave(sampleRate)
     private val downbeat = ClickSound.DOWNBEAT.wave(sampleRate)
-    private val line: SourceDataLine? = openLine()
+
+    /** The audio line, while it is open. */
+    private val line = AtomicReference<SourceDataLine?>(null)
+
+    /** True while the audio line is open; false means the clicks go to the terminal bell. */
+    val hasAudio: Boolean get() = line.get() != null
+
     private val closed = AtomicBoolean(false)
 
     /** The thread currently running [run()], so [close()] can interrupt it. */
     private val currentThread = AtomicReference<Thread?>(null)
+
+    /**
+     * Opens the audio line.
+     *
+     * The line is opened before the schedule of the take is made: opening it can take tens of
+     * milliseconds, and a click that is late because of that is a click that is out of time.
+     * Opening it twice is harmless: the line that is already open is kept.
+     */
+    fun open() {
+        if (closed.get()) return
+        if (line.get() != null) return
+        line.set(openLine())
+    }
+
+    /**
+     * Closes the audio line: the sound card is free again.
+     *
+     * The metronome can open it again later: a take opens the line, and the take after it
+     * opens it once more.
+     */
+    fun release() {
+        line.getAndSet(null)?.let {
+            runCatching { it.stop() }
+            runCatching { it.close() }
+        }
+    }
 
     private fun openLine(): SourceDataLine? =
         try {
@@ -50,7 +86,7 @@ class Metronome : AutoCloseable {
                 ClickAccent.BEAT -> beat
                 ClickAccent.DOWNBEAT -> downbeat
             }
-        val l = line
+        val l = line.get()
         if (l != null) {
             try {
                 l.write(data, 0, data.size)
@@ -120,9 +156,6 @@ class Metronome : AutoCloseable {
         if (!closed.compareAndSet(false, true)) return
         // Interrupt any running run() thread so it exits sleepUntil() promptly.
         currentThread.getAndSet(null)?.interrupt()
-        line?.let {
-            runCatching { it.stop() }
-            runCatching { it.close() }
-        }
+        release()
     }
 }
