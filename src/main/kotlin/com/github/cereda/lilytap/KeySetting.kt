@@ -164,7 +164,7 @@ internal class KeySetting(
      */
     private fun faultText(fault: KeyFault?): String {
         val problem = fault ?: KeyFault.Malformed(field.text)
-        return tooltip(listOf(problem.title) + problem.lines)
+        return tooltipParagraphs(listOf(problem.title) + problem.lines)
     }
 
     /** Writes the name of the key in the field, unless it is being typed in. */

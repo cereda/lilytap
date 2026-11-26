@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Too many accidentals**, **Not a note name** — and lines that say what was written, what is
   accepted and what to do about it. The key and the pitch field say the same words as the
   dialog, and a refused transposition names the key the piece would have landed in.
+- The paragraphs of a message are a little apart: the lines of an error say one under the
+  other with a small gap between them, the way paragraphs are set.
 
 ## [0.24.0] - 2026-11-26
 

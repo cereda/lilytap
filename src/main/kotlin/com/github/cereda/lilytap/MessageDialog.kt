@@ -43,7 +43,7 @@ internal fun showMessage(
             foreground = message.accent
         }
     val body =
-        JLabel(htmlLines(BODY_WIDTH, message.lines)).apply {
+        JLabel(htmlParagraphs(BODY_WIDTH, message.lines)).apply {
             font = Theme.font(13f)
             foreground = Theme.dim
         }

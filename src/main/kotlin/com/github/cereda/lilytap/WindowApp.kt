@@ -512,7 +512,7 @@ internal class WindowApp {
         val pitch = Pitch.parse(text)
         if (pitch == null) {
             pitchField.invalid = true
-            pitchField.toolTipText = tooltip(listOf(PITCH_ERROR_TITLE) + pitchErrorLines(text))
+            pitchField.toolTipText = tooltipParagraphs(listOf(PITCH_ERROR_TITLE) + pitchErrorLines(text))
             return
         }
         pitchField.invalid = false
