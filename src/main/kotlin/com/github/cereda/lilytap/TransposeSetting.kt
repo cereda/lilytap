@@ -291,7 +291,7 @@ internal class IntervalPanel(
         val fm = g2.fontMetrics
         val baseline = PAD + HEADER_H - 6
         val cx = left + 6.0
-        val cy = (baseline - fm.ascent / 2.0).toDouble()
+        val cy = baseline - fm.ascent / 2.0
         val arrow = Path2D.Double()
         if (up) {
             arrow.moveTo(cx - 4.0, cy + 3.0)
